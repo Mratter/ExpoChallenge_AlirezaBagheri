@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -8,7 +8,7 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react'
-import { runComparison } from './api'
+import { ComparisonError, runComparison } from './api'
 import { services, type CompareResponse, type Scenario, type Service } from './types'
 
 const serviceLabels: Record<Service, string> = {
@@ -40,6 +40,7 @@ const defaultScenario: Scenario = {
 }
 
 type ViewMode = 'trajectory' | 'audit'
+type ComparisonFailure = { code: string; message: string }
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`
@@ -47,6 +48,13 @@ function formatPercent(value: number): string {
 
 function formatUnits(value: number): string {
   return value.toFixed(1)
+}
+
+function measuredViolations(result: CompareResponse, planner: 'candidate' | 'baseline'): number {
+  return result[planner].trajectory.reduce(
+    (total, day) => total + day.projection.constraint_violations,
+    0,
+  )
 }
 
 function linePath(values: number[], width = 660, height = 156): string {
@@ -196,7 +204,8 @@ function ScenarioEditor({
           checked={draft.forced_shock !== null}
           onChange={(event) => onDraft({ ...draft, forced_shock: event.target.checked ? { day: 5, type: 'utility', severity: 0.26 } : null })}
         />
-        <span><b>Force utility failure</b><small>Day 5 at 26% severity</small></span>
+        <span className="checkbox-control" aria-hidden="true"><Check size={14} /></span>
+        <span className="forced-copy"><b>Force utility failure</b><small>Day 5 at 26% severity</small></span>
       </label>
 
       <button className="run-button" type="button" onClick={onRun} disabled={busy}>
@@ -277,7 +286,7 @@ function App() {
   const [seed, setSeed] = useState(424242)
   const [result, setResult] = useState<CompareResponse | null>(null)
   const [busy, setBusy] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ComparisonFailure | null>(null)
   const [selectedDay, setSelectedDay] = useState(5)
   const [view, setView] = useState<ViewMode>('trajectory')
 
@@ -290,7 +299,11 @@ function App() {
       setSelectedDay(Math.min(5, response.scenario.horizon_days))
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return
-      setError(caught instanceof Error ? caught.message : 'The comparison could not be completed.')
+      setResult(null)
+      setError({
+        code: caught instanceof ComparisonError ? caught.code : 'RUNTIME_UNREACHABLE',
+        message: caught instanceof Error ? caught.message : 'The comparison could not be completed.',
+      })
     } finally {
       if (!signal?.aborted) setBusy(false)
     }
@@ -303,7 +316,10 @@ function App() {
   }, [execute])
 
   const candidateWins = (result?.comparison.candidate_minus_baseline ?? 0) >= 0
-  const shockCount = useMemo(() => result?.shock_schedule.filter((shock) => shock.type).length ?? 0, [result])
+  const shockCount = result?.shock_schedule.filter((shock) => shock.type).length ?? 0
+  const runtimeBlocked = error !== null && error.code !== 'INVALID_SCENARIO'
+  const candidateViolationTotal = result ? measuredViolations(result, 'candidate') : 0
+  const baselineViolationTotal = result ? measuredViolations(result, 'baseline') : 0
 
   const reset = () => {
     setDraft(defaultScenario)
@@ -317,9 +333,9 @@ function App() {
           <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
           <div><p>Civic Relay</p><h1>Recovery desk</h1></div>
         </div>
-        <div className="runtime-strip">
-          <span className={`status-dot ${error ? 'status-error' : ''}`} />
-          <span>{error ? 'Runtime blocked' : 'Local deterministic runtime'}</span>
+        <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
+          <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
+          <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic runtime'}</span>
           <b>PCG64</b>
           <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
         </div>
@@ -331,7 +347,7 @@ function App() {
           {error ? (
             <div className="blocking-error" role="alert">
               <AlertTriangle size={24} />
-              <div><h2>Comparison blocked</h2><p>{error}</p><button type="button" onClick={() => void execute(draft, seed)}>Try again</button></div>
+              <div><h2>{error.code === 'INVALID_SCENARIO' ? 'Scenario invalid' : 'Comparison blocked'}</h2><p>{error.message}</p><button type="button" onClick={() => void execute(draft, seed)}>Try again</button></div>
             </div>
           ) : null}
 
@@ -354,7 +370,13 @@ function App() {
                   <p className="section-kicker">Comparison / seed {result.seed}</p>
                   <h2>{result.scenario.name}</h2>
                 </div>
-                <div className="proof-badge"><ShieldCheck size={18} /><span><b>0 violations</b>shared constraints</span></div>
+                <div
+                  className="proof-badge"
+                  aria-label={`Measured constraint violations: candidate ${candidateViolationTotal}, baseline ${baselineViolationTotal}`}
+                >
+                  <ShieldCheck size={18} />
+                  <span><b>Candidate {candidateViolationTotal} / baseline {baselineViolationTotal}</b>Measured constraint violations</span>
+                </div>
               </div>
 
               <section className="metric-ribbon" aria-label="Comparison summary">

@@ -27,9 +27,12 @@ Signed AUC delta is `+0.00235212`; shared shock-tape SHA-256 is `af3a57e9b378700
 ## Failure Evidence
 
 - Horizon 31 returns HTTP 422 `INVALID_SCENARIO` with field details.
-- A mocked corrupt artifact returns HTTP 503 `DEPENDENCY_NOT_READY`.
+- Live missing and corrupt artifacts leave `/health/live` at 200 but make readiness, metadata, comparison, and `/` return structured HTTP 503 `DEPENDENCY_NOT_READY`; the primary UI is not served.
+- The UI clears prior candidate/baseline metrics, trajectories, audit rows, and hashes after invalid or dependency failures.
 - An occupied fixed port blocks preflight.
 - A missing compiled frontend blocks runtime import when `INNOVERSE_RUNTIME=1`.
+
+Full preflight rejects drift in manifest path, bytes, SHA-256, license, source, or version; policy identity, version, feature order, weights, or calibration schema; and exposed API/model/dataset version or schema metadata. The smoke run also verifies that planner totals equal the sum of measured daily violations.
 
 ## Limitation
 

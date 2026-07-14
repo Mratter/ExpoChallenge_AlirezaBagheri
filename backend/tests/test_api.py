@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.artifact import ArtifactError
@@ -15,8 +17,11 @@ def test_required_health_and_meta_endpoints() -> None:
     assert ready.json()["status"] == "ready"
     meta = client.get("/api/v1/meta")
     assert meta.status_code == 200
+    assert meta.json()["schema_version"] == "1.0.0"
     assert meta.json()["dataset"]["empirical"] is False
+    assert meta.json()["dataset"]["schema_version"] == "1.0.0"
     assert meta.json()["model"]["artifact_type"] == "deterministic_linear_policy_candidate"
+    assert meta.json()["model"]["schema_version"] == "1.0.0"
 
 
 def test_gate2_fixture_is_canonical_deterministic_and_constrained() -> None:
@@ -76,3 +81,28 @@ def test_corrupt_required_artifact_fails_closed() -> None:
         response = client.get("/health/ready")
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "DEPENDENCY_NOT_READY"
+
+
+@pytest.mark.parametrize("artifact_state", ["missing", "corrupt"])
+def test_live_artifact_loss_blocks_api_and_primary_ui(
+    tmp_path: Path, artifact_state: str
+) -> None:
+    policy_path = tmp_path / "policy.json"
+    if artifact_state == "corrupt":
+        policy_path.write_bytes(b"{}")
+
+    with patch("backend.app.artifact.POLICY_PATH", policy_path):
+        assert client.get("/health/live").status_code == 200
+        responses = [
+            client.get("/health/ready"),
+            client.get("/api/v1/meta"),
+            client.post("/api/v1/simulations/compare", json={"seed": 1, "scenario": {}}),
+            client.get("/"),
+        ]
+
+    for response in responses:
+        assert response.status_code == 503
+        assert response.headers["content-type"].startswith("application/json")
+        assert response.json()["error"]["code"] == "DEPENDENCY_NOT_READY"
+        assert "candidate" not in response.json()
+    assert b"Civic Relay" not in responses[-1].content

@@ -76,6 +76,15 @@ def main() -> None:
     meta = json.loads(meta_bytes)
     if status != 200 or meta["default_seed"] != 20260714:
         raise AssertionError("runtime metadata is incomplete")
+    if meta["schema_version"] != "1.0.0":
+        raise AssertionError("runtime API schema metadata is incomplete")
+    if meta["model"]["version"] != "1.0.0" or meta["model"]["schema_version"] != "1.0.0":
+        raise AssertionError("runtime model version metadata is incomplete")
+    if (
+        meta["dataset"]["version"] != "1.0.0"
+        or meta["dataset"]["schema_version"] != "1.0.0"
+    ):
+        raise AssertionError("runtime dataset version metadata is incomplete")
 
     unseen = {
         "seed": 118773,

@@ -89,9 +89,11 @@ describe('recovery desk', () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Central district restart' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Run comparison' })).toBeEnabled()
-    expect(screen.getByText('0 violations')).toBeVisible()
+    expect(screen.getByText('Candidate 0 / baseline 0')).toBeVisible()
+    expect(screen.getByText('Measured constraint violations')).toBeVisible()
     expect(screen.getByText(/not PPO/i)).toBeVisible()
     expect(screen.getByLabelText('Transport initial state')).toHaveAttribute('min', '5')
+    expect(screen.getByRole('checkbox', { name: /Force utility failure/i })).toBeChecked()
   })
 
   it('opens the full daily audit from the result view', async () => {
@@ -101,4 +103,49 @@ describe('recovery desk', () => {
     expect(screen.getByRole('table', { name: 'Full deterministic daily comparison' })).toBeVisible()
     expect(screen.getAllByRole('row')).toHaveLength(15)
   })
+
+  it('derives candidate and baseline violation totals from daily measurements', async () => {
+    const fixture = responseFixture()
+    fixture.candidate.trajectory[0].projection.constraint_violations = 2
+    fixture.baseline.trajectory[0].projection.constraint_violations = 1
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => fixture,
+    }))
+
+    render(<App />)
+
+    expect(await screen.findByText('Candidate 2 / baseline 1')).toBeVisible()
+    expect(
+      screen.getByLabelText('Measured constraint violations: candidate 2, baseline 1'),
+    ).toBeVisible()
+  })
+
+  it.each([
+    [422, 'INVALID_SCENARIO', 'Days must be at most 30.', 'Scenario invalid'],
+    [503, 'DEPENDENCY_NOT_READY', 'Frozen policy is unavailable.', 'Comparison blocked'],
+  ])(
+    'clears prior evidence after a %s error',
+    async (status, code, message, heading) => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => responseFixture() })
+        .mockResolvedValueOnce({
+          ok: false,
+          status,
+          json: async () => ({ error: { code, message, details: [] } }),
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      render(<App />)
+      await screen.findByRole('heading', { name: 'Central district restart' })
+
+      fireEvent.change(screen.getByLabelText('Days'), { target: { value: '31' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Run comparison' }))
+
+      expect(await screen.findByRole('heading', { name: heading })).toBeVisible()
+      expect(screen.getByRole('alert')).toHaveTextContent(message)
+      expect(screen.queryByLabelText('Comparison summary')).not.toBeInTheDocument()
+      expect(screen.queryByText('Measured constraint violations')).not.toBeInTheDocument()
+      expect(screen.queryByText('Shock tape')).not.toBeInTheDocument()
+    },
+  )
 })

@@ -12,7 +12,7 @@ The Gate 2 candidate is a checksum-verified linear heuristic selected on synthet
 .\scripts\run.ps1 -Profile cpu
 ```
 
-Open `http://127.0.0.1:4117`. `run.ps1` does not open a browser and uses no outbound runtime connection. A port collision, missing compiled UI, or corrupt artifact is a blocking error.
+Open `http://127.0.0.1:4117`. `run.ps1` does not open a browser and uses no outbound runtime connection. A port collision, missing compiled UI, or invalid artifact bundle is a blocking error. If the required artifact is lost after startup, every route except process liveness returns structured `503 DEPENDENCY_NOT_READY`; the primary UI is not served in a degraded state.
 
 Run the complete live verification separately while port 4117 is free:
 

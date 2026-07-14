@@ -2,7 +2,7 @@
 
 ## Runtime Shape
 
-`scripts/run.ps1` launches one uv-managed Python 3.12 process on `127.0.0.1:4117`. FastAPI owns `/health/*` and `/api/v1/*`, then serves the compiled React/Vite files at `/`. Runtime requires no outbound network. Missing frontend output, a corrupt policy checksum, or port collision blocks startup/readiness rather than selecting a fallback.
+`scripts/run.ps1` launches one uv-managed Python 3.12 process on `127.0.0.1:4117`. FastAPI owns `/health/*` and `/api/v1/*`, then serves the compiled React/Vite files at `/`. Runtime requires no outbound network. Missing frontend output, an invalid policy bundle, or port collision blocks startup/readiness rather than selecting a fallback. A request guard revalidates the policy bundle for every route except process liveness, so live dependency loss also blocks the compiled UI and all primary API routes with structured JSON `503` responses.
 
 ```text
 React scenario editor
@@ -55,3 +55,7 @@ The baseline score is `priority*(1-q')*(2.5 when q'<.30 else 1)` and is normaliz
 - `POST /api/v1/simulations/compare`: strict scenario in; canonical sorted JSON comparison out
 
 Validation, missing dependency, and computation failures use `{ "error": { "code", "message", "details" } }`. No degraded response is returned.
+
+The artifact boundary validates manifest project/version plus exact path, byte count, SHA-256, license, and source. It then validates the policy identity, artifact type, version, ordered feature schema, bounded weights, calibration schema, and disclosure before any route can use it. `/api/v1/meta` exposes API, model, manifest, and dataset schema versions along with model feature order and dataset service order.
+
+The React request state keeps a successful result only after a successful response. Any non-abort validation, dependency, computation, or transport failure clears the previous result before rendering its error state, preventing prior metrics or hashes from coexisting with a failed request.

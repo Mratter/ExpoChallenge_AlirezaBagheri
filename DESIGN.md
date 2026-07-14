@@ -27,7 +27,9 @@ The product is a light civil-operations atlas, not a consumer dashboard or landi
 - Below 1100px the chart and ledger stack.
 - At 390x844 the editor and results become one document flow; compact service codes preserve input and ledger widths.
 
-All interactive targets are at least 40px, focus is visible, dynamic numbers are tabular, chart paths do not animate, and reduced-motion disables the spinner animation. Loading, empty, invalid/dependency error, and recompute states have distinct UI. A dependency failure changes the runtime indicator to blocked.
+All interactive targets own an actual DOM box of at least 40 by 40 px, including compact service inputs, the custom checkbox target, tabs, and the day range. Focus is visible, dynamic numbers are tabular, chart paths do not animate, and reduced-motion disables the spinner animation. Loading, empty, invalid/dependency error, and recompute states have distinct UI. A dependency failure changes the runtime indicator to a visible `Policy blocked` label even in the compact mobile header.
+
+The constraint proof is never a literal success claim. It sums each planner's returned daily `projection.constraint_violations`, labels candidate and baseline totals independently, and remains visible below 720px. Invalid or dependency errors remove the entire prior result region before their blocking state appears.
 
 ## Asset Audit
 

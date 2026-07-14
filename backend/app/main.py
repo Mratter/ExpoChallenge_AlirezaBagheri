@@ -11,11 +11,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.artifact import ArtifactError, load_policy
+from backend.app.artifact import (
+    ARTIFACT_LICENSE,
+    ARTIFACT_SOURCE,
+    MANIFEST_SCHEMA_VERSION,
+    POLICY_FEATURE_ORDER,
+    POLICY_SCHEMA_VERSION,
+    ArtifactError,
+    load_policy,
+)
 from backend.app.models import CompareRequest
 from backend.app.simulator import SERVICES, compare
 
 APP_VERSION = "0.2.0"
+API_SCHEMA_VERSION = "1.0.0"
+DATASET_SCHEMA_VERSION = "1.0.0"
+DATASET_VERSION = "1.0.0"
 DEFAULT_SEED = 20260714
 
 
@@ -50,6 +61,57 @@ def error_payload(code: str, message: str, details: Any | None = None) -> dict[s
     return {"error": {"code": code, "message": message, "details": details or []}}
 
 
+def dependency_error(exc: ArtifactError) -> CanonicalJSONResponse:
+    return CanonicalJSONResponse(
+        status_code=503,
+        content=error_payload("DEPENDENCY_NOT_READY", str(exc)),
+    )
+
+
+def metadata_payload(policy: dict[str, Any], checksum: str) -> dict[str, Any]:
+    return {
+        "app": "Autonomous City Recovery Planner",
+        "version": APP_VERSION,
+        "schema_version": API_SCHEMA_VERSION,
+        "commit": os.environ.get("INNOVERSE_COMMIT", "development"),
+        "profile": os.environ.get("INNOVERSE_PROFILE", "cpu"),
+        "default_seed": DEFAULT_SEED,
+        "services": list(SERVICES),
+        "model": {
+            "id": policy["id"],
+            "version": policy["version"],
+            "schema_version": POLICY_SCHEMA_VERSION,
+            "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
+            "artifact_type": policy["artifact_type"],
+            "feature_order": list(POLICY_FEATURE_ORDER),
+            "license": ARTIFACT_LICENSE,
+            "source": ARTIFACT_SOURCE,
+            "sha256": checksum,
+        },
+        "dataset": {
+            "id": "synthetic-city-dynamics-v1",
+            "version": DATASET_VERSION,
+            "schema_version": DATASET_SCHEMA_VERSION,
+            "license": "CC0-1.0",
+            "source": "backend/app/simulator.py",
+            "service_order": list(SERVICES),
+            "empirical": False,
+        },
+        "determinism": "numpy.PCG64 shock tape generated once per comparison",
+    }
+
+
+@app.middleware("http")
+async def require_policy_dependency(request: Request, call_next: Any) -> Response:
+    if request.url.path == "/health/live":
+        return await call_next(request)
+    try:
+        load_policy()
+    except ArtifactError as exc:
+        return dependency_error(exc)
+    return await call_next(request)
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
     details = [
@@ -72,10 +134,7 @@ def health_ready() -> Response | dict[str, str]:
     try:
         _, checksum = load_policy()
     except ArtifactError as exc:
-        return CanonicalJSONResponse(
-            status_code=503,
-            content=error_payload("DEPENDENCY_NOT_READY", str(exc)),
-        )
+        return dependency_error(exc)
     return {"policy_sha256": checksum, "status": "ready"}
 
 
@@ -84,31 +143,8 @@ def metadata() -> Response | dict[str, Any]:
     try:
         policy, checksum = load_policy()
     except ArtifactError as exc:
-        return CanonicalJSONResponse(
-            status_code=503,
-            content=error_payload("DEPENDENCY_NOT_READY", str(exc)),
-        )
-    return {
-        "app": "Autonomous City Recovery Planner",
-        "version": APP_VERSION,
-        "commit": os.environ.get("INNOVERSE_COMMIT", "development"),
-        "profile": os.environ.get("INNOVERSE_PROFILE", "cpu"),
-        "default_seed": DEFAULT_SEED,
-        "services": list(SERVICES),
-        "model": {
-            "id": policy["id"],
-            "version": policy["version"],
-            "artifact_type": policy["artifact_type"],
-            "sha256": checksum,
-        },
-        "dataset": {
-            "id": "synthetic-city-dynamics-v1",
-            "version": "1.0.0",
-            "license": "CC0-1.0",
-            "empirical": False,
-        },
-        "determinism": "numpy.PCG64 shock tape generated once per comparison",
-    }
+        return dependency_error(exc)
+    return metadata_payload(policy, checksum)
 
 
 @app.post("/api/v1/simulations/compare", response_model=None)
@@ -117,10 +153,7 @@ def compare_simulations(request: CompareRequest) -> Response | dict[str, Any]:
         policy, checksum = load_policy()
         return compare(request.scenario, request.seed, policy, checksum)
     except ArtifactError as exc:
-        return CanonicalJSONResponse(
-            status_code=503,
-            content=error_payload("DEPENDENCY_NOT_READY", str(exc)),
-        )
+        return dependency_error(exc)
     except (KeyError, TypeError, ValueError) as exc:
         return CanonicalJSONResponse(
             status_code=500,
