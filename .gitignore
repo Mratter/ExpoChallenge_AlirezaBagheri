@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.run/
+.cache/
+data/raw/
+models/
+*.log
+.env
+.gate2-passed
