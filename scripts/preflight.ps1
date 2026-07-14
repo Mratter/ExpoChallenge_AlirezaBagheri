@@ -1,8 +1,29 @@
 param([ValidateSet('cpu','gpu')][string]$Profile = 'cpu', [switch]$Full)
 $ErrorActionPreference = 'Stop'
-$marker = Join-Path (Split-Path -Parent $PSScriptRoot) '.gate2-passed'
-if (-not (Test-Path -LiteralPath $marker)) {
-    Write-Error 'Startup blocked: Gate 2 has not passed and no real vertical slice is available.'
-    exit 2
+Set-StrictMode -Version Latest
+$Root = Split-Path -Parent $PSScriptRoot
+
+if ($Profile -ne 'cpu') { throw 'The Gate 2 GPU profile is not implemented; use -Profile cpu.' }
+foreach ($Path in @('uv.lock', 'frontend/package-lock.json', 'frontend/dist/index.html', 'artifacts/frozen_policy.v1.json')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Root $Path))) { throw "Required dependency is missing: $Path" }
 }
-exit 0
+$Occupied = Get-NetTCPConnection -State Listen -LocalPort 4117 -ErrorAction SilentlyContinue
+if ($Occupied) { throw 'Fixed port 4117 is already occupied.' }
+
+Push-Location $Root
+try {
+    & uv run --frozen python scripts/preflight_check.py
+    if ($LASTEXITCODE -ne 0) { throw 'Artifact or smoke inference preflight failed' }
+    if ($Full) {
+        & uv run --frozen pytest
+        if ($LASTEXITCODE -ne 0) { throw 'backend tests failed' }
+        & uv run --frozen ruff check backend scripts
+        if ($LASTEXITCODE -ne 0) { throw 'backend lint failed' }
+        & npm test --prefix frontend
+        if ($LASTEXITCODE -ne 0) { throw 'frontend tests failed' }
+        & npm run build --prefix frontend
+        if ($LASTEXITCODE -ne 0) { throw 'frontend build failed' }
+    }
+    Write-Host '[preflight] PASS'
+}
+finally { Pop-Location }

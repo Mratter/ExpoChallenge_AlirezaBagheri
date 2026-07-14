@@ -9,5 +9,8 @@ __pycache__/
 data/raw/
 models/
 *.log
+*.tsbuildinfo
 .env
 .gate2-passed
+.playwright-cli/
+output/

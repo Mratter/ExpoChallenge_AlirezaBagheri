@@ -1,0 +1,23 @@
+import type { CompareResponse, Scenario } from './types'
+
+type ApiError = { error?: { code?: string; message?: string; details?: { message: string }[] } }
+
+export async function runComparison(
+  seed: number,
+  scenario: Scenario,
+  signal?: AbortSignal,
+): Promise<CompareResponse> {
+  const response = await fetch('/api/v1/simulations/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seed, scenario }),
+    signal,
+  })
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiError
+    const detail = payload.error?.details?.[0]?.message
+    throw new Error(detail ?? payload.error?.message ?? `Comparison failed (${response.status})`)
+  }
+  return (await response.json()) as CompareResponse
+}
+

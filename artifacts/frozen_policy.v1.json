@@ -1,0 +1,25 @@
+{
+  "artifact_type": "deterministic_linear_policy_candidate",
+  "calibration": {
+    "candidate_count": 56,
+    "objective": "mean weighted daily resilience AUC",
+    "scenario_count": 5,
+    "synthetic_only": true,
+    "winning_objective": 0.51479517
+  },
+  "disclosure": "Deterministic grid-selected linear heuristic on synthetic scenarios; not PPO, not empirically trained, and not operational guidance.",
+  "feature_order": [
+    "priority_deficit",
+    "criticality",
+    "marginal_gain",
+    "network_centrality"
+  ],
+  "feature_weights": {
+    "criticality": 0.2,
+    "marginal_gain": 0.8,
+    "network_centrality": 0.0,
+    "priority_deficit": 0.0
+  },
+  "id": "frozen-policy-candidate-v1",
+  "version": "1.0.0"
+}

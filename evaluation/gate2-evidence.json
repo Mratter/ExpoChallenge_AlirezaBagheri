@@ -1,0 +1,22 @@
+{
+  "artifact_sha256": "23762a44d67e83dd487558d595d3d9ed5f5e406915f488a076ac21190ab9a6e3",
+  "fixed_fixture": {
+    "candidate_rauc": 0.49401335,
+    "candidate_minus_baseline": 0.00235212,
+    "measured_constraint_violations": 0,
+    "schedule_sha256": "af3a57e9b378700a49a2da8d2042ebc9eb08178cc525cad93f4954306ae5ec81",
+    "seed": 424242,
+    "urgency_rauc": 0.49166123
+  },
+  "generated_by": "scripts/preflight_check.py and scripts/verify_runtime.py",
+  "schema_version": "1.0.0",
+  "unseen_runtime_fixture": {
+    "candidate_rauc": 0.47511509,
+    "candidate_minus_baseline": 0.00135125,
+    "identical_canonical_repeats": 5,
+    "measured_constraint_violations": 0,
+    "schedule_sha256": "7b590dcb045b5ca4026ba77a725e2631f70399be8b9e1433216ff325330a6c22",
+    "seed": 118773,
+    "urgency_rauc": 0.47376384
+  }
+}
