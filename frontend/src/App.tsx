@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -7,7 +7,7 @@ import {
   Database,
   Play,
   RotateCcw,
-  ShieldCheck,
+  Scale,
 } from 'lucide-react'
 import { ComparisonError, listSimulations, loadSimulation, runComparison } from './api'
 import {
@@ -49,6 +49,8 @@ const defaultScenario: Scenario = {
 type ViewMode = 'trajectory' | 'audit'
 type ComparisonFailure = { code: string; message: string }
 
+const viewModes: ViewMode[] = ['trajectory', 'audit']
+
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }
@@ -64,6 +66,27 @@ function measuredViolations(result: CompareResponse, planner: 'candidate' | 'bas
   )
 }
 
+function scenariosMatch(left: Scenario, right: Scenario): boolean {
+  const leftShock = left.forced_shock
+  const rightShock = right.forced_shock
+
+  return left.name === right.name
+    && left.horizon_days === right.horizon_days
+    && left.daily_budget === right.daily_budget
+    && left.shock_probability === right.shock_probability
+    && left.severity_min === right.severity_min
+    && left.severity_max === right.severity_max
+    && left.initial_services.every((value, index) => value === right.initial_services[index])
+    && left.priorities.every((value, index) => value === right.priorities[index])
+    && ((leftShock === null && rightShock === null) || (
+      leftShock !== null
+      && rightShock !== null
+      && leftShock.day === rightShock.day
+      && leftShock.type === rightShock.type
+      && leftShock.severity === rightShock.severity
+    ))
+}
+
 function linePath(values: number[], width = 660, height = 156): string {
   if (values.length === 0) return ''
   return values
@@ -75,9 +98,12 @@ function linePath(values: number[], width = 660, height = 156): string {
     .join(' ')
 }
 
-function ResilienceChart({ result }: { result: CompareResponse }) {
+function ResilienceChart({ result, selectedDay }: { result: CompareResponse; selectedDay: number }) {
   const baseline = result.baseline.trajectory.map((day) => day.resilience)
   const candidate = result.candidate.trajectory.map((day) => day.resilience)
+  const selectedIndex = selectedDay - 1
+  const selectedX = (selectedIndex / Math.max(result.scenario.horizon_days - 1, 1)) * 660
+  const shockCount = result.shock_schedule.filter((shock) => shock.type).length
   return (
     <figure className="chart-wrap" aria-labelledby="chart-title">
       <figcaption id="chart-title" className="chart-title">
@@ -86,8 +112,15 @@ function ResilienceChart({ result }: { result: CompareResponse }) {
       <div className="chart-legend" aria-hidden="true">
         <span><i className="legend-line candidate-line" />SB3 PPO / ONNX</span>
         <span><i className="legend-line baseline-line" />OR-Tools GLOP</span>
+        <span><i className="legend-shock-pair"><b /><b /></i>Shared / forced shocks</span>
+        <span><i className="legend-selected" />Selected day</span>
       </div>
-      <svg className="chart" viewBox="0 0 720 208" role="img" aria-label="Resilience comparison line chart">
+      <svg
+        className="chart"
+        viewBox="0 0 720 208"
+        role="img"
+        aria-label={`Resilience comparison line chart with ${shockCount} shared shocks; day ${selectedDay} selected`}
+      >
         <g transform="translate(42 20)">
           {[0.25, 0.5, 0.75, 1].map((tick) => (
             <g key={tick}>
@@ -97,19 +130,34 @@ function ResilienceChart({ result }: { result: CompareResponse }) {
               </text>
             </g>
           ))}
+          {result.shock_schedule.map((shock, index) => {
+            if (!shock.type) return null
+            const x = (index / Math.max(result.shock_schedule.length - 1, 1)) * 660
+            return (
+              <g key={`${shock.day}-${shock.type}`}>
+                <line
+                  x1={x}
+                  x2={x}
+                  y1="4"
+                  y2="156"
+                  className={shock.forced ? 'shared-shock-guide forced-shock-guide' : 'shared-shock-guide'}
+                />
+                <circle
+                  cx={x}
+                  cy="4"
+                  r={shock.forced ? 4.5 : 3.5}
+                  className={shock.forced ? 'shared-shock-dot forced-dot' : 'shared-shock-dot'}
+                >
+                  <title>{`Day ${shock.day}: ${shock.type}, ${formatPercent(shock.severity)}${shock.forced ? ', forced' : ''}`}</title>
+                </circle>
+              </g>
+            )
+          })}
+          <line x1={selectedX} x2={selectedX} y1="0" y2="156" className="selected-day-guide" />
           <path d={linePath(baseline)} className="series baseline-series" />
           <path d={linePath(candidate)} className="series candidate-series" />
-          {result.shock_schedule.map((shock, index) =>
-            shock.type ? (
-              <circle
-                key={`${shock.day}-${shock.type}`}
-                cx={(index / Math.max(result.shock_schedule.length - 1, 1)) * 660}
-                cy={156 - candidate[index] * 156}
-                r={shock.forced ? 5 : 3.5}
-                className={shock.forced ? 'shock-dot forced-dot' : 'shock-dot'}
-              />
-            ) : null,
-          )}
+          <circle cx={selectedX} cy={156 - candidate[selectedIndex] * 156} r="4" className="selected-point candidate-point" />
+          <circle cx={selectedX} cy={156 - baseline[selectedIndex] * 156} r="3.5" className="selected-point baseline-point" />
           <text x="0" y="181" className="chart-label">Day 1</text>
           <text x="660" y="181" textAnchor="end" className="chart-label">
             Day {result.scenario.horizon_days}
@@ -149,35 +197,44 @@ function ScenarioEditor({
 
   return (
     <aside className="scenario-panel" aria-labelledby="scenario-title">
+      <div className="scenario-scroll">
       <div className="panel-heading">
         <div>
           <p className="section-kicker">Scenario controls</p>
-          <h2 id="scenario-title">Recovery envelope</h2>
+          <h2 id="scenario-title" tabIndex={-1}>Recovery envelope</h2>
         </div>
-        <button className="icon-button" type="button" onClick={onReset} title="Reset fixture" aria-label="Reset fixture">
+        <button
+          className="icon-button"
+          type="button"
+          onClick={() => { if (!busy) onReset() }}
+          title="Reset fixture"
+          aria-label="Reset fixture"
+          aria-disabled={busy}
+        >
           <RotateCcw size={17} />
         </button>
       </div>
 
       <label className="field full-field">
         <span>Scenario name</span>
-        <input value={draft.name} maxLength={64} onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
+        <input value={draft.name} required minLength={1} maxLength={64} onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
       </label>
 
       <label className="field full-field saved-result-field">
         <span><ArchiveRestore size={13} />Saved results</span>
         <select
           aria-label="Restore saved result"
+          aria-disabled={busy || savedRuns.length === 0}
           value=""
-          disabled={busy || savedRuns.length === 0}
+          disabled={savedRuns.length === 0}
           onChange={(event) => {
-            if (event.target.value) onRestore(event.target.value)
+            if (!busy && event.target.value) onRestore(event.target.value)
           }}
         >
           <option value="">{savedRuns.length === 0 ? 'No saved results' : `Restore one of ${savedRuns.length}`}</option>
           {savedRuns.map((saved) => (
             <option key={saved.result_id} value={saved.result_id}>
-              {saved.scenario_name} / seed {saved.seed}
+              {saved.scenario_name} · seed {saved.seed} · {saved.result_id.slice(0, 8)}
             </option>
           ))}
         </select>
@@ -190,16 +247,16 @@ function ScenarioEditor({
         </label>
         <label className="field">
           <span>Days</span>
-          <input type="number" min="7" max="30" value={draft.horizon_days} onChange={(event) => onDraft({ ...draft, horizon_days: Number(event.target.value) })} />
+          <input id="horizon-days" type="number" min="7" max="30" value={draft.horizon_days} onChange={(event) => onDraft({ ...draft, horizon_days: Number(event.target.value) })} />
         </label>
         <label className="field">
           <span>Daily units</span>
-          <input type="number" min="50" max="500" step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} />
+          <input id="daily-budget" type="number" min="50" max="500" step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} />
         </label>
         <label className="field">
           <span>Shock chance</span>
           <div className="input-suffix">
-            <input type="number" min="0" max="35" step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} />
+            <input id="shock-probability" type="number" min="0" max="35" step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} />
             <b>%</b>
           </div>
         </label>
@@ -207,7 +264,7 @@ function ScenarioEditor({
 
       <fieldset className="service-editor">
         <legend>Service condition and priority</legend>
-        <div className="service-header" aria-hidden="true"><span>Service</span><span>State</span><span>Weight</span></div>
+        <div className="service-header" aria-hidden="true"><span>Service</span><span>State %</span><span>Weight</span></div>
         {services.map((service, index) => (
           <div className="service-input-row" key={service}>
             <span className="service-name"><b>{serviceCodes[service]}</b>{serviceLabels[service]}</span>
@@ -219,12 +276,12 @@ function ScenarioEditor({
 
       <div className="severity-fields">
         <label className="field">
-          <span>Severity min</span>
-          <input type="number" min="5" max="25" value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} />
+          <span>Severity min %</span>
+          <input id="severity-min" type="number" min="5" max="25" value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} />
         </label>
         <label className="field">
-          <span>Severity max</span>
-          <input type="number" min="10" max="40" value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} />
+          <span>Severity max %</span>
+          <input id="severity-max" type="number" min="10" max="40" value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} />
         </label>
       </div>
 
@@ -237,11 +294,14 @@ function ScenarioEditor({
         <span className="checkbox-control" aria-hidden="true"><Check size={14} /></span>
         <span className="forced-copy"><b>Force utility failure</b><small>Day 5 at 26% severity</small></span>
       </label>
+      </div>
 
-      <button className="run-button" type="button" onClick={onRun} disabled={busy}>
-        {busy ? <Activity className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
-        {busy ? 'Running both plans' : 'Run comparison'}
-      </button>
+      <div className="scenario-action-dock">
+        <button className="run-button" type="button" onClick={() => { if (!busy) onRun() }} aria-disabled={busy}>
+          {busy ? <Activity className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
+          {busy ? 'Running both plans' : 'Run comparison'}
+        </button>
+      </div>
     </aside>
   )
 }
@@ -251,7 +311,7 @@ function DayInspector({ result, selectedDay, onDay }: { result: CompareResponse;
   const candidate = result.candidate.trajectory[selectedDay - 1]
   const shock = result.shock_schedule[selectedDay - 1]
   return (
-    <section className="day-inspector" aria-labelledby="day-title">
+    <section className={`day-inspector ${shock.type ? 'shock-day' : 'steady-day'}`} aria-labelledby="day-title">
       <div className="day-control">
         <div>
           <p className="section-kicker">Daily allocation ledger</p>
@@ -264,22 +324,36 @@ function DayInspector({ result, selectedDay, onDay }: { result: CompareResponse;
         </div>
       </div>
       <input className="day-slider" aria-label="Inspect simulation day" type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} />
-      <div className="ledger-head" aria-hidden="true"><span>Service</span><span>End state</span><span>Candidate</span><span>Baseline</span></div>
-      <div className="service-ledger">
-        {services.map((service, index) => (
-          <div className="ledger-row" key={service}>
-            <div className="ledger-service"><b>{serviceCodes[service]}</b><span>{serviceLabels[service]}</span></div>
-            <div className="state-comparison">
-              <div className="state-track"><i className="candidate-fill" style={{ width: `${candidate.services_end[index] * 100}%` }} /></div>
-              <small>{formatPercent(candidate.services_end[index])} / {formatPercent(baseline.services_end[index])}</small>
+      <div className="ledger-table" role="table" aria-label={`Day ${selectedDay} service outcomes and allocations`}>
+        <div className="ledger-head" role="row">
+          <span role="columnheader">Service</span>
+          <span role="columnheader">End state</span>
+          <span className="candidate-column" role="columnheader">Candidate<small>units</small></span>
+          <span className="baseline-column" role="columnheader">Baseline<small>units</small></span>
+        </div>
+        <div className="service-ledger" role="rowgroup">
+          {services.map((service, index) => (
+            <div className="ledger-row" role="row" key={service}>
+              <div className="ledger-service" role="rowheader" aria-label={`${serviceCodes[service]} ${serviceLabels[service]}`}><b>{serviceCodes[service]}</b><span>{serviceLabels[service]}</span></div>
+              <div
+                className="state-comparison"
+                role="cell"
+                aria-label={`End state: candidate ${formatPercent(candidate.services_end[index])}, baseline ${formatPercent(baseline.services_end[index])}`}
+              >
+                <div className="state-tracks" aria-hidden="true">
+                  <span className="state-track"><i className="candidate-fill" style={{ width: `${candidate.services_end[index] * 100}%` }} /></span>
+                  <span className="state-track"><i className="baseline-fill" style={{ width: `${baseline.services_end[index] * 100}%` }} /></span>
+                </div>
+                <small aria-hidden="true"><span className="candidate-state">C {formatPercent(candidate.services_end[index])}</span><span className="baseline-state">B {formatPercent(baseline.services_end[index])}</span></small>
+              </div>
+              <strong className="candidate-number" role="cell">{formatUnits(candidate.allocation[index])}</strong>
+              <strong className="baseline-number" role="cell">{formatUnits(baseline.allocation[index])}</strong>
             </div>
-            <strong className="candidate-number">{formatUnits(candidate.allocation[index])}</strong>
-            <strong>{formatUnits(baseline.allocation[index])}</strong>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       <p className="projection-note">
-        Both proposals projected to {formatUnits(candidate.available_budget)} units. Candidate adjustment distance {candidate.projection.distance.toFixed(2)}; baseline {baseline.projection.distance.toFixed(2)}.
+        Shared available budget {formatUnits(candidate.available_budget)} units. Projection distance: candidate {candidate.projection.distance.toFixed(2)} / baseline {baseline.projection.distance.toFixed(2)}.
       </p>
     </section>
   )
@@ -287,26 +361,29 @@ function DayInspector({ result, selectedDay, onDay }: { result: CompareResponse;
 
 function AuditTable({ result }: { result: CompareResponse }) {
   return (
-    <div className="audit-scroll">
-      <table>
-        <caption>Full deterministic daily comparison</caption>
-        <thead><tr><th>Day</th><th>Shock</th><th>Budget</th><th>Candidate resilience</th><th>Baseline resilience</th><th>Delta</th></tr></thead>
-        <tbody>
-          {result.candidate.trajectory.map((day, index) => {
-            const baseline = result.baseline.trajectory[index]
-            return (
-              <tr key={day.day}>
-                <td>{day.day}</td>
-                <td>{day.shock.type ?? 'None'}{day.shock.forced ? ' (forced)' : ''}</td>
-                <td>{formatUnits(day.available_budget)}</td>
-                <td>{formatPercent(day.resilience)}</td>
-                <td>{formatPercent(baseline.resilience)}</td>
-                <td className={day.resilience - baseline.resilience >= 0 ? 'positive' : 'negative'}>{((day.resilience - baseline.resilience) * 100).toFixed(2)} pp</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <div className="audit-view">
+      <p className="audit-cue">Scroll for candidate, baseline, and delta <span aria-hidden="true">→</span></p>
+      <div className="audit-scroll" role="region" aria-label="Scrollable daily comparison table" tabIndex={0}>
+        <table>
+          <caption>Full deterministic daily comparison</caption>
+          <thead><tr><th>Day</th><th>Shock</th><th>Budget</th><th>Candidate resilience</th><th>Baseline resilience</th><th>Delta</th></tr></thead>
+          <tbody>
+            {result.candidate.trajectory.map((day, index) => {
+              const baseline = result.baseline.trajectory[index]
+              return (
+                <tr key={day.day}>
+                  <td>{day.day}</td>
+                  <td>{day.shock.type ?? 'None'}{day.shock.forced ? ' (forced)' : ''}</td>
+                  <td>{formatUnits(day.available_budget)}</td>
+                  <td>{formatPercent(day.resilience)}</td>
+                  <td>{formatPercent(baseline.resilience)}</td>
+                  <td className={day.resilience - baseline.resilience >= 0 ? 'positive' : 'negative'}>{((day.resilience - baseline.resilience) * 100).toFixed(2)} pp</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -320,6 +397,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(5)
   const [view, setView] = useState<ViewMode>('trajectory')
   const [savedRuns, setSavedRuns] = useState<SavedResultSummary[]>([])
+  const errorRef = useRef<HTMLDivElement>(null)
 
   const execute = useCallback(async (scenario: Scenario, runSeed: number, signal?: AbortSignal) => {
     setBusy(true)
@@ -369,15 +447,57 @@ function App() {
     return () => controller.abort()
   }, [execute])
 
+  useEffect(() => {
+    if (!error) return
+    errorRef.current?.focus()
+    errorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'auto' })
+  }, [error])
+
   const candidateWins = (result?.comparison.candidate_minus_baseline ?? 0) >= 0
   const shockCount = result?.shock_schedule.filter((shock) => shock.type).length ?? 0
   const runtimeBlocked = error !== null && error.code !== 'INVALID_SCENARIO'
   const candidateViolationTotal = result ? measuredViolations(result, 'candidate') : 0
   const baselineViolationTotal = result ? measuredViolations(result, 'baseline') : 0
+  const draftChanged = result !== null && (
+    seed !== result.seed || !scenariosMatch(draft, result.scenario)
+  )
 
   const reset = () => {
     setDraft(defaultScenario)
     setSeed(424242)
+    setResult(null)
+    setError(null)
+    setSelectedDay(5)
+    setView('trajectory')
+  }
+
+  const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = viewModes.indexOf(view)
+    let nextView: ViewMode | null = null
+    if (event.key === 'ArrowRight') nextView = viewModes[(currentIndex + 1) % viewModes.length]
+    if (event.key === 'ArrowLeft') nextView = viewModes[(currentIndex - 1 + viewModes.length) % viewModes.length]
+    if (event.key === 'Home') nextView = viewModes[0]
+    if (event.key === 'End') nextView = viewModes[viewModes.length - 1]
+    if (nextView === null) return
+    event.preventDefault()
+    setView(nextView)
+    document.getElementById(`tab-${nextView}`)?.focus()
+  }
+
+  const reviewScenarioControls = () => {
+    const invalidField = document.querySelector<HTMLElement>('input:invalid, select:invalid')
+    const fieldHints: [string, string][] = [
+      ['severity_min', '#severity-min'],
+      ['severity_max', '#severity-max'],
+      ['horizon_days', '#horizon-days'],
+      ['daily_budget', '#daily-budget'],
+      ['shock_probability', '#shock-probability'],
+    ]
+    const hintedSelector = fieldHints.find(([hint]) => error?.message.includes(hint))?.[1]
+    const hintedField = hintedSelector ? document.querySelector<HTMLElement>(hintedSelector) : null
+    const target = invalidField ?? hintedField ?? document.getElementById('scenario-title')
+    target?.focus()
+    target?.scrollIntoView?.({ block: 'center', behavior: 'auto' })
   }
 
   return (
@@ -390,6 +510,7 @@ function App() {
         <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
           <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
           <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
+          <span className="runtime-mobile-label" aria-hidden="true">{busy ? 'Running' : 'Local'}</span>
           <b>ONNX / PCG64</b>
           <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
         </div>
@@ -407,16 +528,22 @@ function App() {
           savedRuns={savedRuns}
           onRestore={(resultId) => void restore(resultId)}
         />
-        <section className="results-panel" aria-live="polite">
+        <section className="results-panel" aria-live="polite" aria-busy={busy}>
           {error ? (
-            <div className="blocking-error" role="alert">
-              <AlertTriangle size={24} />
-              <div><h2>{error.code === 'INVALID_SCENARIO' ? 'Scenario invalid' : 'Comparison blocked'}</h2><p>{error.message}</p><button type="button" onClick={() => void execute(draft, seed)}>Try again</button></div>
+            <div ref={errorRef} className={`blocking-error ${error.code === 'INVALID_SCENARIO' ? 'invalid-error' : ''}`} role="alert" tabIndex={-1}>
+              <AlertTriangle size={24} aria-hidden="true" />
+              <div>
+                <h2>{error.code === 'INVALID_SCENARIO' ? 'Scenario invalid' : 'Comparison blocked'}</h2>
+                <p>{error.message}</p>
+                <button type="button" onClick={error.code === 'INVALID_SCENARIO' ? reviewScenarioControls : () => void execute(draft, seed)}>
+                  {error.code === 'INVALID_SCENARIO' ? 'Review scenario controls' : 'Try again'}
+                </button>
+              </div>
             </div>
           ) : null}
 
           {busy && !result ? (
-            <div className="loading-state" aria-label="Computing both recovery plans">
+            <div className="loading-state" role="status" aria-label="Computing both recovery plans">
               <Activity className="spin" size={28} /><h2>Computing shared shock tape</h2><p>Running both planners through the same daily conditions.</p>
             </div>
           ) : null}
@@ -434,33 +561,55 @@ function App() {
                   <p className="section-kicker">Comparison / seed {result.seed}</p>
                   <h2>{result.scenario.name}</h2>
                 </div>
-                <div
-                  className="proof-badge"
-                  aria-label={`Measured constraint violations: candidate ${candidateViolationTotal}, baseline ${baselineViolationTotal}`}
-                >
-                  <ShieldCheck size={18} />
-                  <span><b>Candidate {candidateViolationTotal} / baseline {baselineViolationTotal}</b>Measured constraint violations</span>
+                <div className="result-statuses">
+                  {draftChanged ? <div className="draft-status" role="status"><b>Draft changed</b><span>Run to refresh evidence</span></div> : null}
+                  <div
+                    className="proof-badge"
+                    aria-label={`Measured constraint violations: candidate ${candidateViolationTotal}, baseline ${baselineViolationTotal}`}
+                  >
+                    <Scale size={18} />
+                    <span><b>Candidate {candidateViolationTotal} / baseline {baselineViolationTotal}</b>Measured constraint violations</span>
+                  </div>
                 </div>
               </div>
 
               <section className="metric-ribbon" aria-label="Comparison summary">
-                <div className="primary-metric"><span>Resilience AUC</span><strong>{formatPercent(result.candidate.rauc)}</strong><small>SB3 PPO / ONNX</small></div>
+                <div className="primary-metric"><span>Candidate resilience AUC</span><strong>{formatPercent(result.candidate.rauc)}</strong><small>SB3 PPO / ONNX</small></div>
                 <div className="metric-divider" aria-hidden="true" />
-                <div className="comparison-metric"><span>Against visible OR-Tools planner</span><strong>{formatPercent(result.baseline.rauc)}</strong><small className={candidateWins ? 'positive' : 'negative'}>{result.comparison.candidate_minus_baseline >= 0 ? '+' : ''}{(result.comparison.candidate_minus_baseline * 100).toFixed(2)} percentage points</small></div>
-                <dl className="run-facts"><div><dt>Shocks</dt><dd>{shockCount}</dd></div><div><dt>Recovery days</dt><dd>{result.candidate.days_to_pre_shock_recovery_after_largest_loss} / {result.baseline.days_to_pre_shock_recovery_after_largest_loss}</dd></div><div><dt>Daily budget</dt><dd>{result.scenario.daily_budget}</dd></div></dl>
+                <div className="comparison-metric">
+                  <span>Baseline resilience AUC</span>
+                  <strong>{formatPercent(result.baseline.rauc)}</strong>
+                  <small>Visible OR-Tools GLOP</small>
+                  <em className={`delta-readout ${candidateWins ? 'positive' : 'negative'}`}>Measured delta {result.comparison.candidate_minus_baseline >= 0 ? '+' : ''}{(result.comparison.candidate_minus_baseline * 100).toFixed(2)} pp</em>
+                </div>
+                <dl className="run-facts">
+                  <div><dt>Shocks</dt><dd>{shockCount}</dd></div>
+                  <div>
+                    <dt>Recovery days</dt>
+                    <dd aria-label={`Candidate ${result.candidate.days_to_pre_shock_recovery_after_largest_loss}, baseline ${result.baseline.days_to_pre_shock_recovery_after_largest_loss}`}>
+                      <span className="planner-key candidate-key" aria-hidden="true">C</span> {result.candidate.days_to_pre_shock_recovery_after_largest_loss}
+                      <span aria-hidden="true"> / </span>
+                      <span className="planner-key baseline-key" aria-hidden="true">B</span> {result.baseline.days_to_pre_shock_recovery_after_largest_loss}
+                    </dd>
+                  </div>
+                  <div><dt>Daily budget</dt><dd>{result.scenario.daily_budget}</dd></div>
+                </dl>
               </section>
 
               <div className="view-tabs" role="tablist" aria-label="Result view">
-                <button role="tab" aria-selected={view === 'trajectory'} className={view === 'trajectory' ? 'active' : ''} onClick={() => setView('trajectory')}>Trajectory</button>
-                <button role="tab" aria-selected={view === 'audit'} className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')}>Daily audit</button>
+                <button id="tab-trajectory" type="button" role="tab" aria-selected={view === 'trajectory'} aria-controls="panel-trajectory" tabIndex={view === 'trajectory' ? 0 : -1} className={view === 'trajectory' ? 'active' : ''} onClick={() => setView('trajectory')} onKeyDown={handleTabKey}>Trajectory</button>
+                <button id="tab-audit" type="button" role="tab" aria-selected={view === 'audit'} aria-controls="panel-audit" tabIndex={view === 'audit' ? 0 : -1} className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')} onKeyDown={handleTabKey}>Daily audit</button>
               </div>
 
-              {view === 'trajectory' ? (
+              <div id="panel-trajectory" role="tabpanel" aria-labelledby="tab-trajectory" hidden={view !== 'trajectory'}>
                 <div className="trajectory-layout">
-                  <ResilienceChart result={result} />
+                  <ResilienceChart result={result} selectedDay={selectedDay} />
                   <DayInspector result={result} selectedDay={selectedDay} onDay={setSelectedDay} />
                 </div>
-              ) : <AuditTable result={result} />}
+              </div>
+              <div id="panel-audit" role="tabpanel" aria-labelledby="tab-audit" hidden={view !== 'audit'}>
+                <AuditTable result={result} />
+              </div>
 
               <footer className="evidence-footer">
                 <div><b>Shock tape</b><code>{result.shock_schedule_sha256.slice(0, 16)}…</code></div>
@@ -469,7 +618,7 @@ function App() {
               </footer>
             </>
           ) : null}
-          {busy && result ? <div className="recompute-bar"><Activity className="spin" size={16} /> Recomputing both trajectories</div> : null}
+          {busy && result ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} /> Recomputing both trajectories</div> : null}
         </section>
       </main>
     </div>

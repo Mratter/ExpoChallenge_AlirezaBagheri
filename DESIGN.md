@@ -2,7 +2,7 @@
 
 ## Direction
 
-The product is a light civil-operations atlas, not a consumer dashboard or landing page. The first screen is the recovery desk: bounded inputs at left and computed evidence at right. Its signature interaction is the daily allocation ledger, where a day scrubber aligns the shock, five service end states, both allocations, and projection distance.
+The product is a light civil-operations atlas, not a consumer dashboard or landing page. The first screen is the recovery desk: bounded inputs at left and computed evidence at right. Its signature interaction is the shared-shock folio: a selected-day guide aligns the common shock tape and trajectory chart with a daily allocation ledger containing paired candidate/baseline end-state rails, allocations, and projection distance.
 
 ## Tokens And Type
 
@@ -22,7 +22,7 @@ The product is a light civil-operations atlas, not a consumer dashboard or landi
 
 ## Responsive Contract
 
-- At 1440x900 the editor and comparison share one fixed-height operations desk.
+- At 1440x900 the editor and comparison share one fixed-height operations desk, with the primary run action held in an in-panel dispatch dock.
 - At 1280x720 the summary wraps its facts and the result region scrolls without overlap.
 - Below 1100px the chart and ledger stack.
 - At 390x844 the editor and results become one document flow; compact service codes preserve input and ledger widths.
@@ -32,6 +32,24 @@ All interactive targets own an actual DOM box of at least 40 by 40 px, including
 The constraint proof is never a literal success claim. It sums each planner's returned daily `projection.constraint_violations`, labels candidate and baseline totals independently, and remains visible below 720px. The comparison names the actual SB3 PPO / ONNX candidate and visible OR-Tools GLOP baseline. Recovery days appear beside resilience rather than being implied by the chart. Invalid, persistence, computation, or dependency errors remove the entire prior result region before their blocking state appears.
 
 The saved-results menu is a real restore control backed by canonical local JSON. It is disabled when no result exists, lists deterministic result identities without timestamp claims, and restores the complete authored scenario and evidence together.
+
+## Independent Graphic-Designer Pass
+
+The live compiled product was audited at `1440x900`, `1280x720`, and `390x844` after accepted Feature Complete. The scoped integration keeps the established palette, type roles, information architecture, API data, model identity, and synthetic boundaries while addressing presentation hierarchy:
+
+- the primary run action remains reachable in the recovery envelope at every required viewport;
+- the generic KPI treatment is reduced to a lighter run brief with explicitly named candidate and baseline AUC values plus a measured delta;
+- shared shocks are independent chart guides rather than dots attached only to the candidate series, and the selected day is visible on both trajectories;
+- the ledger exposes paired teal/blue end-state rails and explicitly keyed allocation units instead of a candidate-only state bar beside two unlabeled values;
+- the constraint count uses a neutral measurement mark, not a literal compliance or effectiveness claim;
+- the tab interface implements labelled panels, roving focus, and Arrow/Home/End keyboard behavior;
+- invalid input presents a compact blocking state whose action returns to the invalid control instead of resubmitting unchanged input;
+- blocking errors take focus and scroll into view, while relational validation messages route to the relevant bounded control group;
+- edited controls mark still-visible prior evidence as `Draft changed` until recomputation, and Reset intentionally clears to the documented empty state;
+- saved-result options expose deterministic result-id prefixes, mobile retains visible `Local` and `Synthetic` status, and the wide audit table advertises horizontal scrolling;
+- loading/recompute motion remains interruptible and is suppressed under reduced-motion preferences.
+
+The deliberately distinctive choice is the shared-shock folio, a visual link between common input conditions, the selected trajectory day, and the paired allocation ledger. It is specific to this comparison contract and avoids dashboard decoration, imagery, or geographic implication.
 
 ## Asset Audit
 

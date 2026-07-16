@@ -132,14 +132,18 @@ describe('recovery desk', () => {
   it('renders bounded scenario controls and computed evidence', async () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Central district restart' })).toBeVisible()
+    expect(screen.queryByText('Draft changed')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Run comparison' })).toBeEnabled()
     expect(screen.getByText('Candidate 0 / baseline 0')).toBeVisible()
     expect(screen.getByText('Measured constraint violations')).toBeVisible()
     expect(screen.getAllByText('SB3 PPO / ONNX')[0]).toBeVisible()
-    expect(screen.getByText(/Against visible OR-Tools planner/i)).toBeVisible()
+    expect(screen.getByText('Baseline resilience AUC')).toBeVisible()
+    expect(screen.getByText('Visible OR-Tools GLOP')).toBeVisible()
+    expect(screen.getByText('Measured delta +1.65 pp')).toBeVisible()
     expect(screen.getByText(/not PPO/i)).toBeVisible()
     expect(screen.getByLabelText('Transport initial state')).toHaveAttribute('min', '5')
     expect(screen.getByRole('checkbox', { name: /Force utility failure/i })).toBeChecked()
+    expect(screen.getAllByLabelText(/End state: candidate/i)).toHaveLength(5)
   })
 
   it('opens the full daily audit from the result view', async () => {
@@ -148,6 +152,69 @@ describe('recovery desk', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Daily audit' }))
     expect(screen.getByRole('table', { name: 'Full deterministic daily comparison' })).toBeVisible()
     expect(screen.getAllByRole('row')).toHaveLength(15)
+    const scrollRegion = screen.getByRole('region', { name: 'Scrollable daily comparison table' })
+    scrollRegion.focus()
+    expect(scrollRegion).toHaveFocus()
+  })
+
+  it('implements keyboard navigation and labelled panels for result tabs', async () => {
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+
+    const trajectoryTab = screen.getByRole('tab', { name: 'Trajectory' })
+    const auditTab = screen.getByRole('tab', { name: 'Daily audit' })
+    expect(trajectoryTab).toHaveAttribute('tabindex', '0')
+    expect(auditTab).toHaveAttribute('tabindex', '-1')
+
+    trajectoryTab.focus()
+    fireEvent.keyDown(trajectoryTab, { key: 'ArrowRight' })
+
+    expect(auditTab).toHaveAttribute('aria-selected', 'true')
+    expect(auditTab).toHaveAttribute('tabindex', '0')
+    expect(auditTab).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: 'Daily audit' })).toBeVisible()
+    expect(screen.getByRole('table', { name: 'Full deterministic daily comparison' })).toBeVisible()
+  })
+
+  it('keeps the primary action focused while a recompute is pending', async () => {
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+    const runButton = screen.getByRole('button', { name: 'Run comparison' })
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => undefined)))
+    runButton.focus()
+    fireEvent.click(runButton)
+
+    expect(runButton).toHaveFocus()
+    expect(runButton).toHaveAttribute('aria-disabled', 'true')
+    const resetButton = screen.getByRole('button', { name: 'Reset fixture' })
+    expect(resetButton).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(resetButton)
+    expect(screen.getByLabelText('Comparison summary')).toBeVisible()
+    expect(screen.getByText('Running')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Recomputing both trajectories')
+  })
+
+  it('clears computed evidence to an actionable empty state when the fixture resets', async () => {
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset fixture' }))
+
+    expect(screen.getByRole('heading', { name: 'No trajectory yet' })).toBeVisible()
+    expect(screen.queryByLabelText('Comparison summary')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Run comparison' })).toBeVisible()
+  })
+
+  it('labels prior evidence when the authored draft changes', async () => {
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: '424243' } })
+
+    expect(screen.getByText('Draft changed')).toBeVisible()
+    expect(screen.getByText('Run to refresh evidence')).toBeVisible()
+    expect(screen.getByLabelText('Comparison summary')).toBeVisible()
   })
 
   it('derives candidate and baseline violation totals from daily measurements', async () => {
@@ -170,11 +237,11 @@ describe('recovery desk', () => {
   })
 
   it.each([
-    [422, 'INVALID_SCENARIO', 'Days must be at most 30.', 'Scenario invalid'],
-    [503, 'DEPENDENCY_NOT_READY', 'Frozen policy is unavailable.', 'Comparison blocked'],
+    [422, 'INVALID_SCENARIO', 'Days must be at most 30.', 'Scenario invalid', 'Review scenario controls'],
+    [503, 'DEPENDENCY_NOT_READY', 'Frozen policy is unavailable.', 'Comparison blocked', 'Try again'],
   ])(
     'clears prior evidence after a %s error',
-    async (status, code, message, heading) => {
+    async (status, code, message, heading, action) => {
       let comparisonCount = 0
       const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
         if (String(input) === '/api/v1/simulations') {
@@ -198,12 +265,49 @@ describe('recovery desk', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Run comparison' }))
 
       expect(await screen.findByRole('heading', { name: heading })).toBeVisible()
-      expect(screen.getByRole('alert')).toHaveTextContent(message)
+      const alert = screen.getByRole('alert')
+      expect(alert).toHaveTextContent(message)
+      expect(alert).toHaveFocus()
       expect(screen.queryByLabelText('Comparison summary')).not.toBeInTheDocument()
       expect(screen.queryByText('Measured constraint violations')).not.toBeInTheDocument()
       expect(screen.queryByText('Shock tape')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: action })).toBeVisible()
     },
   )
+
+  it('routes a cross-field scenario error back to the named control group', async () => {
+    let comparisonCount = 0
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/v1/simulations') {
+        return { ok: true, json: async () => ({ results: [] }) }
+      }
+      comparisonCount += 1
+      if (comparisonCount === 1) {
+        return { ok: true, json: async () => responseFixture() }
+      }
+      return {
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: {
+            code: 'INVALID_SCENARIO',
+            message: 'Scenario validation failed.',
+            details: [{ message: 'Value error, severity_min must be less than severity_max' }],
+          },
+        }),
+      }
+    }))
+
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+    fireEvent.change(screen.getByLabelText('Severity min %'), { target: { value: '25' } })
+    fireEvent.change(screen.getByLabelText('Severity max %'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Run comparison' }))
+
+    const review = await screen.findByRole('button', { name: 'Review scenario controls' })
+    fireEvent.click(review)
+    expect(screen.getByLabelText('Severity min %')).toHaveFocus()
+  })
 
   it('restores a persisted authored result from the saved-results menu', async () => {
     const restored = responseFixture()

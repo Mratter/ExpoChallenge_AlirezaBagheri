@@ -1,8 +1,8 @@
 # Status
 
-- Phase: Feature Complete builder candidate verification
-- Current gate: Builder verification complete; ready for independent AI17 Feature Complete tester review on the clean candidate HEAD
-- Independent Feature Complete verdict: Not recorded
+- Phase: Independent graphic-designer pass complete
+- Current gate: Designer candidate verified; ready for a separate independent Presentation tester on the exact clean pushed SHA
+- Independent Feature Complete verdict: PASS for frozen candidate `3c16f0359cca93e494cc65f0a8850ef6e9c744da`, recorded by `9a7618469f5c5050e98732c00adcfe2059c1dadc`
 - Accepted earlier state: Evidence and Vertical Slice ledger anchor `db679c895aebb42027a4c6f0590b466dd0657e9b` remains closed; clean activation baseline was `eb9c1dfa8ab52c03a2ebf97f31a43ab28849715c`
 - Runtime: CPU, Python 3.12, one loopback process at `127.0.0.1:4117`
 - Default metadata seed: `20260714`
@@ -33,6 +33,17 @@
 - `scripts/verify.ps1 -Profile cpu`: PASS; five byte-identical unseen responses, 110 service-bound checks, byte-identical persisted restore after a full process stop/start, invalid-input rejection, and clean server shutdown.
 - Live unseen seed `118773`: candidate resilience AUC `0.46665569`; OR-Tools `0.44759060`; response SHA-256 `07393b9265e2386c606be7c373f907842ad9fda589f2ce44c3e59ae1b044c741`; result id `ce270cd9d63a8b30c9f0b4a7adb75b0f6f649cc77f6997fb0f6553bd008b45df`.
 
+## Independent Graphic-Designer Verification
+
+- PASS with zero blocking visual or accessibility issues at `1440x900`, `1280x720`, and `390x844`; no document-level horizontal overflow and no action-dock/control overlap at either scroll boundary.
+- Recast the accepted recovery desk as a shared-shock evidence folio: a paper run brief, explicit shared/forced shock marks, a selected-day link, and paired candidate/baseline service tracks in the daily ledger. The authored scenario editor remains on the left and computed evidence remains on the right.
+- Preserved the accepted palette and typography, used no new raster/vector assets, and retained the real SB3 PPO / ONNX, visible OR-Tools GLOP, synthetic/non-empirical, and legacy non-PPO disclosures without changing any measured claim.
+- Keyboard and assistive-state checks passed: high-contrast focus, roving tabs with linked panels, semantic ledger headers/cells, full mobile row names, focus-preserving busy actions, alert autofocus/scroll, deterministic Review routing, reduced motion, reachable empty state, and explicit stale-evidence status.
+- A deliberately delayed mobile request exposes `Running` in the first-fold topbar; settled valid state returns to `Local`. The normal bounded comparison still exposes its complete in-panel status.
+- Fresh valid browser flow had zero console errors/warnings and loopback-only `200` requests. Deliberate invalid scenarios produced only the expected HTTP `422`, focused the compact alert, and routed Review to the exact Days or Severity min control.
+- Verification on the final source: normal `scripts/preflight.ps1 -Profile cpu` PASS; backend `28 passed`; Ruff PASS; frontend `11 passed`; strict TypeScript PASS; Vite production build PASS with 1,775 transformed modules.
+- Model, training, evaluation, artifact, dataset, backend, and accepted evidence files were not changed or regenerated during this pass.
+
 ## Artifact Hashes
 
 - ONNX `983b7090e9cfc761b7b2118a24cff907abfc9caa74036cfb16bd9218346b11d8`
@@ -45,6 +56,7 @@
 
 ## Remaining At This Gate
 
-- Route the exact clean candidate SHA to the independent AI17 Feature Complete tester. This builder does not grant the gate verdict.
+- Commit and push the designer candidate, then route that exact clean SHA to the independent Presentation tester for the full viewport/state/accessibility/demo matrix.
+- Release verification may begin only after an independent Presentation PASS. This designer pass grants neither Presentation nor Release.
 
-Presentation, clean-machine/empty-cache setup, outbound-firewall enforcement, long-path clone, and the complete Release failure/process matrix were not run here.
+No retraining or evaluation rerun was performed. Independent Presentation and Release verdicts, clean-machine/empty-cache setup, outbound-firewall enforcement, long-path clone, and the complete Release failure/process matrix remain unclaimed.
