@@ -12,6 +12,8 @@ All scenarios, dynamics, coefficients, and policy training inputs are authored s
 .\scripts\run.ps1 -Profile cpu
 ```
 
+Setup requires `uv` 0.7.21 or newer and preserves the frozen lock and package hash verification. For reliable large-wheel acquisition on Windows it supplies conservative, process-scoped defaults (four downloads, two installs, six HTTP retries, and a 120-second read timeout); explicit caller values take precedence, and the prior environment is restored on exit.
+
 Open `http://127.0.0.1:4117`. `run.ps1` does not open a browser and makes no outbound runtime connection. A port collision, missing compiled UI, or invalid artifact bundle is a blocking error. If a required artifact is lost after startup, every route except `/health/live` returns structured `503 DEPENDENCY_NOT_READY`; the primary UI is not served in a degraded state.
 
 Run the bounded live verification while port 4117 is free:
