@@ -2,6 +2,7 @@ param([ValidateSet('cpu','gpu')][string]$Profile = 'cpu', [switch]$Full)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'project_environment.ps1')
 
 if ($Profile -ne 'cpu') { throw 'The frozen Feature Complete policy supports the CPU profile only.' }
 foreach ($Path in @(
@@ -22,8 +23,12 @@ foreach ($Path in @(
 $Occupied = Get-NetTCPConnection -State Listen -LocalPort 4117 -ErrorAction SilentlyContinue
 if ($Occupied) { throw 'Fixed port 4117 is already occupied.' }
 
-Push-Location $Root
+$ProjectEnvironment = $null
+$LocationPushed = $false
 try {
+    $ProjectEnvironment = Enter-Ai17ProjectEnvironment -Root $Root
+    Push-Location $Root
+    $LocationPushed = $true
     & uv run --frozen python scripts/preflight_check.py
     if ($LASTEXITCODE -ne 0) { throw 'Artifact or smoke inference preflight failed' }
     if ($Full) {
@@ -38,4 +43,7 @@ try {
     }
     Write-Host '[preflight] PASS'
 }
-finally { Pop-Location }
+finally {
+    if ($LocationPushed) { Pop-Location }
+    if ($null -ne $ProjectEnvironment) { Exit-Ai17ProjectEnvironment -Context $ProjectEnvironment }
+}

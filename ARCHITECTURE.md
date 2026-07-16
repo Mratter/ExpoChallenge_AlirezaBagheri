@@ -59,6 +59,8 @@ The candidate is a real Stable-Baselines3 2.7.0 PPO `MlpPolicy`, trained for 30,
 
 The default CPU setup installs the runtime and test dependency graph and explicitly excludes the non-default `training` group. PyTorch 2.8.0 and Stable-Baselines3 2.7.0 remain pinned in that group for deliberate model-build reproduction, but neither is imported by the shipped runtime, preflight, evaluation, or test paths.
 
+Normal clone paths use the repository-local `.venv`. If that location would put native ONNX extensions near the Windows loader boundary, shipped scripts select a short environment under `%LOCALAPPDATA%`, keyed by the canonical repository-root SHA-256. A caller may instead provide an absolute short `UV_PROJECT_ENVIRONMENT`. Source, frontend dependencies, compiled UI, artifacts, and persistence remain at their original long-path boundaries; only the native Python environment is redirected.
+
 The baseline is OR-Tools 9.14.6206 GLOP. Every day it maximizes:
 
 ```text

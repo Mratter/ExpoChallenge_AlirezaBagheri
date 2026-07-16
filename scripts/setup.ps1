@@ -2,6 +2,7 @@ param([ValidateSet('cpu','gpu')][string]$Profile = 'cpu')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'project_environment.ps1')
 
 if ($Profile -ne 'cpu') { throw 'The frozen Feature Complete policy supports the CPU profile only.' }
 foreach ($Command in @('uv', 'node', 'npm')) {
@@ -42,8 +43,10 @@ foreach ($Entry in $UvTransportDefaults.GetEnumerator()) {
     }
 }
 
+$ProjectEnvironment = $null
 $LocationPushed = $false
 try {
+    $ProjectEnvironment = Enter-Ai17ProjectEnvironment -Root $Root
     Push-Location $Root
     $LocationPushed = $true
     $UvTransportSummary = ($UvTransportDefaults.Keys | ForEach-Object {
@@ -53,6 +56,9 @@ try {
     Write-Host '[setup] Syncing pinned Python 3.12 environment'
     & uv sync --frozen --python 3.12 --no-group training
     if ($LASTEXITCODE -ne 0) { throw 'uv sync failed' }
+    Assert-Ai17NativePathBudget -Context $ProjectEnvironment
+    & $ProjectEnvironment.PythonPath -c 'from onnx import onnx_cpp2py_export; import onnxruntime, ortools, gymnasium'
+    if ($LASTEXITCODE -ne 0) { throw 'native runtime dependency smoke failed' }
     Write-Host '[setup] Installing pinned frontend dependencies'
     & npm ci --prefix frontend
     if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
@@ -63,6 +69,7 @@ try {
 }
 finally {
     if ($LocationPushed) { Pop-Location }
+    if ($null -ne $ProjectEnvironment) { Exit-Ai17ProjectEnvironment -Context $ProjectEnvironment }
     foreach ($Entry in $UvTransportDefaults.GetEnumerator()) {
         $Original = $UvTransportOriginal[$Entry.Key]
         if (-not $Original.WasDefaulted) { continue }
