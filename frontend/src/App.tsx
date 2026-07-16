@@ -2,14 +2,21 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
+  ArchiveRestore,
   Check,
   Database,
   Play,
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react'
-import { ComparisonError, runComparison } from './api'
-import { services, type CompareResponse, type Scenario, type Service } from './types'
+import { ComparisonError, listSimulations, loadSimulation, runComparison } from './api'
+import {
+  services,
+  type CompareResponse,
+  type SavedResultSummary,
+  type Scenario,
+  type Service,
+} from './types'
 
 const serviceLabels: Record<Service, string> = {
   transport: 'Transport',
@@ -77,8 +84,8 @@ function ResilienceChart({ result }: { result: CompareResponse }) {
         Weighted service resilience by day
       </figcaption>
       <div className="chart-legend" aria-hidden="true">
-        <span><i className="legend-line candidate-line" />Frozen candidate</span>
-        <span><i className="legend-line baseline-line" />Urgency baseline</span>
+        <span><i className="legend-line candidate-line" />SB3 PPO / ONNX</span>
+        <span><i className="legend-line baseline-line" />OR-Tools GLOP</span>
       </div>
       <svg className="chart" viewBox="0 0 720 208" role="img" aria-label="Resilience comparison line chart">
         <g transform="translate(42 20)">
@@ -121,6 +128,8 @@ function ScenarioEditor({
   onSeed,
   onRun,
   onReset,
+  savedRuns,
+  onRestore,
 }: {
   draft: Scenario
   seed: number
@@ -129,6 +138,8 @@ function ScenarioEditor({
   onSeed: (seed: number) => void
   onRun: () => void
   onReset: () => void
+  savedRuns: SavedResultSummary[]
+  onRestore: (resultId: string) => void
 }) {
   const updateService = (field: 'initial_services' | 'priorities', index: number, value: number) => {
     const next = [...draft[field]]
@@ -151,6 +162,25 @@ function ScenarioEditor({
       <label className="field full-field">
         <span>Scenario name</span>
         <input value={draft.name} maxLength={64} onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
+      </label>
+
+      <label className="field full-field saved-result-field">
+        <span><ArchiveRestore size={13} />Saved results</span>
+        <select
+          aria-label="Restore saved result"
+          value=""
+          disabled={busy || savedRuns.length === 0}
+          onChange={(event) => {
+            if (event.target.value) onRestore(event.target.value)
+          }}
+        >
+          <option value="">{savedRuns.length === 0 ? 'No saved results' : `Restore one of ${savedRuns.length}`}</option>
+          {savedRuns.map((saved) => (
+            <option key={saved.result_id} value={saved.result_id}>
+              {saved.scenario_name} / seed {saved.seed}
+            </option>
+          ))}
+        </select>
       </label>
 
       <div className="field-grid">
@@ -289,6 +319,7 @@ function App() {
   const [error, setError] = useState<ComparisonFailure | null>(null)
   const [selectedDay, setSelectedDay] = useState(5)
   const [view, setView] = useState<ViewMode>('trajectory')
+  const [savedRuns, setSavedRuns] = useState<SavedResultSummary[]>([])
 
   const execute = useCallback(async (scenario: Scenario, runSeed: number, signal?: AbortSignal) => {
     setBusy(true)
@@ -297,6 +328,7 @@ function App() {
       const response = await runComparison(runSeed, scenario, signal)
       setResult(response)
       setSelectedDay(Math.min(5, response.scenario.horizon_days))
+      setSavedRuns(await listSimulations(signal))
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return
       setResult(null)
@@ -306,6 +338,28 @@ function App() {
       })
     } finally {
       if (!signal?.aborted) setBusy(false)
+    }
+  }, [])
+
+  const restore = useCallback(async (resultId: string) => {
+    setBusy(true)
+    setResult(null)
+    setError(null)
+    try {
+      const response = await loadSimulation(resultId)
+      setResult(response)
+      setDraft(response.scenario)
+      setSeed(response.seed)
+      setSelectedDay(Math.min(5, response.scenario.horizon_days))
+      setView('trajectory')
+      setSavedRuns(await listSimulations())
+    } catch (caught) {
+      setError({
+        code: caught instanceof ComparisonError ? caught.code : 'PERSISTENCE_FAILED',
+        message: caught instanceof Error ? caught.message : 'The saved result could not be restored.',
+      })
+    } finally {
+      setBusy(false)
     }
   }, [])
 
@@ -335,14 +389,24 @@ function App() {
         </div>
         <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
           <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
-          <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic runtime'}</span>
-          <b>PCG64</b>
+          <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
+          <b>ONNX / PCG64</b>
           <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
         </div>
       </header>
 
       <main className="workspace">
-        <ScenarioEditor draft={draft} seed={seed} busy={busy} onDraft={setDraft} onSeed={setSeed} onRun={() => void execute(draft, seed)} onReset={reset} />
+        <ScenarioEditor
+          draft={draft}
+          seed={seed}
+          busy={busy}
+          onDraft={setDraft}
+          onSeed={setSeed}
+          onRun={() => void execute(draft, seed)}
+          onReset={reset}
+          savedRuns={savedRuns}
+          onRestore={(resultId) => void restore(resultId)}
+        />
         <section className="results-panel" aria-live="polite">
           {error ? (
             <div className="blocking-error" role="alert">
@@ -380,10 +444,10 @@ function App() {
               </div>
 
               <section className="metric-ribbon" aria-label="Comparison summary">
-                <div className="primary-metric"><span>Resilience AUC</span><strong>{formatPercent(result.candidate.rauc)}</strong><small>Frozen candidate</small></div>
+                <div className="primary-metric"><span>Resilience AUC</span><strong>{formatPercent(result.candidate.rauc)}</strong><small>SB3 PPO / ONNX</small></div>
                 <div className="metric-divider" aria-hidden="true" />
-                <div className="comparison-metric"><span>Against visible urgency planner</span><strong>{formatPercent(result.baseline.rauc)}</strong><small className={candidateWins ? 'positive' : 'negative'}>{result.comparison.candidate_minus_baseline >= 0 ? '+' : ''}{(result.comparison.candidate_minus_baseline * 100).toFixed(2)} percentage points</small></div>
-                <dl className="run-facts"><div><dt>Shocks</dt><dd>{shockCount}</dd></div><div><dt>Days</dt><dd>{result.scenario.horizon_days}</dd></div><div><dt>Daily budget</dt><dd>{result.scenario.daily_budget}</dd></div></dl>
+                <div className="comparison-metric"><span>Against visible OR-Tools planner</span><strong>{formatPercent(result.baseline.rauc)}</strong><small className={candidateWins ? 'positive' : 'negative'}>{result.comparison.candidate_minus_baseline >= 0 ? '+' : ''}{(result.comparison.candidate_minus_baseline * 100).toFixed(2)} percentage points</small></div>
+                <dl className="run-facts"><div><dt>Shocks</dt><dd>{shockCount}</dd></div><div><dt>Recovery days</dt><dd>{result.candidate.days_to_pre_shock_recovery_after_largest_loss} / {result.baseline.days_to_pre_shock_recovery_after_largest_loss}</dd></div><div><dt>Daily budget</dt><dd>{result.scenario.daily_budget}</dd></div></dl>
               </section>
 
               <div className="view-tabs" role="tablist" aria-label="Result view">
@@ -400,8 +464,8 @@ function App() {
 
               <footer className="evidence-footer">
                 <div><b>Shock tape</b><code>{result.shock_schedule_sha256.slice(0, 16)}…</code></div>
-                <div><b>Policy artifact</b><code>{result.policy.sha256.slice(0, 16)}…</code></div>
-                <p>{result.policy.disclosure}</p>
+                <div><b>ONNX policy</b><code>{result.policy.sha256.slice(0, 16)}…</code></div>
+                <p>{result.policy.disclosure} {result.policy.legacy_candidate.disclosure}</p>
               </footer>
             </>
           ) : null}

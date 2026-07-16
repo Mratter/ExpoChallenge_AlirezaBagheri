@@ -13,20 +13,21 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.artifact import (
     ARTIFACT_LICENSE,
-    ARTIFACT_SOURCE,
     MANIFEST_SCHEMA_VERSION,
     POLICY_FEATURE_ORDER,
     POLICY_SCHEMA_VERSION,
     ArtifactError,
+    PolicyBundle,
     load_policy,
 )
 from backend.app.models import CompareRequest
+from backend.app.persistence import PersistenceError, RunStore
 from backend.app.simulator import SERVICES, compare
 
-APP_VERSION = "0.2.0"
-API_SCHEMA_VERSION = "1.0.0"
-DATASET_SCHEMA_VERSION = "1.0.0"
-DATASET_VERSION = "1.0.0"
+APP_VERSION = "0.3.0"
+API_SCHEMA_VERSION = "2.0.0"
+DATASET_SCHEMA_VERSION = "2.0.0"
+DATASET_VERSION = "2.0.0"
 DEFAULT_SEED = 20260714
 
 
@@ -68,7 +69,16 @@ def dependency_error(exc: ArtifactError) -> CanonicalJSONResponse:
     )
 
 
-def metadata_payload(policy: dict[str, Any], checksum: str) -> dict[str, Any]:
+def persistence_error(exc: PersistenceError) -> CanonicalJSONResponse:
+    status = 404 if str(exc) == "persisted result was not found" else 500
+    return CanonicalJSONResponse(
+        status_code=status,
+        content=error_payload("PERSISTENCE_FAILED", str(exc)),
+    )
+
+
+def metadata_payload(bundle: PolicyBundle) -> dict[str, Any]:
+    metadata = bundle.metadata
     return {
         "app": "Autonomous City Recovery Planner",
         "version": APP_VERSION,
@@ -78,26 +88,48 @@ def metadata_payload(policy: dict[str, Any], checksum: str) -> dict[str, Any]:
         "default_seed": DEFAULT_SEED,
         "services": list(SERVICES),
         "model": {
-            "id": policy["id"],
-            "version": policy["version"],
+            "id": metadata["id"],
+            "version": metadata["version"],
             "schema_version": POLICY_SCHEMA_VERSION,
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
-            "artifact_type": policy["artifact_type"],
-            "feature_order": list(POLICY_FEATURE_ORDER),
+            "artifact_type": metadata["artifact_type"],
+            "algorithm": metadata["training"]["algorithm"],
+            "training_library": metadata["training"]["library"],
+            "training_library_version": metadata["training"]["library_version"],
+            "observation_order": list(POLICY_FEATURE_ORDER),
+            "action_order": metadata["action_order"],
             "license": ARTIFACT_LICENSE,
-            "source": ARTIFACT_SOURCE,
-            "sha256": checksum,
+            "source": "scripts/train_policy.py",
+            "onnx_sha256": bundle.onnx_sha256,
+            "sb3_checkpoint_sha256": bundle.sb3_sha256,
+            "metadata_sha256": bundle.metadata_sha256,
+            "parity_report_sha256": bundle.parity_sha256,
+            "legacy_candidate": metadata["legacy_candidate"],
+        },
+        "baseline": {
+            "id": "ortools-glop-visible-v1",
+            "library": "OR-Tools",
+            "solver": "GLOP",
+            "future_shocks_visible": False,
         },
         "dataset": {
-            "id": "synthetic-city-dynamics-v1",
+            "id": "synthetic-city-dynamics-v2",
             "version": DATASET_VERSION,
             "schema_version": DATASET_SCHEMA_VERSION,
             "license": "CC0-1.0",
-            "source": "backend/app/simulator.py",
+            "source": "backend/app/simulator.py and backend/app/scenarios.py",
             "service_order": list(SERVICES),
             "empirical": False,
         },
-        "determinism": "numpy.PCG64 shock tape generated once per comparison",
+        "persistence": {
+            "format": "canonical-json-v1",
+            "identity": "sha256(schema, seed, scenario, policy, baseline)",
+            "idempotent": True,
+        },
+        "determinism": (
+            "NumPy PCG64 shock tape generated once; ONNX Runtime CPU session uses "
+            "sequential single-thread inference"
+        ),
     }
 
 
@@ -106,7 +138,7 @@ async def require_policy_dependency(request: Request, call_next: Any) -> Respons
     if request.url.path == "/health/live":
         return await call_next(request)
     try:
-        load_policy()
+        request.state.policy_bundle = load_policy()
     except ArtifactError as exc:
         return dependency_error(exc)
     return await call_next(request)
@@ -130,31 +162,45 @@ def health_live() -> dict[str, str]:
 
 
 @app.get("/health/ready", response_model=None)
-def health_ready() -> Response | dict[str, str]:
-    try:
-        _, checksum = load_policy()
-    except ArtifactError as exc:
-        return dependency_error(exc)
-    return {"policy_sha256": checksum, "status": "ready"}
+def health_ready(request: Request) -> dict[str, str]:
+    bundle: PolicyBundle = request.state.policy_bundle
+    return {
+        "policy_sha256": bundle.onnx_sha256,
+        "policy_type": bundle.metadata["artifact_type"],
+        "status": "ready",
+    }
 
 
 @app.get("/api/v1/meta", response_model=None)
-def metadata() -> Response | dict[str, Any]:
+def metadata(request: Request) -> dict[str, Any]:
+    return metadata_payload(request.state.policy_bundle)
+
+
+@app.get("/api/v1/simulations", response_model=None)
+def list_simulations() -> Response | dict[str, Any]:
     try:
-        policy, checksum = load_policy()
-    except ArtifactError as exc:
-        return dependency_error(exc)
-    return metadata_payload(policy, checksum)
+        results = RunStore().list_summaries()
+        return {"schema_version": "1.0.0", "count": len(results), "results": results}
+    except PersistenceError as exc:
+        return persistence_error(exc)
+
+
+@app.get("/api/v1/simulations/{result_id}", response_model=None)
+def get_simulation(result_id: str) -> Response | dict[str, Any]:
+    try:
+        return RunStore().load(result_id)
+    except PersistenceError as exc:
+        return persistence_error(exc)
 
 
 @app.post("/api/v1/simulations/compare", response_model=None)
-def compare_simulations(request: CompareRequest) -> Response | dict[str, Any]:
+def compare_simulations(request: Request, payload: CompareRequest) -> Response | dict[str, Any]:
     try:
-        policy, checksum = load_policy()
-        return compare(request.scenario, request.seed, policy, checksum)
-    except ArtifactError as exc:
-        return dependency_error(exc)
-    except (KeyError, TypeError, ValueError) as exc:
+        result = compare(payload.scenario, payload.seed, request.state.policy_bundle)
+        return RunStore().save(result)
+    except PersistenceError as exc:
+        return persistence_error(exc)
+    except (KeyError, TypeError, ValueError, RuntimeError) as exc:
         return CanonicalJSONResponse(
             status_code=500,
             content=error_payload("COMPUTATION_FAILED", str(exc)),

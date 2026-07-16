@@ -8,26 +8,81 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import onnx
+import onnxruntime as ort
+
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = ROOT / "artifacts" / "manifest.lock.json"
-POLICY_PATH = ROOT / "artifacts" / "frozen_policy.v1.json"
+LEGACY_POLICY_PATH = ROOT / "artifacts" / "frozen_policy.v1.json"
+POLICY_PATH = LEGACY_POLICY_PATH
+SB3_POLICY_PATH = ROOT / "artifacts" / "city_recovery_ppo.v1.zip"
+ONNX_POLICY_PATH = ROOT / "artifacts" / "city_recovery_ppo.v1.onnx"
+MODEL_CARD_PATH = ROOT / "artifacts" / "city_recovery_ppo.v1.metadata.json"
+PARITY_PATH = ROOT / "evaluation" / "policy_parity.v1.json"
 
-ARTIFACT_ID = "frozen-policy-v1"
 ARTIFACT_LICENSE = "CC0-1.0"
-ARTIFACT_RELATIVE_PATH = "artifacts/frozen_policy.v1.json"
-ARTIFACT_SOURCE = "scripts/build_policy_artifact.py"
-MANIFEST_SCHEMA_VERSION = 1
-POLICY_ARTIFACT_TYPE = "deterministic_linear_policy_candidate"
-POLICY_FEATURE_ORDER = (
-    "priority_deficit",
-    "criticality",
-    "marginal_gain",
-    "network_centrality",
-)
-POLICY_ID = "frozen-policy-candidate-v1"
-POLICY_SCHEMA_VERSION = "1.0.0"
+MANIFEST_SCHEMA_VERSION = 2
+POLICY_SCHEMA_VERSION = "2.0.0"
 POLICY_VERSION = "1.0.0"
+POLICY_ID = "city-recovery-sb3-ppo-v1"
+POLICY_ARTIFACT_TYPE = "stable_baselines3_ppo"
+LEGACY_POLICY_SHA256 = "23762a44d67e83dd487558d595d3d9ed5f5e406915f488a076ac21190ab9a6e3"
+POLICY_FEATURE_ORDER = (
+    "service_transport",
+    "service_housing",
+    "service_food",
+    "service_healthcare",
+    "service_public_services",
+    "priority_transport",
+    "priority_housing",
+    "priority_food",
+    "priority_healthcare",
+    "priority_public_services",
+    "support_transport",
+    "support_housing",
+    "support_food",
+    "support_healthcare",
+    "support_public_services",
+    "shock_impact_transport",
+    "shock_impact_housing",
+    "shock_impact_food",
+    "shock_impact_healthcare",
+    "shock_impact_public_services",
+    "available_budget_fraction",
+    "horizon_remaining_fraction",
+    "shock_severity",
+)
+ACTION_ORDER = ("transport", "housing", "food", "healthcare", "public_services")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+
+RECORD_CONTRACT = {
+    "accepted-linear-candidate-v1": {
+        "path": "artifacts/frozen_policy.v1.json",
+        "role": "accepted_legacy_linear_candidate",
+        "source": "scripts/build_policy_artifact.py",
+    },
+    "city-recovery-ppo-v1-checkpoint": {
+        "path": "artifacts/city_recovery_ppo.v1.zip",
+        "role": "training_checkpoint",
+        "source": "scripts/train_policy.py",
+    },
+    "city-recovery-ppo-v1-onnx": {
+        "path": "artifacts/city_recovery_ppo.v1.onnx",
+        "role": "runtime_policy",
+        "source": "scripts/train_policy.py",
+    },
+    "city-recovery-ppo-v1-metadata": {
+        "path": "artifacts/city_recovery_ppo.v1.metadata.json",
+        "role": "policy_metadata",
+        "source": "scripts/train_policy.py",
+    },
+    "city-recovery-ppo-v1-parity": {
+        "path": "evaluation/policy_parity.v1.json",
+        "role": "pytorch_onnx_parity_evidence",
+        "source": "scripts/train_policy.py",
+    },
+}
 
 
 class ArtifactError(RuntimeError):
@@ -36,23 +91,32 @@ class ArtifactError(RuntimeError):
 
 @dataclass(frozen=True)
 class PolicyBundle:
-    content: dict[str, Any]
-    sha256: str
-    size_bytes: int
-    license: str
-    relative_path: str
-    source: str
+    metadata: dict[str, Any]
+    session: ort.InferenceSession
+    onnx_sha256: str
+    sb3_sha256: str
+    metadata_sha256: str
+    parity_sha256: str
+    legacy_sha256: str
+    records: dict[str, dict[str, Any]]
     manifest_schema_version: int
+
+
+def _read_json_bytes(payload: bytes, label: str) -> Any:
+    try:
+        return json.loads(payload.decode("utf-8"))
+    except (UnicodeError, ValueError) as exc:
+        raise ArtifactError(f"{label} is invalid JSON") from exc
 
 
 def _read_json(path: Path, label: str) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError) as exc:
-        raise ArtifactError(f"{label} is missing or invalid") from exc
+        return _read_json_bytes(path.read_bytes(), label)
+    except OSError as exc:
+        raise ArtifactError(f"{label} is missing or unreadable") from exc
 
 
-def _validate_manifest(manifest: Any) -> dict[str, Any]:
+def _validate_manifest(manifest: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(manifest, dict):
         raise ArtifactError("policy manifest root must be an object")
     if manifest.get("project") != "AI17":
@@ -62,111 +126,232 @@ def _validate_manifest(manifest: Any) -> dict[str, Any]:
             f"policy manifest schema version must be {MANIFEST_SCHEMA_VERSION}"
         )
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != 1:
-        raise ArtifactError("policy manifest must contain exactly one artifact")
-    record = artifacts[0]
-    if not isinstance(record, dict):
-        raise ArtifactError("policy manifest artifact record must be an object")
+    if not isinstance(artifacts, list) or len(artifacts) != len(RECORD_CONTRACT):
+        raise ArtifactError("policy manifest must contain the complete five-artifact bundle")
+    records: dict[str, dict[str, Any]] = {}
+    for record in artifacts:
+        if not isinstance(record, dict) or not isinstance(record.get("id"), str):
+            raise ArtifactError("policy manifest artifact record is invalid")
+        artifact_id = record["id"]
+        if artifact_id in records or artifact_id not in RECORD_CONTRACT:
+            raise ArtifactError(f"policy manifest artifact id is invalid: {artifact_id}")
+        contract = RECORD_CONTRACT[artifact_id]
+        for field, expected in contract.items():
+            if record.get(field) != expected:
+                raise ArtifactError(f"policy manifest {artifact_id} {field} must be {expected}")
+        if record.get("license") != ARTIFACT_LICENSE:
+            raise ArtifactError(f"policy manifest {artifact_id} license is invalid")
+        if type(record.get("bytes")) is not int or record["bytes"] <= 0:
+            raise ArtifactError(f"policy manifest {artifact_id} byte count is invalid")
+        if not isinstance(record.get("sha256"), str) or not SHA256_PATTERN.fullmatch(
+            record["sha256"]
+        ):
+            raise ArtifactError(f"policy manifest {artifact_id} sha256 is invalid")
+        records[artifact_id] = record
+    if set(records) != set(RECORD_CONTRACT):
+        raise ArtifactError("policy manifest artifact set is incomplete")
+    return records
 
-    expected_fields = {
-        "id": ARTIFACT_ID,
-        "license": ARTIFACT_LICENSE,
-        "path": ARTIFACT_RELATIVE_PATH,
-        "source": ARTIFACT_SOURCE,
+
+def _default_paths() -> dict[str, Path]:
+    return {
+        "accepted-linear-candidate-v1": LEGACY_POLICY_PATH,
+        "city-recovery-ppo-v1-checkpoint": SB3_POLICY_PATH,
+        "city-recovery-ppo-v1-onnx": ONNX_POLICY_PATH,
+        "city-recovery-ppo-v1-metadata": MODEL_CARD_PATH,
+        "city-recovery-ppo-v1-parity": PARITY_PATH,
     }
-    for field, expected in expected_fields.items():
-        if record.get(field) != expected:
-            raise ArtifactError(f"policy manifest {field} must be {expected}")
-    if type(record.get("bytes")) is not int or record["bytes"] <= 0:
-        raise ArtifactError("policy manifest bytes must be a positive integer")
-    if not isinstance(record.get("sha256"), str) or not SHA256_PATTERN.fullmatch(
-        record["sha256"]
-    ):
-        raise ArtifactError("policy manifest sha256 must be 64 lowercase hex characters")
-    return record
 
 
-def _validate_policy(policy: Any) -> dict[str, Any]:
+def _verified_payload(record: dict[str, Any], path: Path) -> tuple[bytes, str]:
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        message = f"required policy artifact is missing or unreadable: {record['path']}"
+        raise ArtifactError(message) from exc
+    if len(payload) != record["bytes"]:
+        raise ArtifactError(f"policy artifact byte count drifted: {record['path']}")
+    digest = hashlib.sha256(payload).hexdigest()
+    if digest != record["sha256"]:
+        raise ArtifactError(f"policy artifact checksum drifted: {record['path']}")
+    return payload, digest
+
+
+def _validate_legacy(policy: Any, digest: str) -> None:
+    if digest != LEGACY_POLICY_SHA256:
+        raise ArtifactError("accepted legacy linear candidate checksum changed")
     if not isinstance(policy, dict):
-        raise ArtifactError("frozen policy root must be an object")
-    if policy.get("artifact_type") != POLICY_ARTIFACT_TYPE:
-        raise ArtifactError("frozen policy artifact type is unsupported")
-    if policy.get("id") != POLICY_ID:
-        raise ArtifactError(f"frozen policy id must be {POLICY_ID}")
-    if policy.get("version") != POLICY_VERSION:
-        raise ArtifactError(f"frozen policy version must be {POLICY_VERSION}")
-    if policy.get("feature_order") != list(POLICY_FEATURE_ORDER):
-        raise ArtifactError("frozen policy feature order does not match the runtime schema")
+        raise ArtifactError("accepted legacy linear candidate root is invalid")
+    if policy.get("artifact_type") != "deterministic_linear_policy_candidate":
+        raise ArtifactError("accepted legacy candidate was relabeled")
+    if policy.get("id") != "frozen-policy-candidate-v1":
+        raise ArtifactError("accepted legacy candidate identity changed")
+    disclosure = policy.get("disclosure")
+    if not isinstance(disclosure, str) or "not PPO" not in disclosure:
+        raise ArtifactError("accepted legacy candidate non-PPO disclosure is missing")
 
-    weights = policy.get("feature_weights")
-    if not isinstance(weights, dict) or set(weights) != set(POLICY_FEATURE_ORDER):
-        raise ArtifactError("frozen policy weights do not match the runtime feature schema")
-    numeric_weights: list[float] = []
-    for feature in POLICY_FEATURE_ORDER:
-        value = weights[feature]
-        if isinstance(value, bool) or not isinstance(value, int | float):
-            raise ArtifactError(f"frozen policy weight {feature} must be numeric")
-        numeric = float(value)
-        if not math.isfinite(numeric) or not 0.0 <= numeric <= 1.0:
-            raise ArtifactError(f"frozen policy weight {feature} must be between 0 and 1")
-        numeric_weights.append(numeric)
-    if not math.isclose(sum(numeric_weights), 1.0, abs_tol=1e-12):
-        raise ArtifactError("frozen policy weights must sum to 1")
 
-    calibration = policy.get("calibration")
-    expected_calibration = {
-        "candidate_count": 56,
-        "objective": "mean weighted daily resilience AUC",
-        "scenario_count": 5,
-        "synthetic_only": True,
+def _finite_number(value: Any, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ArtifactError(f"{label} must be numeric")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ArtifactError(f"{label} must be finite")
+    return numeric
+
+
+def _validate_parity(report: Any, hashes: dict[str, str]) -> None:
+    if not isinstance(report, dict) or report.get("schema_version") != "1.0.0":
+        raise ArtifactError("policy parity report schema is invalid")
+    if report.get("passed") is not True or report.get("cases", 0) < 20:
+        raise ArtifactError("policy parity report did not pass enough cases")
+    if report.get("onnx_sha256") != hashes["city-recovery-ppo-v1-onnx"]:
+        raise ArtifactError("policy parity ONNX checksum is inconsistent")
+    if report.get("sb3_checkpoint_sha256") != hashes["city-recovery-ppo-v1-checkpoint"]:
+        raise ArtifactError("policy parity SB3 checksum is inconsistent")
+    action_error = _finite_number(
+        report.get("max_action_abs_error"), "policy parity action error"
+    )
+    projected_error = _finite_number(
+        report.get("max_projected_allocation_abs_error"),
+        "policy parity projected allocation error",
+    )
+    if action_error > _finite_number(report.get("action_tolerance"), "action tolerance"):
+        raise ArtifactError("policy parity action tolerance is exceeded")
+    if projected_error > _finite_number(
+        report.get("projected_allocation_tolerance"), "projected allocation tolerance"
+    ):
+        raise ArtifactError("policy parity projected allocation tolerance is exceeded")
+
+
+def _validate_metadata(
+    metadata: Any, hashes: dict[str, str], parity_sha256: str
+) -> dict[str, Any]:
+    if not isinstance(metadata, dict):
+        raise ArtifactError("policy metadata root must be an object")
+    expected = {
+        "artifact_type": POLICY_ARTIFACT_TYPE,
+        "id": POLICY_ID,
+        "schema_version": POLICY_SCHEMA_VERSION,
+        "version": POLICY_VERSION,
+        "observation_order": list(POLICY_FEATURE_ORDER),
+        "action_order": list(ACTION_ORDER),
     }
-    if not isinstance(calibration, dict):
-        raise ArtifactError("frozen policy calibration metadata must be an object")
-    for field, expected in expected_calibration.items():
-        if calibration.get(field) != expected:
-            raise ArtifactError(f"frozen policy calibration {field} is invalid")
-    objective = calibration.get("winning_objective")
-    if isinstance(objective, bool) or not isinstance(objective, int | float):
-        raise ArtifactError("frozen policy winning objective must be numeric")
-    if not math.isfinite(float(objective)):
-        raise ArtifactError("frozen policy winning objective must be finite")
-    if not isinstance(policy.get("disclosure"), str) or not policy["disclosure"].strip():
-        raise ArtifactError("frozen policy disclosure must be non-empty")
-    return policy
+    for field, value in expected.items():
+        if metadata.get(field) != value:
+            raise ArtifactError(f"policy metadata {field} is invalid")
+    training = metadata.get("training")
+    if not isinstance(training, dict) or training.get("algorithm") != "PPO":
+        raise ArtifactError("policy metadata training algorithm must be PPO")
+    if training.get("library") != "stable-baselines3":
+        raise ArtifactError("policy metadata training library is invalid")
+    if training.get("synthetic_only") is not True or training.get("timesteps", 0) < 1:
+        raise ArtifactError("policy metadata training provenance is incomplete")
+    export = metadata.get("export")
+    if not isinstance(export, dict):
+        raise ArtifactError("policy metadata export contract is missing")
+    if export.get("format") != "ONNX" or export.get("deterministic") is not True:
+        raise ArtifactError("policy metadata ONNX export contract is invalid")
+    if export.get("input_name") != "observation" or export.get("output_name") != "action":
+        raise ArtifactError("policy metadata ONNX tensor names are invalid")
+    if export.get("onnx_sha256") != hashes["city-recovery-ppo-v1-onnx"]:
+        raise ArtifactError("policy metadata ONNX checksum is inconsistent")
+    if metadata.get("sb3_checkpoint_sha256") != hashes["city-recovery-ppo-v1-checkpoint"]:
+        raise ArtifactError("policy metadata SB3 checkpoint checksum is inconsistent")
+    parity = metadata.get("parity")
+    if not isinstance(parity, dict) or parity.get("report_sha256") != parity_sha256:
+        raise ArtifactError("policy metadata parity checksum is inconsistent")
+    legacy = metadata.get("legacy_candidate")
+    if not isinstance(legacy, dict):
+        raise ArtifactError("policy metadata legacy candidate disclosure is missing")
+    if (
+        legacy.get("artifact_type") != "deterministic_linear_policy_candidate"
+        or legacy.get("sha256") != LEGACY_POLICY_SHA256
+        or legacy.get("is_ppo") is not False
+    ):
+        raise ArtifactError("policy metadata relabels or changes the legacy candidate")
+    disclosure = metadata.get("disclosure")
+    if not isinstance(disclosure, str) or "synthetic" not in disclosure.lower():
+        raise ArtifactError("policy metadata synthetic disclosure is missing")
+    return metadata
+
+
+def _create_session(payload: bytes) -> ort.InferenceSession:
+    try:
+        model = onnx.load_model_from_string(payload)
+        onnx.checker.check_model(model)
+        options = ort.SessionOptions()
+        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        session = ort.InferenceSession(
+            payload,
+            sess_options=options,
+            providers=["CPUExecutionProvider"],
+        )
+    except Exception as exc:
+        raise ArtifactError("ONNX policy cannot be parsed by the CPU runtime") from exc
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
+    if len(inputs) != 1 or inputs[0].name != "observation" or inputs[0].type != "tensor(float)":
+        raise ArtifactError("ONNX policy input schema is invalid")
+    if len(outputs) != 1 or outputs[0].name != "action" or outputs[0].type != "tensor(float)":
+        raise ArtifactError("ONNX policy output schema is invalid")
+    try:
+        result = session.run(
+            ["action"], {"observation": np.zeros((1, len(POLICY_FEATURE_ORDER)), dtype=np.float32)}
+        )[0]
+    except Exception as exc:
+        raise ArtifactError("ONNX policy smoke inference failed") from exc
+    if np.asarray(result).shape != (1, 5) or not np.all(np.isfinite(result)):
+        raise ArtifactError("ONNX policy smoke inference returned an invalid action")
+    return session
 
 
 def load_policy_bundle(
-    *, manifest_path: Path | None = None, policy_path: Path | None = None
+    *,
+    manifest_path: Path | None = None,
+    artifact_paths: dict[str, Path] | None = None,
 ) -> PolicyBundle:
     manifest = _read_json(manifest_path or MANIFEST_PATH, "policy manifest")
-    record = _validate_manifest(manifest)
+    records = _validate_manifest(manifest)
+    paths = _default_paths()
+    if artifact_paths:
+        paths.update(artifact_paths)
+    payloads: dict[str, bytes] = {}
+    hashes: dict[str, str] = {}
+    for artifact_id, record in records.items():
+        payloads[artifact_id], hashes[artifact_id] = _verified_payload(
+            record, paths[artifact_id]
+        )
 
-    artifact_path = policy_path or POLICY_PATH
-    try:
-        payload = artifact_path.read_bytes()
-    except OSError as exc:
-        raise ArtifactError("frozen policy artifact is missing or unreadable") from exc
-    if len(payload) != record["bytes"]:
-        raise ArtifactError("frozen policy byte count does not match the manifest")
-    actual = hashlib.sha256(payload).hexdigest()
-    if actual != record["sha256"]:
-        raise ArtifactError("frozen policy checksum does not match the manifest")
-    try:
-        policy = json.loads(payload.decode("utf-8"))
-    except (UnicodeError, ValueError) as exc:
-        raise ArtifactError("frozen policy artifact is invalid JSON") from exc
-
+    legacy = _read_json_bytes(
+        payloads["accepted-linear-candidate-v1"], "accepted legacy linear candidate"
+    )
+    _validate_legacy(legacy, hashes["accepted-linear-candidate-v1"])
+    parity = _read_json_bytes(
+        payloads["city-recovery-ppo-v1-parity"], "policy parity report"
+    )
+    _validate_parity(parity, hashes)
+    metadata = _read_json_bytes(
+        payloads["city-recovery-ppo-v1-metadata"], "policy metadata"
+    )
+    metadata = _validate_metadata(
+        metadata, hashes, hashes["city-recovery-ppo-v1-parity"]
+    )
+    session = _create_session(payloads["city-recovery-ppo-v1-onnx"])
     return PolicyBundle(
-        content=_validate_policy(policy),
-        sha256=actual,
-        size_bytes=len(payload),
-        license=record["license"],
-        relative_path=record["path"],
-        source=record["source"],
+        metadata=metadata,
+        session=session,
+        onnx_sha256=hashes["city-recovery-ppo-v1-onnx"],
+        sb3_sha256=hashes["city-recovery-ppo-v1-checkpoint"],
+        metadata_sha256=hashes["city-recovery-ppo-v1-metadata"],
+        parity_sha256=hashes["city-recovery-ppo-v1-parity"],
+        legacy_sha256=hashes["accepted-linear-candidate-v1"],
+        records=records,
         manifest_schema_version=manifest["version"],
     )
 
 
-def load_policy() -> tuple[dict[str, Any], str]:
-    bundle = load_policy_bundle()
-    return bundle.content, bundle.sha256
+def load_policy() -> PolicyBundle:
+    return load_policy_bundle()

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
 
-if ($Profile -ne 'cpu') { throw 'The Gate 2 GPU profile is not implemented; use -Profile cpu.' }
+if ($Profile -ne 'cpu') { throw 'The frozen Feature Complete policy supports the CPU profile only.' }
 foreach ($Command in @('uv', 'node', 'npm')) {
     if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
         throw "Required setup command is missing: $Command"

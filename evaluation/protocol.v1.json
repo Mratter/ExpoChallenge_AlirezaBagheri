@@ -1,0 +1,67 @@
+{
+  "baseline": {
+    "future_shocks_visible": false,
+    "id": "ortools-glop-visible-v1",
+    "library": "OR-Tools",
+    "solver": "GLOP"
+  },
+  "candidate": {
+    "fixed_before_evaluation": true,
+    "id": "city-recovery-sb3-ppo-v1",
+    "runtime": "checksum-pinned ONNX CPU"
+  },
+  "determinism": {
+    "canonical_result_bytes_must_match": true,
+    "repeats": 3
+  },
+  "evaluation_seeds": [
+    271700,
+    271701,
+    271702,
+    271703,
+    271704,
+    271705,
+    271706,
+    271707
+  ],
+  "hard_invariants": {
+    "budget_violations": 0,
+    "lower_violations": 0,
+    "sum_violations": 0,
+    "upper_violations": 0
+  },
+  "held_out_scenario_families": [
+    "holdout_coastal_weather",
+    "holdout_blackout",
+    "holdout_food_access",
+    "holdout_aftershock",
+    "holdout_public_health"
+  ],
+  "metrics": {
+    "primary": "weighted_daily_resilience_auc",
+    "recovery": [
+      "post_shock_recovery_shortfall_auc",
+      "days_to_pre_shock_recovery_after_largest_loss",
+      "critical_service_days"
+    ],
+    "uncertainty": "paired deterministic bootstrap 95% interval over complete scenario-seed units"
+  },
+  "outcome_rule": "Report measured improvement when mean candidate resilience AUC is higher; otherwise report the measured resilience/recovery trade-off without changing the baseline or holdout.",
+  "registered_date": "2026-07-16",
+  "schema_version": "1.0.0",
+  "split_unit": "complete authored scenario-family member plus seed",
+  "synthetic_only": true,
+  "training_exclusions": {
+    "family_prefix": "holdout_",
+    "seeds": [
+      271700,
+      271701,
+      271702,
+      271703,
+      271704,
+      271705,
+      271706,
+      271707
+    ]
+  }
+}

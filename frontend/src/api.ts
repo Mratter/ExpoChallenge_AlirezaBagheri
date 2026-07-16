@@ -1,4 +1,4 @@
-import type { CompareResponse, Scenario } from './types'
+import type { CompareResponse, SavedResultSummary, Scenario } from './types'
 
 type ApiError = { error?: { code?: string; message?: string; details?: { message: string }[] } }
 
@@ -31,5 +31,29 @@ export async function runComparison(
       detail ?? payload.error?.message ?? `Comparison failed (${response.status})`,
     )
   }
+  return (await response.json()) as CompareResponse
+}
+
+async function responseError(response: Response): Promise<ComparisonError> {
+  const payload = (await response.json().catch(() => ({}))) as ApiError
+  return new ComparisonError(
+    payload.error?.code ?? 'REQUEST_FAILED',
+    payload.error?.message ?? `Request failed (${response.status})`,
+  )
+}
+
+export async function listSimulations(signal?: AbortSignal): Promise<SavedResultSummary[]> {
+  const response = await fetch('/api/v1/simulations', { signal })
+  if (!response.ok) throw await responseError(response)
+  const payload = (await response.json()) as { results: SavedResultSummary[] }
+  return payload.results
+}
+
+export async function loadSimulation(
+  resultId: string,
+  signal?: AbortSignal,
+): Promise<CompareResponse> {
+  const response = await fetch(`/api/v1/simulations/${resultId}`, { signal })
+  if (!response.ok) throw await responseError(response)
   return (await response.json()) as CompareResponse
 }

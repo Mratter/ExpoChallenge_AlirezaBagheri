@@ -14,11 +14,11 @@ The product is a light civil-operations atlas, not a consumer dashboard or landi
 ## Information Hierarchy
 
 1. Brand and local/synthetic runtime status
-2. Editable scenario envelope with explicit numeric bounds
+2. Editable scenario envelope with explicit numeric bounds and deterministic saved-result restore
 3. Primary resilience comparison and measured constraint count
 4. Real trajectory chart or full daily audit table
 5. Selected-day allocation ledger
-6. Shock-tape and policy checksums with the non-PPO disclosure
+6. Shock-tape and ONNX policy checksums with synthetic PPO and legacy non-PPO disclosures
 
 ## Responsive Contract
 
@@ -29,8 +29,10 @@ The product is a light civil-operations atlas, not a consumer dashboard or landi
 
 All interactive targets own an actual DOM box of at least 40 by 40 px, including compact service inputs, the custom checkbox target, tabs, and the day range. Focus is visible, dynamic numbers are tabular, chart paths do not animate, and reduced-motion disables the spinner animation. Loading, empty, invalid/dependency error, and recompute states have distinct UI. A dependency failure changes the runtime indicator to a visible `Policy blocked` label even in the compact mobile header.
 
-The constraint proof is never a literal success claim. It sums each planner's returned daily `projection.constraint_violations`, labels candidate and baseline totals independently, and remains visible below 720px. Invalid or dependency errors remove the entire prior result region before their blocking state appears.
+The constraint proof is never a literal success claim. It sums each planner's returned daily `projection.constraint_violations`, labels candidate and baseline totals independently, and remains visible below 720px. The comparison names the actual SB3 PPO / ONNX candidate and visible OR-Tools GLOP baseline. Recovery days appear beside resilience rather than being implied by the chart. Invalid, persistence, computation, or dependency errors remove the entire prior result region before their blocking state appears.
+
+The saved-results menu is a real restore control backed by canonical local JSON. It is disabled when no result exists, lists deterministic result identities without timestamp claims, and restores the complete authored scenario and evidence together.
 
 ## Asset Audit
 
-No raster, generated, external, map, or evidentiary image is needed. The only visual marks are CSS structure, Lucide interface icons, and an SVG chart rendered from the API trajectory. This avoids implying geographic or empirical evidence that the synthetic slice does not have.
+No raster, generated, external, map, or evidentiary image is needed. The only visual marks are CSS structure, Lucide interface icons, and an SVG chart rendered from the API trajectory. This avoids implying geographic or empirical evidence that the synthetic simulator does not have.

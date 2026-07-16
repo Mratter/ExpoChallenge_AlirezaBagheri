@@ -2,13 +2,50 @@
   "artifacts": [
     {
       "bytes": 722,
-      "id": "frozen-policy-v1",
+      "id": "accepted-linear-candidate-v1",
       "license": "CC0-1.0",
       "path": "artifacts/frozen_policy.v1.json",
+      "role": "accepted_legacy_linear_candidate",
       "sha256": "23762a44d67e83dd487558d595d3d9ed5f5e406915f488a076ac21190ab9a6e3",
       "source": "scripts/build_policy_artifact.py"
+    },
+    {
+      "bytes": 80181,
+      "id": "city-recovery-ppo-v1-checkpoint",
+      "license": "CC0-1.0",
+      "path": "artifacts/city_recovery_ppo.v1.zip",
+      "role": "training_checkpoint",
+      "sha256": "f270bc720e7d2866d293feab27692d3ac9542d064d275b13c33f4d960dad4e33",
+      "source": "scripts/train_policy.py"
+    },
+    {
+      "bytes": 10469,
+      "id": "city-recovery-ppo-v1-onnx",
+      "license": "CC0-1.0",
+      "path": "artifacts/city_recovery_ppo.v1.onnx",
+      "role": "runtime_policy",
+      "sha256": "983b7090e9cfc761b7b2118a24cff907abfc9caa74036cfb16bd9218346b11d8",
+      "source": "scripts/train_policy.py"
+    },
+    {
+      "bytes": 2530,
+      "id": "city-recovery-ppo-v1-metadata",
+      "license": "CC0-1.0",
+      "path": "artifacts/city_recovery_ppo.v1.metadata.json",
+      "role": "policy_metadata",
+      "sha256": "becc2eed1e552e9a503c3210d2ebae18eeccc593c9a7d716fae11e1e69b1c62e",
+      "source": "scripts/train_policy.py"
+    },
+    {
+      "bytes": 631,
+      "id": "city-recovery-ppo-v1-parity",
+      "license": "CC0-1.0",
+      "path": "evaluation/policy_parity.v1.json",
+      "role": "pytorch_onnx_parity_evidence",
+      "sha256": "20d87aafc638f3c6e7942a1578eea0710e0cd083c5a2054063f1813a76916a82",
+      "source": "scripts/train_policy.py"
     }
   ],
   "project": "AI17",
-  "version": 1
+  "version": 2
 }

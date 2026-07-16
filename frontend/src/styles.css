@@ -68,10 +68,12 @@ h2, h3 { font-family: Bahnschrift, "Arial Narrow", sans-serif; text-wrap: balanc
 
 .field { display: grid; gap: 5px; min-width: 0; }
 .field > span, .service-editor legend { color: #52645d; font-size: 11px; font-weight: 750; }
-.field input, .service-input-row input { min-width: 0; width: 100%; height: 40px; border: 1px solid #cbd6d1; border-radius: 3px; background: var(--paper); color: var(--ink); padding: 0 9px; transition: border-color 130ms ease, box-shadow 130ms ease; }
-.field input:hover, .service-input-row input:hover { border-color: #9eb0a8; }
-.field input:focus, .service-input-row input:focus { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal); outline: none; }
+.field input, .field select, .service-input-row input { min-width: 0; width: 100%; height: 40px; border: 1px solid #cbd6d1; border-radius: 3px; background: var(--paper); color: var(--ink); padding: 0 9px; transition: border-color 130ms ease, box-shadow 130ms ease; }
+.field input:hover, .field select:hover, .service-input-row input:hover { border-color: #9eb0a8; }
+.field input:focus, .field select:focus, .service-input-row input:focus { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal); outline: none; }
 .full-field { margin-bottom: 13px; }
+.saved-result-field > span { display: flex; align-items: center; gap: 5px; }
+.saved-result-field select:disabled { color: #71817a; cursor: not-allowed; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .input-suffix { position: relative; }
 .input-suffix input { padding-right: 28px; }
