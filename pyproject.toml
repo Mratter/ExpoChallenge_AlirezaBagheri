@@ -11,8 +11,6 @@ dependencies = [
   "onnxruntime==1.23.0",
   "ortools==9.14.6206",
   "pydantic==2.11.7",
-  "stable-baselines3==2.7.0",
-  "torch==2.8.0",
   "uvicorn[standard]==0.35.0",
 ]
 
@@ -21,6 +19,10 @@ dev = [
   "httpx==0.28.1",
   "pytest==8.4.1",
   "ruff==0.12.4",
+]
+training = [
+  "stable-baselines3==2.7.0",
+  "torch==2.8.0",
 ]
 
 [tool.pytest.ini_options]

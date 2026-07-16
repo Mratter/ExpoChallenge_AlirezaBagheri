@@ -51,7 +51,7 @@ try {
     }) -join ', '
     Write-Host "[setup] uv transport: $UvTransportSummary"
     Write-Host '[setup] Syncing pinned Python 3.12 environment'
-    & uv sync --frozen --python 3.12
+    & uv sync --frozen --python 3.12 --no-group training
     if ($LASTEXITCODE -ne 0) { throw 'uv sync failed' }
     Write-Host '[setup] Installing pinned frontend dependencies'
     & npm ci --prefix frontend

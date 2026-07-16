@@ -59,8 +59,6 @@ dependencies = [
     { name = "onnxruntime" },
     { name = "ortools" },
     { name = "pydantic" },
-    { name = "stable-baselines3" },
-    { name = "torch" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -69,6 +67,10 @@ dev = [
     { name = "httpx" },
     { name = "pytest" },
     { name = "ruff" },
+]
+training = [
+    { name = "stable-baselines3" },
+    { name = "torch" },
 ]
 
 [package.metadata]
@@ -80,8 +82,6 @@ requires-dist = [
     { name = "onnxruntime", specifier = "==1.23.0" },
     { name = "ortools", specifier = "==9.14.6206" },
     { name = "pydantic", specifier = "==2.11.7" },
-    { name = "stable-baselines3", specifier = "==2.7.0" },
-    { name = "torch", specifier = "==2.8.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.35.0" },
 ]
 
@@ -90,6 +90,10 @@ dev = [
     { name = "httpx", specifier = "==0.28.1" },
     { name = "pytest", specifier = "==8.4.1" },
     { name = "ruff", specifier = "==0.12.4" },
+]
+training = [
+    { name = "stable-baselines3", specifier = "==2.7.0" },
+    { name = "torch", specifier = "==2.8.0" },
 ]
 
 [[package]]

@@ -12,7 +12,7 @@ All scenarios, dynamics, coefficients, and policy training inputs are authored s
 .\scripts\run.ps1 -Profile cpu
 ```
 
-Setup requires `uv` 0.7.21 or newer and preserves the frozen lock and package hash verification. For reliable large-wheel acquisition on Windows it supplies conservative, process-scoped defaults (four downloads, two installs, six HTTP retries, and a 120-second read timeout); explicit caller values take precedence, and the prior environment is restored on exit.
+Setup requires `uv` 0.7.21 or newer and preserves the frozen lock and package hash verification. It installs the CPU runtime and test environment while explicitly excluding the closed training toolchain. For reliable wheel acquisition on Windows it supplies conservative, process-scoped defaults (four downloads, two installs, six HTTP retries, and a 120-second read timeout); explicit caller values take precedence, and the prior environment is restored on exit.
 
 Open `http://127.0.0.1:4117`. `run.ps1` does not open a browser and makes no outbound runtime connection. A port collision, missing compiled UI, or invalid artifact bundle is a blocking error. If a required artifact is lost after startup, every route except `/health/live` returns structured `503 DEPENDENCY_NOT_READY`; the primary UI is not served in a degraded state.
 
@@ -33,10 +33,10 @@ uv run --frozen python scripts/evaluate_policy.py
 Model training/export is intentionally separate from normal setup/runtime:
 
 ```powershell
-uv run --frozen python scripts/train_policy.py --timesteps 30000
+uv run --frozen --no-default-groups --group training python scripts/train_policy.py --timesteps 30000
 ```
 
-The training command rewrites the SB3, ONNX, parity, metadata, and manifest bundle. A resulting change is a new model candidate and requires evaluation and independent review.
+Torch and Stable-Baselines3 remain exactly pinned in the non-default `training` group. The training command rewrites the SB3, ONNX, parity, metadata, and manifest bundle; it is not part of normal setup or runtime. A resulting change is a new model candidate and requires evaluation and independent review.
 
 ## API
 

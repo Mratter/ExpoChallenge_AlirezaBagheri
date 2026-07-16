@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
 import type { CompareResponse, DayResult, Shock } from '../src/types'
@@ -267,7 +267,7 @@ describe('recovery desk', () => {
       expect(await screen.findByRole('heading', { name: heading })).toBeVisible()
       const alert = screen.getByRole('alert')
       expect(alert).toHaveTextContent(message)
-      expect(alert).toHaveFocus()
+      await waitFor(() => expect(alert).toHaveFocus())
       expect(screen.queryByLabelText('Comparison summary')).not.toBeInTheDocument()
       expect(screen.queryByText('Measured constraint violations')).not.toBeInTheDocument()
       expect(screen.queryByText('Shock tape')).not.toBeInTheDocument()

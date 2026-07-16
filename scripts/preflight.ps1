@@ -27,9 +27,9 @@ try {
     & uv run --frozen python scripts/preflight_check.py
     if ($LASTEXITCODE -ne 0) { throw 'Artifact or smoke inference preflight failed' }
     if ($Full) {
-        & uv run --frozen pytest
+        & uv run --frozen python -m pytest
         if ($LASTEXITCODE -ne 0) { throw 'backend tests failed' }
-        & uv run --frozen ruff check backend scripts
+        & uv run --frozen python -m ruff check backend scripts
         if ($LASTEXITCODE -ne 0) { throw 'backend lint failed' }
         & npm test --prefix frontend
         if ($LASTEXITCODE -ne 0) { throw 'frontend tests failed' }

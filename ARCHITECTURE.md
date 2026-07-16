@@ -57,6 +57,8 @@ x = clip(y - lambda, lower, upper)
 
 The candidate is a real Stable-Baselines3 2.7.0 PPO `MlpPolicy`, trained for 30,000 CPU steps on four authored training families. The deterministic PyTorch action is exported at ONNX opset 17. Runtime uses only the checksum-pinned ONNX graph through sequential, single-thread `CPUExecutionProvider`; the shared action-to-proposal conversion and constraint projector remain outside the graph.
 
+The default CPU setup installs the runtime and test dependency graph and explicitly excludes the non-default `training` group. PyTorch 2.8.0 and Stable-Baselines3 2.7.0 remain pinned in that group for deliberate model-build reproduction, but neither is imported by the shipped runtime, preflight, evaluation, or test paths.
+
 The baseline is OR-Tools 9.14.6206 GLOP. Every day it maximizes:
 
 ```text
