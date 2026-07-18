@@ -186,4 +186,51 @@ describe('city kick flow', () => {
     expect(onResult).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Day 1 city condition')).toBeVisible()
   })
+
+  it('consumes one Stress Test disaster only after a verified rerun and locks stacking until impact', async () => {
+    const returnedShock: Shock = {
+      day: 2, type: 'aftershock', severity: 0.26,
+      impact: [0.65, 1, 0.2, 0.35, 0.45], budget_factor: 0.15, forced: true,
+    }
+    let call = 0
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
+      call += 1
+      return { ok: true, json: async () => call === 1 ? resultFixture() : resultFixture(returnedShock) }
+    }))
+    render(<CityGame onOpenToolbox={vi.fn()} onResult={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Stress Test' }))
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByLabelText('6 disasters remaining')).toBeVisible()
+
+    await throwAftershock()
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByLabelText('5 disasters remaining')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Aftershock' })).toBeDisabled()
+
+    await act(async () => { vi.advanceTimersByTime(2_000) })
+    expect(screen.getByLabelText('Day 2 city condition')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Aftershock' })).toBeEnabled()
+  })
+
+  it('stops at the earliest city-condition fall, shows the somber screen, then one debrief', async () => {
+    const fallen = resultFixture()
+    fallen.candidate.trajectory[0].services_end = [0.08, 0.08, 0.5, 0.5, 0.5]
+    fallen.candidate.trajectory[0].resilience = 0.2
+    fallen.candidate.trajectory[1].services_end = [0.08, 0.08, 0.5, 0.5, 0.5]
+    fallen.candidate.trajectory[1].resilience = 0.18
+    render(<CityGame initialResult={fallen} onOpenToolbox={vi.fn()} onResult={vi.fn()} />)
+
+    await act(async () => { vi.advanceTimersByTime(2_000) })
+    expect(screen.getByLabelText('Day 2 city condition')).toBeVisible()
+    await act(async () => { vi.advanceTimersByTime(2_000) })
+
+    expect(screen.getByRole('heading', { name: 'The city fell on day 2.' })).toBeVisible()
+    expect(screen.getByText(/two consecutive days/i)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Review what happened' }))
+
+    expect(screen.getByRole('heading', { name: 'Fell on day 2' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'conventional rule-based planner' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Inspect this run in the Analyst Toolbox' })).toBeVisible()
+  })
 })

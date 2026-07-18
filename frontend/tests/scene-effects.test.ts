@@ -56,4 +56,16 @@ describe('trajectory-derived city traffic', () => {
 
     expect(plans.map((plan) => plan.service)).toEqual(['transport'])
   })
+
+  it('keeps a trajectory-derived dark district still', () => {
+    const day = trajectoryDay({
+      allocation: [20, 70, 30, 30, 30],
+      services_after_shock: [0.4, 0.3, 0.4, 0.4, 0.4],
+      services_end: [0.41, 0.34, 0.41, 0.41, 0.41],
+      gain: [0.01, 0.04, 0.01, 0.01, 0.01],
+    })
+
+    expect(convoyPlansForDay(day, undefined, ['housing']).some((plan) => plan.service === 'housing')).toBe(false)
+    expect(repairPlansForDay(day, undefined, undefined, ['housing']).some((plan) => plan.service === 'housing')).toBe(false)
+  })
 })

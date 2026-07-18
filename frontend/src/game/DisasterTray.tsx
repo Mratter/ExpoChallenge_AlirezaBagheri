@@ -1,6 +1,7 @@
 import { Activity, CloudRain, Package, Waves, Zap } from 'lucide-react'
 import type { DragEvent, ReactNode } from 'react'
 import { shockTypes, type ShockType } from '../types'
+import type { GameMode } from './session'
 
 const labels: Record<ShockType, string> = {
   aftershock: 'Aftershock',
@@ -22,6 +23,8 @@ export function DisasterTray({
   severity,
   aimingType,
   disabled,
+  remaining,
+  mode,
   targetLabel,
   onSeverity,
   onAimStart,
@@ -30,6 +33,8 @@ export function DisasterTray({
   severity: number
   aimingType: ShockType | null
   disabled: boolean
+  remaining: number | null
+  mode: GameMode
   targetLabel: string | null
   onSeverity: (severity: number) => void
   onAimStart: (type: ShockType, event: DragEvent<HTMLButtonElement>) => void
@@ -39,7 +44,12 @@ export function DisasterTray({
     <aside className={`disaster-tray ${aimingType ? 'is-aiming' : ''}`} aria-label="Disaster tray">
       <div className="tray-heading">
         <div><span>Disaster tray</span><b>{aimingType ? 'Aim over the city' : 'Drag to strike overnight'}</b></div>
-        <output aria-label="Selected disaster severity">{severity.toFixed(2)}</output>
+        <div className="tray-readouts">
+          <span aria-label={mode === 'stress' ? `${remaining ?? 0} disasters remaining` : 'Unlimited disasters'}>
+            {mode === 'stress' ? `${remaining ?? 0} left` : '∞'}
+          </span>
+          <output aria-label="Selected disaster severity">{severity.toFixed(2)}</output>
+        </div>
       </div>
       <label className="severity-control">
         <span>Severity</span>
@@ -71,7 +81,13 @@ export function DisasterTray({
         ))}
       </div>
       <p className="aim-readout" aria-live="polite">
-        {targetLabel ?? (disabled ? 'Run complete — rewind to throw another disaster.' : 'The typed footprint follows engine truth.')}
+        {targetLabel ?? (
+          remaining === 0
+            ? 'Stress Test arsenal exhausted — playback continues.'
+            : disabled
+              ? 'Disasters are unavailable at this day boundary.'
+              : 'The typed footprint follows engine truth.'
+        )}
       </p>
     </aside>
   )

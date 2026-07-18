@@ -8,6 +8,18 @@ import { shockTypes, type CompareResponse, type ShockType } from '../types'
 import { CityScene } from './CityScene'
 import { DisasterTray } from './DisasterTray'
 import { DISTRICTS, appendForcedShock, closestDistrict, shockImpactFor, type CityImpactEvent, type DistrictDefinition } from './model'
+import { CollapseScreen, RunDebriefScreen } from './RunOutcome'
+import {
+  applyDifficultyPreset,
+  canUseDisaster,
+  createGameSession,
+  recordDisaster,
+  remainingDisasters,
+  type GameSessionState,
+  type SessionSelection,
+} from './session'
+import { StartScreen } from './StartScreen'
+import { deriveCityOutcome, deriveRunDebrief } from './stakes'
 import './game.css'
 
 type CityGameProps = {
@@ -15,6 +27,8 @@ type CityGameProps = {
   onOpenToolbox: () => void
   onResult: (result: CompareResponse) => void
 }
+
+type GamePhase = 'setup' | 'loading' | 'playing' | 'collapse' | 'debrief'
 
 type SceneBoundaryProps = { children: ReactNode; onOpenToolbox: () => void }
 type SceneBoundaryState = { failed: boolean }
@@ -69,7 +83,12 @@ function LoadingCity() {
 }
 
 export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGameProps) {
+  const [phase, setPhase] = useState<GamePhase>(initialResult ? 'playing' : 'setup')
   const [result, setResult] = useState<CompareResponse | null>(initialResult ?? null)
+  const [session, setSession] = useState<GameSessionState | null>(() => (
+    initialResult ? createGameSession({ mode: 'sandbox', difficulty: 'moderate' }) : null
+  ))
+  const [sessionSource, setSessionSource] = useState<'start-screen' | 'toolbox'>(initialResult ? 'toolbox' : 'start-screen')
   const [error, setError] = useState<string | null>(null)
   const [dayIndex, setDayIndex] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -87,37 +106,96 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
   const raycaster = useRef(new THREE.Raycaster())
   const platePlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0))
   const impactSequence = useRef(0)
+  const startController = useRef<AbortController | null>(null)
+  const requestGeneration = useRef(0)
 
   useEffect(() => {
-    if (initialResult) {
-      setResult(initialResult)
-      return
+    return () => {
+      requestGeneration.current += 1
+      startController.current?.abort()
     }
+  }, [])
+
+  const clearTransientState = () => {
+    setDayIndex(0)
+    setPaused(false)
+    setSpeed(1)
+    setSeverity(0.26)
+    setAimingType(null)
+    setAimedDistrict(null)
+    setRecomputing(false)
+    setKickError(null)
+    setPendingImpact(null)
+    setActiveImpact(null)
+  }
+
+  const startPresetSession = async (selection: SessionSelection) => {
+    startController.current?.abort()
     const controller = new AbortController()
-    const load = async () => {
-      try {
-        const response = await runComparison(defaultSeed, defaultScenario, controller.signal)
-        setResult(response)
-        onResult(response)
-        setDayIndex(0)
-      } catch (caught) {
-        if (caught instanceof DOMException && caught.name === 'AbortError') return
-        setError(caught instanceof ComparisonError ? caught.message : 'The deterministic comparison could not be completed.')
-      }
+    startController.current = controller
+    const generation = requestGeneration.current + 1
+    requestGeneration.current = generation
+    const nextSession = createGameSession(selection)
+    const scenario = applyDifficultyPreset(
+      defaultScenario,
+      selection.difficulty,
+      'start-screen',
+    )
+    clearTransientState()
+    setSession(nextSession)
+    setSessionSource('start-screen')
+    setResult(null)
+    setError(null)
+    setPhase('loading')
+    try {
+      const response = await runComparison(defaultSeed, scenario, controller.signal)
+      if (generation !== requestGeneration.current) return
+      setResult(response)
+      onResult(response)
+      setPhase('playing')
+    } catch (caught) {
+      if (controller.signal.aborted || generation !== requestGeneration.current) return
+      setError(caught instanceof ComparisonError ? caught.message : 'The deterministic comparison could not be completed.')
     }
-    void load()
-    return () => controller.abort()
-  }, [initialResult, onResult])
+  }
+
+  const returnToSetup = () => {
+    requestGeneration.current += 1
+    startController.current?.abort()
+    clearTransientState()
+    setSession(null)
+    setSessionSource('start-screen')
+    setResult(null)
+    setError(null)
+    setPhase('setup')
+  }
+
+  const candidateOutcome = useMemo(
+    () => result ? deriveCityOutcome(result.candidate.trajectory, result.services) : null,
+    [result],
+  )
+  const debrief = useMemo(() => result ? deriveRunDebrief(result) : null, [result])
+  const terminalIndex = result && candidateOutcome
+    ? Math.max(0, Math.min(result.candidate.trajectory.length - 1, candidateOutcome.conditions.length - 1))
+    : 0
 
   useEffect(() => {
-    if (!result || paused || recomputing || dayIndex >= result.scenario.horizon_days - 1) return
+    if (phase !== 'playing' || !result || !candidateOutcome || paused || recomputing) return
+    const delay = (2000 / speed) * (aimingType ? 4 : 1)
+    if (dayIndex >= terminalIndex) {
+      const timer = window.setTimeout(() => {
+        setPhase(candidateOutcome.fall ? 'collapse' : 'debrief')
+      }, delay)
+      return () => window.clearTimeout(timer)
+    }
     const timer = window.setTimeout(() => {
-      setDayIndex((current) => Math.min(current + 1, result.scenario.horizon_days - 1))
-    }, (2000 / speed) * (aimingType ? 4 : 1))
+      setDayIndex((current) => Math.min(current + 1, terminalIndex))
+    }, delay)
     return () => window.clearTimeout(timer)
-  }, [aimingType, dayIndex, paused, recomputing, result, speed])
+  }, [aimingType, candidateOutcome, dayIndex, paused, phase, recomputing, result, speed, terminalIndex])
 
   const day = result?.candidate.trajectory[dayIndex]
+  const dayCondition = candidateOutcome?.conditions[dayIndex] ?? null
   const shockTaxed = result && day ? day.available_budget < result.scenario.daily_budget - 0.001 : false
   const wellbeing = day ? Math.round(day.resilience * 100) : 0
   const serviceReadings = useMemo(() => {
@@ -127,6 +205,18 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
       return { ...district, value: day.services_end[index] }
     })
   }, [day, result])
+  const disasterRemaining = session ? remainingDisasters(session) : null
+  const canThrow = Boolean(
+    phase === 'playing'
+    && session
+    && result
+    && day
+    && dayIndex < terminalIndex
+    && day.day < result.scenario.horizon_days
+    && !recomputing
+    && !pendingImpact
+    && canUseDisaster(session),
+  )
 
   const cycleSpeed = () => setSpeed((current) => current === 0.5 ? 1 : current === 1 ? 2 : 0.5)
 
@@ -147,7 +237,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
   }
 
   const handleDragOver = (event: DragEvent<HTMLElement>) => {
-    if (!aimingType || recomputing) return
+    if (!aimingType || !canThrow) return
     event.preventDefault()
     const point = pointOnPlate(event.clientX, event.clientY)
     event.dataTransfer.dropEffect = point ? 'copy' : 'none'
@@ -156,7 +246,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
 
   const handleKick = async (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
-    if (!result || !day || recomputing || day.day >= result.scenario.horizon_days) return
+    if (!result || !day || !session || !canThrow) return
     const encodedType = event.dataTransfer.getData('application/x-civic-shock')
     const type = shockTypes.includes(encodedType as ShockType) ? encodedType as ShockType : aimingType
     const point = pointOnPlate(event.clientX, event.clientY)
@@ -165,12 +255,15 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
     const targetDay = day.day + 1
     const throwDayIndex = dayIndex
     const nextScenario = appendForcedShock(result.scenario, { day: targetDay, type, severity })
+    const generation = requestGeneration.current + 1
+    requestGeneration.current = generation
     setAimingType(null)
     setAimedDistrict(null)
     setRecomputing(true)
     setKickError(null)
     try {
       const response = await runComparison(result.seed, nextScenario)
+      if (generation !== requestGeneration.current) return
       const actualShock = response.shock_schedule[targetDay - 1]
       if (
         !actualShock
@@ -193,6 +286,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
       }
       setResult(response)
       onResult(response)
+      setSession((current) => current ? recordDisaster(current) : current)
       setDayIndex(throwDayIndex)
       setPendingImpact(impact)
       setPaused(false)
@@ -207,9 +301,13 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
     if (!pendingImpact || !day || day.day < pendingImpact.day) return
     setActiveImpact(pendingImpact)
     setPendingImpact(null)
+  }, [day, pendingImpact])
+
+  useEffect(() => {
+    if (!activeImpact) return
     const timer = window.setTimeout(() => setActiveImpact(null), 1900)
     return () => window.clearTimeout(timer)
-  }, [day, pendingImpact])
+  }, [activeImpact])
 
   const aimLabel = aimingType && aimedDistrict
     ? `${aimedDistrict.shortLabel}: ${Math.round(shockImpactFor(aimingType, aimedDistrict.service) * 100)}% typed impact`
@@ -217,9 +315,17 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
       ? `${pendingImpact.type} strikes overnight on day ${pendingImpact.day}.`
       : null
 
+  if (phase === 'setup') {
+    return <StartScreen onStart={(selection) => void startPresetSession(selection)} onOpenToolbox={onOpenToolbox} />
+  }
+
   return (
     <main className="game-shell">
-      <header className="game-rail">
+      <header
+        className="game-rail"
+        inert={phase === 'collapse' || phase === 'debrief' ? true : undefined}
+        aria-hidden={phase === 'collapse' || phase === 'debrief' ? true : undefined}
+      >
         <div className="game-brand">
           <span className="relay-mark" aria-hidden="true"><i /><i /><i /></span>
           <div><b>Civic Relay</b><small>The city you can't knock over</small></div>
@@ -233,8 +339,10 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
       </header>
 
       <section
-        className={`city-stage ${aimingType ? 'aiming-disaster' : ''}`}
+        className={`city-stage ${aimingType ? 'aiming-disaster' : ''} ${dayCondition?.stumble ? 'is-stumbling' : ''}`}
         aria-label="Interactive recovery city"
+        inert={phase === 'collapse' || phase === 'debrief' ? true : undefined}
+        aria-hidden={phase === 'collapse' || phase === 'debrief' ? true : undefined}
         onDragOver={handleDragOver}
         onDrop={(event) => void handleKick(event)}
       >
@@ -242,7 +350,10 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
         {error ? (
           <div className="game-error" role="alert">
             <p>Comparison blocked</p><h2>{error}</h2>
-            <button type="button" onClick={onOpenToolbox}>Inspect in Analyst Toolbox</button>
+            <div className="game-error-actions">
+              <button type="button" onClick={returnToSetup}>Return to run setup</button>
+              <button type="button" onClick={onOpenToolbox}>Inspect in Analyst Toolbox</button>
+            </div>
           </div>
         ) : null}
         {result && day ? (
@@ -266,6 +377,9 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
                     dayIndex={dayIndex}
                     aimedService={aimedDistrict?.service ?? null}
                     activeImpact={activeImpact}
+                    criticalServices={dayCondition?.belowFloor ?? []}
+                    darkServices={dayCondition?.darkServices ?? []}
+                    stumble={dayCondition?.stumble ?? false}
                   />
                 </Canvas>
               </SceneBoundary>
@@ -296,7 +410,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
                 <input
                   type="range"
                   min="0"
-                  max={result.scenario.horizon_days - 1}
+                  max={terminalIndex}
                   value={dayIndex}
                   onChange={(event) => { setDayIndex(Number(event.target.value)); setPaused(true) }}
                 />
@@ -305,7 +419,11 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
 
             <div className="service-strip" aria-label="Service condition by district">
               {serviceReadings.map((service) => (
-                <div key={service.service} style={{ '--service-accent': service.accent } as React.CSSProperties}>
+                <div
+                  key={service.service}
+                  className={dayCondition?.darkServices.includes(service.service) ? 'is-dark' : ''}
+                  style={{ '--service-accent': service.accent } as React.CSSProperties}
+                >
                   <span>{service.shortLabel}</span><strong>{Math.round(service.value * 100)}</strong>
                   <i><b style={{ width: `${service.value * 100}%` }} /></i>
                 </div>
@@ -316,13 +434,22 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
             {day.shock.type ? (
               <div className="shock-ribbon"><span>Overnight event</span><b>{day.shock.type}</b><em>{day.shock.severity.toFixed(2)} severity</em></div>
             ) : null}
+            {dayCondition?.stumble ? (
+              <div className="critical-ribbon" role="status">
+                <span>Critical floor breached</span>
+                <b>{dayCondition.belowFloor.map((service) => serviceReadings.find((reading) => reading.service === service)?.shortLabel ?? service).join(' · ')}</b>
+              </div>
+            ) : null}
             <DisasterTray
               severity={severity}
               aimingType={aimingType}
-              disabled={recomputing || day.day >= result.scenario.horizon_days}
+              disabled={!canThrow}
+              remaining={disasterRemaining}
+              mode={session?.mode ?? 'sandbox'}
               targetLabel={aimLabel}
               onSeverity={setSeverity}
               onAimStart={(type, event) => {
+                if (!canThrow) return
                 event.dataTransfer.effectAllowed = 'copy'
                 event.dataTransfer.setData('application/x-civic-shock', type)
                 setAimingType(type)
@@ -337,6 +464,19 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
           </>
         ) : null}
       </section>
+      {phase === 'collapse' && candidateOutcome ? (
+        <CollapseScreen outcome={candidateOutcome} onDebrief={() => setPhase('debrief')} />
+      ) : null}
+      {phase === 'debrief' && debrief && session ? (
+        <RunDebriefScreen
+          debrief={debrief}
+          mode={session.mode}
+          difficulty={sessionSource === 'toolbox' ? null : session.difficulty}
+          playerKicks={session.disastersUsed}
+          onOpenToolbox={onOpenToolbox}
+          onRestart={returnToSetup}
+        />
+      ) : null}
     </main>
   )
 }

@@ -349,22 +349,28 @@ function Building({ placement, district, state, rebuilding }: {
   )
 }
 
-function District({ district, result, dayIndex, aimed }: {
+function District({ district, result, dayIndex, aimed, dark }: {
   district: DistrictDefinition
   result: CompareResponse
   dayIndex: number
   aimed: boolean
+  dark: boolean
 }) {
   const day = result.candidate.trajectory[dayIndex]
   const previous = result.candidate.trajectory[dayIndex - 1]
   const index = serviceIndex(district.service)
   const level = day.services_end[index]
   const placements = useMemo(() => buildingPlacements(district), [district])
+  const visualDistrict = useMemo(() => dark ? {
+    ...district,
+    accent: '#747b76',
+    body: '#6d736e',
+  } : district, [dark, district])
   return (
     <group>
       <mesh position={[district.center[0], 0.035, district.center[2]]} receiveShadow>
         <boxGeometry args={[5.5, 0.07, 5.45]} />
-        <meshStandardMaterial color={district.accent} opacity={aimed ? 0.52 : 0.2} transparent roughness={1} />
+        <meshStandardMaterial color={visualDistrict.accent} opacity={aimed ? 0.52 : dark ? 0.34 : 0.2} transparent roughness={1} />
       </mesh>
       {aimed ? (
         <mesh position={[district.center[0], 0.31, district.center[2]]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -373,17 +379,50 @@ function District({ district, result, dayIndex, aimed }: {
         </mesh>
       ) : null}
       {placements.map((placement, buildingIndex) => {
-        const state = damageStateFor(level, buildingIndex)
+        const state = dark ? 'rubble' : damageStateFor(level, buildingIndex)
         return (
           <Building
             key={`${district.service}-${buildingIndex}`}
             placement={placement}
-            district={district}
+            district={visualDistrict}
             state={state}
-            rebuilding={isBuildingRebuilding(day, previous, district.service, buildingIndex)}
+            rebuilding={!dark && isBuildingRebuilding(day, previous, district.service, buildingIndex)}
           />
         )
       })}
+    </group>
+  )
+}
+
+function CriticalSmoke({ district, dark }: { district: DistrictDefinition; dark: boolean }) {
+  const group = useRef<Group>(null)
+  useFrame(({ clock }) => {
+    if (!group.current) return
+    group.current.children.forEach((child, index) => {
+      const phase = (clock.elapsedTime * (0.22 + index * 0.025) + index * 0.31) % 1
+      child.position.set(
+        Math.sin(index * 2.4) * (0.34 + phase * 0.25),
+        0.72 + phase * (dark ? 3.1 : 2.25),
+        Math.cos(index * 2.4) * (0.34 + phase * 0.2),
+      )
+      child.scale.setScalar(0.26 + phase * (dark ? 0.7 : 0.48))
+    })
+  })
+  return (
+    <group ref={group} position={[district.center[0], 0.3, district.center[2]]}>
+      {Array.from({ length: dark ? 5 : 3 }, (_, index) => (
+        <mesh key={index}>
+          <dodecahedronGeometry args={[0.52, 0]} />
+          <meshStandardMaterial
+            color={dark ? '#555a57' : '#6b6e69'}
+            transparent
+            opacity={dark ? 0.34 : 0.22}
+            depthWrite={false}
+            roughness={1}
+            flatShading
+          />
+        </mesh>
+      ))}
     </group>
   )
 }
@@ -526,15 +565,33 @@ function TypedImpactFootprint({ impact }: { impact: CityImpactEvent }) {
   )
 }
 
-export function CityScene({ result, dayIndex, aimedService, activeImpact }: {
+export function CityScene({
+  result,
+  dayIndex,
+  aimedService,
+  activeImpact,
+  criticalServices = [],
+  darkServices = [],
+  stumble = false,
+}: {
   result: CompareResponse
   dayIndex: number
   aimedService: Service | null
   activeImpact: CityImpactEvent | null
+  criticalServices?: readonly Service[]
+  darkServices?: readonly Service[]
+  stumble?: boolean
 }) {
   const day = result.candidate.trajectory[dayIndex]
   const narration = relayNarration(result, dayIndex)
   const world = useRef<Group>(null)
+  const conditionWorld = useRef<Group>(null)
+  useFrame(({ clock }) => {
+    if (!conditionWorld.current) return
+    const strength = stumble ? 0.012 : 0
+    conditionWorld.current.rotation.x = Math.sin(clock.elapsedTime * 3.1 + day.day) * strength * 0.55
+    conditionWorld.current.rotation.z = Math.sin(clock.elapsedTime * 2.3 + day.day * 0.7) * strength
+  })
   return (
     <>
       <color attach="background" args={['#dce8e2']} />
@@ -555,32 +612,43 @@ export function CityScene({ result, dayIndex, aimedService, activeImpact }: {
         shadow-normalBias={0.025}
       />
       <directionalLight position={[14, 10, -12]} intensity={0.6} color="#b9d2d3" />
-      <group ref={world}>
-        <Tabletop />
-        <Baseplate />
-        {DISTRICTS.map((district) => (
-          <District
-            key={district.service}
-            district={district}
+      <group ref={conditionWorld}>
+        <group ref={world}>
+          <Tabletop />
+          <Baseplate />
+          {DISTRICTS.map((district) => (
+            <District
+              key={district.service}
+              district={district}
+              result={result}
+              dayIndex={dayIndex}
+              aimed={aimedService === district.service}
+              dark={darkServices.includes(district.service)}
+            />
+          ))}
+          {DISTRICTS.filter((district) => criticalServices.includes(district.service)).map((district) => (
+            <CriticalSmoke
+              key={`critical-${district.service}`}
+              district={district}
+              dark={darkServices.includes(district.service)}
+            />
+          ))}
+          <Silo allocations={day.allocation} />
+          <RelayOrb narration={narration} day={day.day} />
+          <SceneEffects
             result={result}
             dayIndex={dayIndex}
-            aimed={aimedService === district.service}
+            impact={activeImpact ? {
+              id: activeImpact.id,
+              type: activeImpact.type,
+              severity: activeImpact.severity,
+              position: activeImpact.point,
+            } : null}
+            tremorTarget={world}
+            inactiveServices={darkServices}
           />
-        ))}
-        <Silo allocations={day.allocation} />
-        <RelayOrb narration={narration} day={day.day} />
-        <SceneEffects
-          result={result}
-          dayIndex={dayIndex}
-          impact={activeImpact ? {
-            id: activeImpact.id,
-            type: activeImpact.type,
-            severity: activeImpact.severity,
-            position: activeImpact.point,
-          } : null}
-          tremorTarget={world}
-        />
-        {activeImpact ? <TypedImpactFootprint key={activeImpact.id} impact={activeImpact} /> : null}
+          {activeImpact ? <TypedImpactFootprint key={activeImpact.id} impact={activeImpact} /> : null}
+        </group>
       </group>
       <OrbitControls
         makeDefault

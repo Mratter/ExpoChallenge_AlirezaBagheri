@@ -118,18 +118,25 @@ export function relayNarration(result: CompareResponse, dayIndex: number): strin
   const previous = result.candidate.trajectory[dayIndex - 1]
   if (!day) return 'TRAJECTORY STANDING BY.'
 
+  const criticalIndex = day.services_end.findIndex((value) => value < 0.12)
+  if (day.shock.type && criticalIndex >= 0) {
+    const impactService = strongestImpact(day)
+    const criticalService = result.services[criticalIndex]
+    return `SHOCK DETECTED — ${SERVICE_LABELS[impactService].toUpperCase()}. SEVERITY ${day.shock.severity.toFixed(2)}. CRITICAL FLOOR BREACHED — ${SERVICE_LABELS[criticalService].toUpperCase()}.`
+  }
+
   if (day.shock.type) {
     const service = strongestImpact(day)
     return `SHOCK DETECTED — ${SERVICE_LABELS[service].toUpperCase()}. SEVERITY ${day.shock.severity.toFixed(2)}.`
   }
 
-  const criticalIndex = day.services_end.findIndex((value) => value < 0.12)
   if (criticalIndex >= 0) {
     const service = result.services[criticalIndex]
     return `CRITICAL FLOOR BREACHED — ${SERVICE_LABELS[service].toUpperCase()}. PRIORITY OVERRIDE.`
   }
 
-  if (day.services_end[4] < 0.3) {
+  const civicIndex = result.services.indexOf('public_services')
+  if (civicIndex >= 0 && day.services_end[civicIndex] < 0.3) {
     return 'CIVIC CAPACITY DEGRADED — RECOVERY EFFICIENCY REDUCED.'
   }
 

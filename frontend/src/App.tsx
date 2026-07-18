@@ -386,13 +386,19 @@ function AuditTable({ result }: { result: CompareResponse }) {
   )
 }
 
-function AnalystToolbox({ onOpenGame }: { onOpenGame: (result: CompareResponse | null) => void }) {
-  const [draft, setDraft] = useState<Scenario>(defaultScenario)
-  const [seed, setSeed] = useState(defaultSeed)
-  const [result, setResult] = useState<CompareResponse | null>(null)
-  const [busy, setBusy] = useState(true)
+function AnalystToolbox({
+  onOpenGame,
+  initialResult,
+}: {
+  onOpenGame: (result: CompareResponse | null) => void
+  initialResult?: CompareResponse | null
+}) {
+  const [draft, setDraft] = useState<Scenario>(initialResult?.scenario ?? defaultScenario)
+  const [seed, setSeed] = useState(initialResult?.seed ?? defaultSeed)
+  const [result, setResult] = useState<CompareResponse | null>(initialResult ?? null)
+  const [busy, setBusy] = useState(!initialResult)
   const [error, setError] = useState<ComparisonFailure | null>(null)
-  const [selectedDay, setSelectedDay] = useState(5)
+  const [selectedDay, setSelectedDay] = useState(initialResult ? Math.min(5, initialResult.scenario.horizon_days) : 5)
   const [view, setView] = useState<ViewMode>('trajectory')
   const [savedRuns, setSavedRuns] = useState<SavedResultSummary[]>([])
   const errorRef = useRef<HTMLDivElement>(null)
@@ -441,9 +447,13 @@ function AnalystToolbox({ onOpenGame }: { onOpenGame: (result: CompareResponse |
 
   useEffect(() => {
     const controller = new AbortController()
+    if (initialResult) {
+      void listSimulations(controller.signal).then(setSavedRuns).catch(() => undefined)
+      return () => controller.abort()
+    }
     void execute(defaultScenario, defaultSeed, controller.signal)
     return () => controller.abort()
-  }, [execute])
+  }, [execute, initialResult])
 
   useEffect(() => {
     if (!error) return
@@ -506,7 +516,15 @@ function AnalystToolbox({ onOpenGame }: { onOpenGame: (result: CompareResponse |
           <div><p>Civic Relay</p><h1>Recovery desk</h1></div>
         </div>
         <div className="toolbox-top-actions">
-          <button type="button" className="city-switch" onClick={() => onOpenGame(result)}><Play size={15} fill="currentColor" />City view</button>
+          <button
+            type="button"
+            className="city-switch"
+            disabled={busy || !result || draftChanged}
+            title={draftChanged ? 'Run the current draft before opening the city' : undefined}
+            onClick={() => onOpenGame(result)}
+          >
+            <Play size={15} fill="currentColor" />City view
+          </button>
           <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
             <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
             <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
@@ -634,7 +652,9 @@ function routeFromHash(): AppRoute {
 
 function App() {
   const [route, setRoute] = useState<AppRoute>(routeFromHash)
-  const [gameResult, setGameResult] = useState<CompareResponse | null>(null)
+  const [latestResult, setLatestResult] = useState<CompareResponse | null>(null)
+  const [gameLaunchResult, setGameLaunchResult] = useState<CompareResponse | null>(null)
+  const [toolboxLaunchResult, setToolboxLaunchResult] = useState<CompareResponse | null>(null)
 
   useEffect(() => {
     if (!window.location.hash) window.history.replaceState(null, '', '#/game')
@@ -648,11 +668,34 @@ function App() {
     setRoute(next)
   }
 
-  const recordGameResult = useCallback((result: CompareResponse) => setGameResult(result), [])
+  const recordGameResult = useCallback((result: CompareResponse) => {
+    setLatestResult(result)
+    setGameLaunchResult(null)
+  }, [])
 
   return route === 'toolbox'
-    ? <AnalystToolbox onOpenGame={(result) => { if (result) setGameResult(result); navigate('game') }} />
-    : <CityGame initialResult={gameResult} onResult={recordGameResult} onOpenToolbox={() => navigate('toolbox')} />
+    ? (
+        <AnalystToolbox
+          initialResult={toolboxLaunchResult}
+          onOpenGame={(result) => {
+            if (!result) return
+            setGameLaunchResult(result)
+            setLatestResult(result)
+            setToolboxLaunchResult(null)
+            navigate('game')
+          }}
+        />
+      )
+    : (
+        <CityGame
+          initialResult={gameLaunchResult}
+          onResult={recordGameResult}
+          onOpenToolbox={() => {
+            setToolboxLaunchResult(latestResult ?? gameLaunchResult)
+            navigate('toolbox')
+          }}
+        />
+      )
 }
 
 export default App

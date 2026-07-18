@@ -57,6 +57,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .city-switch { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #afbbb5; border-radius: 4px; background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 750; cursor: pointer; transition: transform 120ms ease, border-color 120ms ease, background 120ms ease; }
 .city-switch:hover { border-color: var(--teal); background: #f5faf8; }
 .city-switch:active { transform: scale(0.97); }
+.city-switch:disabled { opacity: 0.48; cursor: not-allowed; transform: none; }
 .runtime-strip b { color: var(--ink); font-family: Consolas, monospace; }
 .runtime-mobile-label { display: none; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a62; box-shadow: 0 0 0 3px rgba(45, 138, 98, 0.14); }

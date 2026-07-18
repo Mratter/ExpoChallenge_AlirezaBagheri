@@ -69,9 +69,11 @@ function serviceOffset(services: readonly Service[], service: Service): number {
 export function convoyPlansForDay(
   day: DayResult,
   services: readonly Service[] = CANONICAL_SERVICES,
+  inactiveServices: readonly Service[] = [],
 ): ConvoyPlan[] {
   const budget = Math.max(day.available_budget, 1)
   return DISTRICTS.flatMap((district, districtIndex) => {
+    if (inactiveServices.includes(district.service)) return []
     const index = serviceOffset(services, district.service)
     const allocation = Math.max(0, day.allocation[index] ?? 0)
     if (allocation <= 0.001) return []
@@ -109,8 +111,10 @@ export function repairPlansForDay(
   day: DayResult,
   previous: DayResult | undefined,
   services: readonly Service[] = CANONICAL_SERVICES,
+  inactiveServices: readonly Service[] = [],
 ): RepairPlan[] {
   return DISTRICTS.flatMap((district, districtIndex) => {
+    if (inactiveServices.includes(district.service)) return []
     const index = serviceOffset(services, district.service)
     const priorLevel = previous?.services_end[index] ?? day.services_after_shock[index]
     const realizedGain = (day.services_end[index] ?? priorLevel) - priorLevel
@@ -227,11 +231,19 @@ export type AllocationConvoysProps = {
   day: DayResult
   /** Use `result.services` so array offsets remain tied to the response schema. */
   services?: readonly Service[]
+  inactiveServices?: readonly Service[]
 }
 
 /** Deterministic outbound traffic from the silo, proportional to exact daily allocations. */
-export function AllocationConvoys({ day, services = CANONICAL_SERVICES }: AllocationConvoysProps) {
-  const routes = useMemo(() => convoyPlansForDay(day, services), [day, services])
+export function AllocationConvoys({
+  day,
+  services = CANONICAL_SERVICES,
+  inactiveServices = [],
+}: AllocationConvoysProps) {
+  const routes = useMemo(
+    () => convoyPlansForDay(day, services, inactiveServices),
+    [day, inactiveServices, services],
+  )
   return (
     <group name="allocation-convoys">
       {routes.flatMap((route) => Array.from({ length: route.vehicleCount }, (_, index) => (
@@ -306,11 +318,20 @@ export type RepairActivityProps = {
   previous?: DayResult
   /** Use `result.services` to bind trajectory offsets to service names. */
   services?: readonly Service[]
+  inactiveServices?: readonly Service[]
 }
 
 /** Repair trucks and cranes appear only where the real candidate trajectory improved. */
-export function RepairActivity({ day, previous, services = CANONICAL_SERVICES }: RepairActivityProps) {
-  const plans = useMemo(() => repairPlansForDay(day, previous, services), [day, previous, services])
+export function RepairActivity({
+  day,
+  previous,
+  services = CANONICAL_SERVICES,
+  inactiveServices = [],
+}: RepairActivityProps) {
+  const plans = useMemo(
+    () => repairPlansForDay(day, previous, services, inactiveServices),
+    [day, inactiveServices, previous, services],
+  )
   return (
     <group name="trajectory-derived-repairs">
       {plans.map((plan) => (
@@ -525,6 +546,7 @@ export type SceneEffectsProps = {
   /** Pass a ref to the stationary city-world group if impact tremor is desired. */
   tremorTarget?: RefObject<Group | null>
   onImpactComplete?: (impact: SceneImpact) => void
+  inactiveServices?: readonly Service[]
 }
 
 /** Concise CityScene integration: all persistent activity is derived from candidate data. */
@@ -534,6 +556,7 @@ export function SceneEffects({
   impact = null,
   tremorTarget,
   onImpactComplete,
+  inactiveServices = [],
 }: SceneEffectsProps) {
   const day = result.candidate.trajectory[dayIndex]
   const previous = result.candidate.trajectory[dayIndex - 1]
@@ -542,8 +565,8 @@ export function SceneEffects({
   }
   return (
     <>
-      <AllocationConvoys day={day} services={result.services} />
-      <RepairActivity day={day} previous={previous} services={result.services} />
+      <AllocationConvoys day={day} services={result.services} inactiveServices={inactiveServices} />
+      <RepairActivity day={day} previous={previous} services={result.services} inactiveServices={inactiveServices} />
       <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} />
     </>
   )

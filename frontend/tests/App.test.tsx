@@ -217,6 +217,33 @@ describe('recovery desk', () => {
     expect(screen.getByText('Draft changed')).toBeVisible()
     expect(screen.getByText('Run to refresh evidence')).toBeVisible()
     expect(screen.getByLabelText('Comparison summary')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'City view' })).toBeDisabled()
+  })
+
+  it('boots the game route into setup without a comparison and applies the selected preset on Start', async () => {
+    window.history.replaceState(null, '', '#/game')
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null)
+    const fetchMock = vi.mocked(fetch)
+
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: 'Put the city through a recovery run.' })).toBeVisible()
+    expect(fetchMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('radio', { name: /Severe/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start Stress Test' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const request = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+    expect(request.scenario).toMatchObject({
+      shock_probability: 0.34,
+      severity_min: 0.18,
+      severity_max: 0.4,
+      daily_budget: 140,
+      forced_shock: null,
+      forced_shocks: [],
+    })
+    expect(await screen.findByRole('heading', { name: 'This browser could not start WebGL.' })).toBeVisible()
+    expect(screen.getByLabelText('6 disasters remaining')).toBeVisible()
   })
 
   it('derives candidate and baseline violation totals from daily measurements', async () => {
