@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { convoyPlansForDay, repairPlansForDay } from '../src/game/SceneEffects'
+import { convoyPlansForDay, repairPlansForDay, sceneMotionStep } from '../src/game/SceneEffects'
 import type { DayResult } from '../src/types'
 
 function trajectoryDay(overrides: Partial<DayResult> = {}): DayResult {
@@ -67,5 +67,11 @@ describe('trajectory-derived city traffic', () => {
 
     expect(convoyPlansForDay(day, undefined, ['housing']).some((plan) => plan.service === 'housing')).toBe(false)
     expect(repairPlansForDay(day, undefined, undefined, ['housing']).some((plan) => plan.service === 'housing')).toBe(false)
+  })
+
+  it('freezes every continuous city animation step under reduced motion', () => {
+    expect(sceneMotionStep(0.016, true)).toBe(0)
+    expect(sceneMotionStep(0.016, false)).toBe(0.016)
+    expect(sceneMotionStep(0.5, false)).toBe(0.075)
   })
 })

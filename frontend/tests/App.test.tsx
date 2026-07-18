@@ -114,7 +114,7 @@ function responseFixture(): CompareResponse {
   }
 }
 
-describe('recovery desk', () => {
+describe('Analyst Toolbox', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '#/toolbox')
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
@@ -133,6 +133,7 @@ describe('recovery desk', () => {
 
   it('renders bounded scenario controls and computed evidence', async () => {
     render(<App />)
+    expect(screen.getByRole('heading', { name: 'Analyst Toolbox' })).toBeVisible()
     expect(await screen.findByRole('heading', { name: 'Central district restart' })).toBeVisible()
     expect(screen.queryByText('Draft changed')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Run comparison' })).toBeEnabled()

@@ -1,6 +1,6 @@
 import { Html, Line, OrbitControls } from '@react-three/drei'
-import { useFrame } from '@react-three/fiber'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Group, InstancedMesh, Mesh, MeshBasicMaterial } from 'three'
 import type { CompareResponse, Service } from '../types'
@@ -17,6 +17,101 @@ import {
   type DistrictDefinition,
 } from './model'
 import { SceneEffects } from './SceneEffects'
+import {
+  CITY_CAMERA_TARGET_Y,
+  cityCameraContainedDistance,
+  cityCameraFraming,
+  cityCameraRequiredDistance,
+  cityCameraVerticalFov,
+} from './cameraFraming'
+
+const CAMERA_TARGET: [number, number, number] = [0, CITY_CAMERA_TARGET_Y, 0]
+const MIN_POLAR_ANGLE = 0.42
+const MAX_POLAR_ANGLE = 1.25
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReduced(query.matches)
+    update()
+    query.addEventListener?.('change', update)
+    return () => query.removeEventListener?.('change', update)
+  }, [])
+  return reduced
+}
+
+function CityCamera() {
+  const controls = useRef<React.ElementRef<typeof OrbitControls>>(null)
+  const initialized = useRef(false)
+  const { camera, size } = useThree()
+  const target = useMemo(() => new THREE.Vector3(...CAMERA_TARGET), [])
+  const offset = useMemo(() => new THREE.Vector3(), [])
+  const spherical = useMemo(() => new THREE.Spherical(), [])
+  const fov = cityCameraVerticalFov(size.width, size.height)
+  const framing = useMemo(() => cityCameraFraming({
+    width: size.width,
+    height: size.height,
+    verticalFovDegrees: fov,
+    minPolarAngle: MIN_POLAR_ANGLE,
+    maxPolarAngle: MAX_POLAR_ANGLE,
+  }), [fov, size.height, size.width])
+
+  const enforceContainment = useCallback((addInitialBreathingRoom = false) => {
+    offset.copy(camera.position).sub(target)
+    spherical.setFromVector3(offset)
+    const containmentInput = {
+      width: size.width,
+      height: size.height,
+      verticalFovDegrees: fov,
+      polarAngle: spherical.phi,
+      azimuthAngle: spherical.theta,
+    }
+    const poseMinimum = Math.max(
+      framing.minDistance,
+      cityCameraRequiredDistance(containmentInput),
+    )
+    if (controls.current) controls.current.minDistance = poseMinimum
+    const safeDistance = cityCameraContainedDistance(
+      Math.max(offset.length(), framing.minDistance),
+      containmentInput,
+    )
+    const desiredDistance = addInitialBreathingRoom ? safeDistance * 1.035 : safeDistance
+    if (offset.length() + 0.001 < desiredDistance) {
+      camera.position.copy(target).add(offset.normalize().multiplyScalar(desiredDistance))
+      camera.updateMatrixWorld()
+    }
+  }, [camera, fov, framing.minDistance, offset, size.height, size.width, spherical, target])
+
+  useLayoutEffect(() => {
+    if (camera instanceof THREE.PerspectiveCamera) camera.fov = fov
+    camera.far = framing.far
+    camera.updateProjectionMatrix()
+    enforceContainment(!initialized.current)
+    if (controls.current) {
+      controls.current.target.copy(target)
+      controls.current.update()
+    }
+    initialized.current = true
+  }, [camera, enforceContainment, fov, framing.far, target])
+
+  return (
+    <OrbitControls
+      ref={controls}
+      makeDefault
+      enableDamping
+      dampingFactor={0.065}
+      enablePan={false}
+      minDistance={framing.minDistance}
+      maxDistance={framing.maxDistance}
+      minPolarAngle={MIN_POLAR_ANGLE}
+      maxPolarAngle={MAX_POLAR_ANGLE}
+      target={CAMERA_TARGET}
+      onChange={() => enforceContainment(false)}
+    />
+  )
+}
 
 type BuildingPlacement = {
   archetype: BuildingArchetype
@@ -394,12 +489,18 @@ function District({ district, result, dayIndex, aimed, dark }: {
   )
 }
 
-function CriticalSmoke({ district, dark }: { district: DistrictDefinition; dark: boolean }) {
+function CriticalSmoke({ district, dark, reducedMotion }: {
+  district: DistrictDefinition
+  dark: boolean
+  reducedMotion: boolean
+}) {
   const group = useRef<Group>(null)
   useFrame(({ clock }) => {
     if (!group.current) return
     group.current.children.forEach((child, index) => {
-      const phase = (clock.elapsedTime * (0.22 + index * 0.025) + index * 0.31) % 1
+      const phase = reducedMotion
+        ? (index + 1) / (group.current!.children.length + 1)
+        : (clock.elapsedTime * (0.22 + index * 0.025) + index * 0.31) % 1
       child.position.set(
         Math.sin(index * 2.4) * (0.34 + phase * 0.25),
         0.72 + phase * (dark ? 3.1 : 2.25),
@@ -464,7 +565,7 @@ function Silo({ allocations }: { allocations: number[] }) {
   )
 }
 
-function RelayOrb({ narration, day }: { narration: string; day: number }) {
+function RelayOrb({ narration, day, reducedMotion }: { narration: string; day: number; reducedMotion: boolean }) {
   const orb = useRef<Group>(null)
   const face = useRef<Group>(null)
   const pulse = useRef<Mesh>(null)
@@ -474,15 +575,14 @@ function RelayOrb({ narration, day }: { narration: string; day: number }) {
   }), [])
   useFrame(({ clock, camera }) => {
     if (orb.current) {
-      orb.current.position.y = 5.42 + Math.sin(clock.elapsedTime * 1.05) * 0.08
+      orb.current.position.y = reducedMotion ? 5.42 : 5.42 + Math.sin(clock.elapsedTime * 1.05) * 0.08
     }
     if (face.current) {
       face.current.quaternion.copy(camera.quaternion)
-      const cadence = 0.9 + Math.sin(clock.elapsedTime * 5.2 + day) * 0.08
-      face.current.scale.x = cadence
+      face.current.scale.x = reducedMotion ? 1 : 0.9 + Math.sin(clock.elapsedTime * 5.2 + day) * 0.08
     }
     if (pulse.current) {
-      const scale = 1 + Math.sin(clock.elapsedTime * 2.4) * 0.025
+      const scale = reducedMotion ? 1 : 1 + Math.sin(clock.elapsedTime * 2.4) * 0.025
       pulse.current.scale.setScalar(scale)
     }
   })
@@ -525,10 +625,11 @@ function Tabletop() {
   )
 }
 
-function ImpactRing({ position, strength, color, delay = 0 }: {
+function ImpactRing({ position, strength, color, reducedMotion, delay = 0 }: {
   position: [number, number, number]
   strength: number
   color: string
+  reducedMotion: boolean
   delay?: number
 }) {
   const mesh = useRef<Mesh>(null)
@@ -537,19 +638,29 @@ function ImpactRing({ position, strength, color, delay = 0 }: {
   useFrame(({ clock }) => {
     if (started.current === null) started.current = clock.elapsedTime
     const progress = Math.max(0, Math.min(1, (clock.elapsedTime - started.current - delay) / 1.2))
-    const scale = 0.45 + progress * (2.1 + strength * 1.7)
+    const scale = reducedMotion ? 1.15 + strength * 0.35 : 0.45 + progress * (2.1 + strength * 1.7)
     if (mesh.current) mesh.current.scale.setScalar(scale)
-    if (material.current) material.current.opacity = progress <= 0 ? 0 : (1 - progress) * (0.18 + strength * 0.46)
+    if (material.current) material.current.opacity = reducedMotion
+      ? (1 - progress) * (0.3 + strength * 0.38)
+      : progress <= 0 ? 0 : Math.pow(1 - progress, 1.2) * (0.38 + strength * 0.46)
   })
   return (
-    <mesh ref={mesh} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh ref={mesh} position={position} rotation={[-Math.PI / 2, 0, 0]} renderOrder={12}>
       <ringGeometry args={[0.82, 0.96, 48]} />
-      <meshBasicMaterial ref={material} color={color} transparent opacity={0} depthWrite={false} />
+      <meshBasicMaterial
+        ref={material}
+        color={color}
+        transparent
+        opacity={0}
+        depthTest={false}
+        depthWrite={false}
+        toneMapped={false}
+      />
     </mesh>
   )
 }
 
-function TypedImpactFootprint({ impact }: { impact: CityImpactEvent }) {
+function TypedImpactFootprint({ impact, reducedMotion }: { impact: CityImpactEvent; reducedMotion: boolean }) {
   return (
     <group>
       {DISTRICTS.map((district, index) => (
@@ -558,6 +669,7 @@ function TypedImpactFootprint({ impact }: { impact: CityImpactEvent }) {
           position={[district.center[0], 0.32, district.center[2]]}
           strength={impact.impact[serviceIndex(district.service)] ?? 0}
           color={district.accent}
+          reducedMotion={reducedMotion}
           delay={0.08 + index * 0.035}
         />
       ))}
@@ -582,20 +694,21 @@ export function CityScene({
   darkServices?: readonly Service[]
   stumble?: boolean
 }) {
+  const reducedMotion = usePrefersReducedMotion()
   const day = result.candidate.trajectory[dayIndex]
   const narration = relayNarration(result, dayIndex)
   const world = useRef<Group>(null)
   const conditionWorld = useRef<Group>(null)
   useFrame(({ clock }) => {
     if (!conditionWorld.current) return
-    const strength = stumble ? 0.012 : 0
+    const strength = stumble && !reducedMotion ? 0.012 : 0
     conditionWorld.current.rotation.x = Math.sin(clock.elapsedTime * 3.1 + day.day) * strength * 0.55
     conditionWorld.current.rotation.z = Math.sin(clock.elapsedTime * 2.3 + day.day * 0.7) * strength
   })
   return (
     <>
       <color attach="background" args={['#dce8e2']} />
-      <fog attach="fog" args={['#dce8e2', 31, 56]} />
+      <fog attach="fog" args={['#dce8e2', 48, 108]} />
       <hemisphereLight args={['#f7fbf5', '#9a8060', 1.6]} />
       <directionalLight
         position={[-12, 22, 14]}
@@ -631,10 +744,11 @@ export function CityScene({
               key={`critical-${district.service}`}
               district={district}
               dark={darkServices.includes(district.service)}
+              reducedMotion={reducedMotion}
             />
           ))}
           <Silo allocations={day.allocation} />
-          <RelayOrb narration={narration} day={day.day} />
+          <RelayOrb narration={narration} day={day.day} reducedMotion={reducedMotion} />
           <SceneEffects
             result={result}
             dayIndex={dayIndex}
@@ -646,21 +760,14 @@ export function CityScene({
             } : null}
             tremorTarget={world}
             inactiveServices={darkServices}
+            reducedMotion={reducedMotion}
           />
-          {activeImpact ? <TypedImpactFootprint key={activeImpact.id} impact={activeImpact} /> : null}
+          {activeImpact ? (
+            <TypedImpactFootprint key={activeImpact.id} impact={activeImpact} reducedMotion={reducedMotion} />
+          ) : null}
         </group>
       </group>
-      <OrbitControls
-        makeDefault
-        enableDamping
-        dampingFactor={0.065}
-        enablePan={false}
-        minDistance={22}
-        maxDistance={38}
-        minPolarAngle={0.42}
-        maxPolarAngle={1.25}
-        target={[0, 1.4, 0]}
-      />
+      <CityCamera />
     </>
   )
 }

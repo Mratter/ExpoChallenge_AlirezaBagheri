@@ -168,6 +168,50 @@ describe('city kick flow', () => {
     expect(screen.getByText('aftershock')).toBeVisible()
   })
 
+  it('keeps a prominent accessible sound control on by default', async () => {
+    render(<CityGame initialResult={resultFixture()} onOpenToolbox={vi.fn()} onResult={vi.fn()} />)
+    const mute = screen.getByRole('button', { name: 'Mute city sound' })
+    expect(mute).toHaveAttribute('aria-pressed', 'false')
+    expect(mute).toHaveTextContent('Sound on')
+
+    fireEvent.click(mute)
+
+    const unmute = screen.getByRole('button', { name: 'Unmute city sound' })
+    expect(unmute).toHaveAttribute('aria-pressed', 'true')
+    expect(unmute).toHaveTextContent('Sound off')
+  })
+
+  it('offers a button-only district target flow and reports the strongest authored footprint', async () => {
+    const returnedShock: Shock = {
+      day: 2, type: 'utility', severity: 0.26,
+      impact: [0.3, 0.35, 0.45, 0.7, 1], budget_factor: 0.3, forced: true,
+    }
+    let capturedInit: RequestInit | undefined
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedInit = init
+      return { ok: true, json: async () => resultFixture(returnedShock) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const onResult = vi.fn()
+    render(<CityGame initialResult={resultFixture()} onOpenToolbox={vi.fn()} onResult={onResult} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utility' }))
+    expect(screen.getByRole('group', { name: 'Choose a district target' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Housing' }))
+
+    expect(screen.getByText('Housing is hit hardest by Aftershock · 100% footprint.')).toBeVisible()
+    expect(screen.getByText('Selected Utility footprint · 35%.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Aftershock' })).toHaveClass('is-hardest')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Strike Housing overnight' }))
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const request = JSON.parse(capturedInit?.body as string)
+    expect(request.scenario.forced_shocks).toEqual([{ day: 2, type: 'utility', severity: 0.26 }])
+    expect(onResult).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a response whose forced schedule does not match the thrown disaster', async () => {
     const mismatched: Shock = {
       day: 2, type: 'weather', severity: 0.26,
@@ -225,11 +269,11 @@ describe('city kick flow', () => {
     expect(screen.getByLabelText('Day 2 city condition')).toBeVisible()
     await act(async () => { vi.advanceTimersByTime(2_000) })
 
-    expect(screen.getByRole('heading', { name: 'The city fell on day 2.' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'The city fell on day 2.' })).toHaveFocus()
     expect(screen.getByText(/two consecutive days/i)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Review what happened' }))
 
-    expect(screen.getByRole('heading', { name: 'Fell on day 2' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Fell on day 2' })).toHaveFocus()
     expect(screen.getByRole('heading', { name: 'conventional rule-based planner' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Inspect this run in the Analyst Toolbox' })).toBeVisible()
   })

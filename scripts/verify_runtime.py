@@ -100,7 +100,7 @@ def main() -> None:
         return
 
     status, homepage = fetch(f"{args.base_url}/")
-    if status != 200 or b"Civic Relay" not in homepage:
+    if status != 200 or b"RELAY | Autonomous recovery planner" not in homepage:
         raise AssertionError("compiled frontend was not served")
     status, meta_bytes = fetch(f"{args.base_url}/api/v1/meta")
     meta = json.loads(meta_bytes)

@@ -512,8 +512,8 @@ function AnalystToolbox({
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-block">
-          <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
-          <div><p>Civic Relay</p><h1>Recovery desk</h1></div>
+          <div className="brand-mark" aria-hidden="true"><span /><span /><span /><span /><span /></div>
+          <div><p>RELAY / evidence room</p><h1>Analyst Toolbox</h1></div>
         </div>
         <div className="toolbox-top-actions">
           <button

@@ -37,6 +37,11 @@ export type SceneImpact = {
   position: WorldPosition
 }
 
+/** One shared gate keeps all continuous city motion still under reduced motion. */
+export function sceneMotionStep(delta: number, reducedMotion: boolean): number {
+  return reducedMotion ? 0 : Math.min(delta, 0.075)
+}
+
 const CANONICAL_SERVICES: readonly Service[] = [
   'transport',
   'housing',
@@ -46,11 +51,11 @@ const CANONICAL_SERVICES: readonly Service[] = [
 ]
 
 const IMPACT_COLORS: Record<ShockType, { wave: string; brick: string; smoke: string }> = {
-  aftershock: { wave: '#8b6e58', brick: '#806a59', smoke: '#716d66' },
-  supply: { wave: '#a98246', brick: '#9b7843', smoke: '#777168' },
-  epidemic: { wave: '#667d70', brick: '#718073', smoke: '#69736c' },
-  utility: { wave: '#667f87', brick: '#61757b', smoke: '#626e70' },
-  weather: { wave: '#71808b', brick: '#6b7780', smoke: '#626a70' },
+  aftershock: { wave: '#d6aa82', brick: '#806a59', smoke: '#716d66' },
+  supply: { wave: '#d3b06d', brick: '#9b7843', smoke: '#777168' },
+  epidemic: { wave: '#9fb8aa', brick: '#718073', smoke: '#69736c' },
+  utility: { wave: '#9ec4ce', brick: '#61757b', smoke: '#626e70' },
+  weather: { wave: '#9eb4c4', brick: '#6b7780', smoke: '#626a70' },
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -203,7 +208,12 @@ function TruckModel({ color, repair = false }: { color: string; repair?: boolean
   )
 }
 
-function ConvoyVehicle({ route, index, day }: { route: ConvoyPlan; index: number; day: number }) {
+function ConvoyVehicle({ route, index, day, reducedMotion }: {
+  route: ConvoyPlan
+  index: number
+  day: number
+  reducedMotion: boolean
+}) {
   const vehicle = useRef<Group>(null)
   const progress = useRef((index / route.vehicleCount + (day * 0.173 + index * 0.071)) % 1)
   const point = useMemo(() => new THREE.Vector3(), [])
@@ -211,7 +221,7 @@ function ConvoyVehicle({ route, index, day }: { route: ConvoyPlan; index: number
 
   useFrame((_, delta) => {
     if (!vehicle.current) return
-    progress.current = (progress.current + Math.min(delta, 0.075) * route.speed) % 1
+    progress.current = (progress.current + sceneMotionStep(delta, reducedMotion) * route.speed) % 1
     quadraticPoint(route.start, route.control, route.end, progress.current, point)
     quadraticTangent(route.start, route.control, route.end, progress.current, tangent)
     point.y += Math.sin(progress.current * Math.PI) * 0.025
@@ -232,6 +242,7 @@ export type AllocationConvoysProps = {
   /** Use `result.services` so array offsets remain tied to the response schema. */
   services?: readonly Service[]
   inactiveServices?: readonly Service[]
+  reducedMotion?: boolean
 }
 
 /** Deterministic outbound traffic from the silo, proportional to exact daily allocations. */
@@ -239,6 +250,7 @@ export function AllocationConvoys({
   day,
   services = CANONICAL_SERVICES,
   inactiveServices = [],
+  reducedMotion = false,
 }: AllocationConvoysProps) {
   const routes = useMemo(
     () => convoyPlansForDay(day, services, inactiveServices),
@@ -247,18 +259,29 @@ export function AllocationConvoys({
   return (
     <group name="allocation-convoys">
       {routes.flatMap((route) => Array.from({ length: route.vehicleCount }, (_, index) => (
-        <ConvoyVehicle key={`${day.day}-${route.service}-${index}`} route={route} index={index} day={day.day} />
+        <ConvoyVehicle
+          key={`${day.day}-${route.service}-${index}`}
+          route={route}
+          index={index}
+          day={day.day}
+          reducedMotion={reducedMotion}
+        />
       )))}
     </group>
   )
 }
 
-function RepairTruck({ plan, index, day }: { plan: RepairPlan; index: number; day: number }) {
+function RepairTruck({ plan, index, day, reducedMotion }: {
+  plan: RepairPlan
+  index: number
+  day: number
+  reducedMotion: boolean
+}) {
   const truck = useRef<Group>(null)
   const elapsed = useRef((index + 1) * 0.47 + day * 0.11)
   useFrame((_, delta) => {
     if (!truck.current) return
-    elapsed.current += Math.min(delta, 0.075)
+    elapsed.current += sceneMotionStep(delta, reducedMotion)
     const phase = elapsed.current * (0.8 + Math.min(plan.realizedGain * 7, 0.5)) + index * 1.8
     truck.current.position.set(
       plan.position[0] + Math.cos(phase) * (0.72 + index * 0.16),
@@ -274,12 +297,16 @@ function RepairTruck({ plan, index, day }: { plan: RepairPlan; index: number; da
   )
 }
 
-function RepairCrane({ plan, day }: { plan: RepairPlan; day: number }) {
+function RepairCrane({ plan, day, reducedMotion }: {
+  plan: RepairPlan
+  day: number
+  reducedMotion: boolean
+}) {
   const boom = useRef<Group>(null)
   const hook = useRef<Mesh>(null)
   const elapsed = useRef(day * 0.23)
   useFrame((_, delta) => {
-    elapsed.current += Math.min(delta, 0.075)
+    elapsed.current += sceneMotionStep(delta, reducedMotion)
     if (boom.current) boom.current.rotation.y = Math.sin(elapsed.current * 0.42) * 0.28
     if (hook.current) hook.current.position.y = -0.78 + Math.sin(elapsed.current * 0.74) * 0.22
   })
@@ -319,6 +346,7 @@ export type RepairActivityProps = {
   /** Use `result.services` to bind trajectory offsets to service names. */
   services?: readonly Service[]
   inactiveServices?: readonly Service[]
+  reducedMotion?: boolean
 }
 
 /** Repair trucks and cranes appear only where the real candidate trajectory improved. */
@@ -327,6 +355,7 @@ export function RepairActivity({
   previous,
   services = CANONICAL_SERVICES,
   inactiveServices = [],
+  reducedMotion = false,
 }: RepairActivityProps) {
   const plans = useMemo(
     () => repairPlansForDay(day, previous, services, inactiveServices),
@@ -336,9 +365,9 @@ export function RepairActivity({
     <group name="trajectory-derived-repairs">
       {plans.map((plan) => (
         <group key={`${day.day}-${plan.service}`}>
-          <RepairCrane plan={plan} day={day.day} />
+          <RepairCrane plan={plan} day={day.day} reducedMotion={reducedMotion} />
           {Array.from({ length: plan.vehicleCount }, (_, index) => (
-            <RepairTruck key={index} plan={plan} index={index} day={day.day} />
+            <RepairTruck key={index} plan={plan} index={index} day={day.day} reducedMotion={reducedMotion} />
           ))}
         </group>
       ))}
@@ -366,9 +395,10 @@ type ImpactBurstProps = {
   impact: SceneImpact
   tremorTarget?: RefObject<Group | null>
   onComplete?: (impact: SceneImpact) => void
+  reducedMotion?: boolean
 }
 
-function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
+function ImpactBurst({ impact, tremorTarget, onComplete, reducedMotion = false }: ImpactBurstProps) {
   const root = useRef<Group>(null)
   const wave = useRef<Mesh>(null)
   const waveMaterial = useRef<MeshBasicMaterial>(null)
@@ -409,12 +439,12 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
 
     if (root.current) root.current.visible = progress < 1
     if (wave.current) {
-      const radius = 0.55 + progress * (3.1 + normalizedSeverity * 2.2)
+      const radius = reducedMotion ? 1.15 + normalizedSeverity * 0.4 : 0.55 + progress * (3.1 + normalizedSeverity * 2.2)
       wave.current.scale.setScalar(radius)
-      wave.current.position.y = 0.05 + progress * 0.018
+      wave.current.position.y = reducedMotion ? 0.06 : 0.05 + progress * 0.018
     }
     if (waveMaterial.current) {
-      waveMaterial.current.opacity = Math.pow(1 - progress, 2) * (0.24 + normalizedSeverity * 0.16)
+      waveMaterial.current.opacity = Math.pow(1 - progress, 1.45) * (0.42 + normalizedSeverity * 0.2)
     }
 
     if (bricks.current) {
@@ -425,14 +455,14 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
         const flightTime = Math.min(time, 1.18)
         const radialDistance = speed * flightTime * (1 - flightTime * 0.18)
         position.set(
-          Math.cos(angle) * radialDistance,
-          Math.max(0.12, 0.15 + lift * flightTime - 2.7 * flightTime * flightTime),
-          Math.sin(angle) * radialDistance,
+          Math.cos(angle) * (reducedMotion ? 0.42 + unitNoise(seed, index, 1) * 0.95 : radialDistance),
+          reducedMotion ? 0.12 + unitNoise(seed, index, 2) * 0.18 : Math.max(0.12, 0.15 + lift * flightTime - 2.7 * flightTime * flightTime),
+          Math.sin(angle) * (reducedMotion ? 0.42 + unitNoise(seed, index, 1) * 0.95 : radialDistance),
         )
         euler.set(
-          time * (2.1 + unitNoise(seed, index, 3) * 3.2),
-          angle + time * (1.2 + unitNoise(seed, index, 4) * 2.4),
-          time * (1.4 + unitNoise(seed, index, 5) * 2.6),
+          reducedMotion ? unitNoise(seed, index, 3) * 0.35 : time * (2.1 + unitNoise(seed, index, 3) * 3.2),
+          reducedMotion ? angle : angle + time * (1.2 + unitNoise(seed, index, 4) * 2.4),
+          reducedMotion ? unitNoise(seed, index, 5) * 0.3 : time * (1.4 + unitNoise(seed, index, 5) * 2.6),
         )
         rotation.setFromEuler(euler)
         const size = 0.62 + unitNoise(seed, index, 6) * 0.48
@@ -446,7 +476,7 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
     if (smoke.current) {
       for (let index = 0; index < smokeCount; index += 1) {
         const delay = index * 0.07
-        const smokeTime = Math.max(0, time - delay)
+        const smokeTime = reducedMotion ? 0.55 + index * 0.12 : Math.max(0, time - delay)
         const angle = unitNoise(seed, index, 7) * Math.PI * 2
         const drift = 0.22 + unitNoise(seed, index, 8) * 0.34
         position.set(
@@ -463,7 +493,7 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
       }
       smoke.current.instanceMatrix.needsUpdate = true
       const material = smoke.current.material as THREE.MeshStandardMaterial
-      material.opacity = Math.pow(1 - progress, 1.45) * 0.44
+      material.opacity = Math.pow(1 - progress, 1.35) * 0.56
     }
 
     const target = tremorTarget?.current
@@ -473,7 +503,7 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
         baselineCaptured.current = true
       }
       const tremorDuration = 0.24 + normalizedSeverity * 0.18
-      if (time < tremorDuration) {
+      if (!reducedMotion && time < tremorDuration) {
         const fade = Math.pow(1 - time / tremorDuration, 2)
         const amplitude = (0.018 + normalizedSeverity * 0.055) * fade
         target.position.set(
@@ -494,15 +524,17 @@ function ImpactBurst({ impact, tremorTarget, onComplete }: ImpactBurstProps) {
 
   return (
     <group ref={root} position={[impact.position[0], impact.position[1], impact.position[2]]}>
-      <mesh ref={wave} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh ref={wave} rotation={[-Math.PI / 2, 0, 0]} renderOrder={11}>
         <ringGeometry args={[0.82, 1, 48]} />
         <meshBasicMaterial
           ref={waveMaterial}
           color={colors.wave}
           transparent
-          opacity={0.36}
+          opacity={0.58}
+          depthTest={false}
           depthWrite={false}
           side={THREE.DoubleSide}
+          toneMapped={false}
         />
       </mesh>
       <instancedMesh ref={bricks} args={[undefined, undefined, brickCount]} castShadow frustumCulled={false}>
@@ -530,12 +562,21 @@ export type ImpactVisualizationProps = {
   /** Optional stationary world group to offset briefly, producing restrained scene tremor. */
   tremorTarget?: RefObject<Group | null>
   onComplete?: (impact: SceneImpact) => void
+  reducedMotion?: boolean
 }
 
 /** Ground wave, deterministic brick scatter, smoke, and an optional short world tremor. */
-export function ImpactVisualization({ impact, tremorTarget, onComplete }: ImpactVisualizationProps) {
+export function ImpactVisualization({ impact, tremorTarget, onComplete, reducedMotion = false }: ImpactVisualizationProps) {
   if (!impact) return null
-  return <ImpactBurst key={impact.id} impact={impact} tremorTarget={tremorTarget} onComplete={onComplete} />
+  return (
+    <ImpactBurst
+      key={impact.id}
+      impact={impact}
+      tremorTarget={tremorTarget}
+      onComplete={onComplete}
+      reducedMotion={reducedMotion}
+    />
+  )
 }
 
 export type SceneEffectsProps = {
@@ -547,6 +588,7 @@ export type SceneEffectsProps = {
   tremorTarget?: RefObject<Group | null>
   onImpactComplete?: (impact: SceneImpact) => void
   inactiveServices?: readonly Service[]
+  reducedMotion?: boolean
 }
 
 /** Concise CityScene integration: all persistent activity is derived from candidate data. */
@@ -557,17 +599,29 @@ export function SceneEffects({
   tremorTarget,
   onImpactComplete,
   inactiveServices = [],
+  reducedMotion = false,
 }: SceneEffectsProps) {
   const day = result.candidate.trajectory[dayIndex]
   const previous = result.candidate.trajectory[dayIndex - 1]
   if (!day) {
-    return <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} />
+    return <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} reducedMotion={reducedMotion} />
   }
   return (
     <>
-      <AllocationConvoys day={day} services={result.services} inactiveServices={inactiveServices} />
-      <RepairActivity day={day} previous={previous} services={result.services} inactiveServices={inactiveServices} />
-      <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} />
+      <AllocationConvoys
+        day={day}
+        services={result.services}
+        inactiveServices={inactiveServices}
+        reducedMotion={reducedMotion}
+      />
+      <RepairActivity
+        day={day}
+        previous={previous}
+        services={result.services}
+        inactiveServices={inactiveServices}
+        reducedMotion={reducedMotion}
+      />
+      <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} reducedMotion={reducedMotion} />
     </>
   )
 }

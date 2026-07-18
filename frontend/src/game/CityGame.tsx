@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, Gauge, Pause, Play, Rotate3D } from 'lucide-react'
+import { BarChart3, Gauge, Pause, Play, Rotate3D, Volume2, VolumeX } from 'lucide-react'
 import { Component, useEffect, useMemo, useRef, useState, type DragEvent, type ErrorInfo, type ReactNode } from 'react'
 import * as THREE from 'three'
 import { ComparisonError, runComparison } from '../api'
@@ -7,7 +7,7 @@ import { defaultScenario, defaultSeed } from '../scenarios'
 import { shockTypes, type CompareResponse, type ShockType } from '../types'
 import { CityScene } from './CityScene'
 import { DisasterTray } from './DisasterTray'
-import { DISTRICTS, appendForcedShock, closestDistrict, shockImpactFor, type CityImpactEvent, type DistrictDefinition } from './model'
+import { DISTRICTS, appendForcedShock, closestDistrict, relayNarration, type CityImpactEvent, type DistrictDefinition } from './model'
 import { CollapseScreen, RunDebriefScreen } from './RunOutcome'
 import {
   applyDifficultyPreset,
@@ -20,6 +20,7 @@ import {
 } from './session'
 import { StartScreen } from './StartScreen'
 import { deriveCityOutcome, deriveRunDebrief } from './stakes'
+import { useCityAudio } from './useCityAudio'
 import './game.css'
 
 type CityGameProps = {
@@ -196,7 +197,19 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
 
   const day = result?.candidate.trajectory[dayIndex]
   const dayCondition = candidateOutcome?.conditions[dayIndex] ?? null
-  const shockTaxed = result && day ? day.available_budget < result.scenario.daily_budget - 0.001 : false
+  const audioSnapshot = useMemo(() => {
+    if (phase !== 'playing' || !result || !day) return null
+    return {
+      day: day.day,
+      shockType: day.shock.type,
+      shockSeverity: day.shock.severity,
+      narration: relayNarration(result, dayIndex),
+      darkServices: dayCondition?.darkServices ?? [],
+      cuesEnabled: !paused,
+    }
+  }, [day, dayCondition, dayIndex, paused, phase, result])
+  const { muted, toggleMuted } = useCityAudio(audioSnapshot)
+  const shockReduced = result && day ? day.available_budget < result.scenario.daily_budget - 0.001 : false
   const wellbeing = day ? Math.round(day.resilience * 100) : 0
   const serviceReadings = useMemo(() => {
     if (!result || !day) return []
@@ -244,14 +257,12 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
     setAimedDistrict(point ? closestDistrict(point[0], point[2]) : null)
   }
 
-  const handleKick = async (event: DragEvent<HTMLElement>) => {
-    event.preventDefault()
+  const applyKick = async (
+    type: ShockType,
+    district: DistrictDefinition,
+    point: [number, number, number],
+  ) => {
     if (!result || !day || !session || !canThrow) return
-    const encodedType = event.dataTransfer.getData('application/x-civic-shock')
-    const type = shockTypes.includes(encodedType as ShockType) ? encodedType as ShockType : aimingType
-    const point = pointOnPlate(event.clientX, event.clientY)
-    if (!type || !point) return
-    const district = closestDistrict(point[0], point[2])
     const targetDay = day.day + 1
     const throwDayIndex = dayIndex
     const nextScenario = appendForcedShock(result.scenario, { day: targetDay, type, severity })
@@ -297,6 +308,22 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
     }
   }
 
+  const handleKick = async (event: DragEvent<HTMLElement>) => {
+    event.preventDefault()
+    if (!canThrow) return
+    const encodedType = event.dataTransfer.getData('application/x-civic-shock')
+    const type = shockTypes.includes(encodedType as ShockType) ? encodedType as ShockType : aimingType
+    const point = pointOnPlate(event.clientX, event.clientY)
+    if (!type || !point) return
+    await applyKick(type, closestDistrict(point[0], point[2]), point)
+  }
+
+  const confirmDistrictKick = () => {
+    if (!aimingType || !aimedDistrict || !canThrow) return
+    const [x, , z] = aimedDistrict.center
+    void applyKick(aimingType, aimedDistrict, [x, 0.24, z])
+  }
+
   useEffect(() => {
     if (!pendingImpact || !day || day.day < pendingImpact.day) return
     setActiveImpact(pendingImpact)
@@ -309,9 +336,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
     return () => window.clearTimeout(timer)
   }, [activeImpact])
 
-  const aimLabel = aimingType && aimedDistrict
-    ? `${aimedDistrict.shortLabel}: ${Math.round(shockImpactFor(aimingType, aimedDistrict.service) * 100)}% typed impact`
-    : pendingImpact
+  const aimLabel = pendingImpact
       ? `${pendingImpact.type} strikes overnight on day ${pendingImpact.day}.`
       : null
 
@@ -328,10 +353,20 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
       >
         <div className="game-brand">
           <span className="relay-mark" aria-hidden="true"><i /><i /><i /></span>
-          <div><b>Civic Relay</b><small>The city you can't knock over</small></div>
+          <div><b>RELAY</b><small>The city you can't knock over</small></div>
         </div>
         <div className="game-rail-actions">
           <span className="local-chip"><i />Local simulation</span>
+          <button
+            className={`sound-toggle ${muted ? 'is-muted' : ''}`}
+            type="button"
+            aria-label={muted ? 'Unmute city sound' : 'Mute city sound'}
+            aria-pressed={muted}
+            onClick={toggleMuted}
+          >
+            {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            <span>Sound {muted ? 'off' : 'on'}</span>
+          </button>
           <button className="toolbox-switch" type="button" onClick={onOpenToolbox}>
             <BarChart3 size={16} />Analyst Toolbox
           </button>
@@ -396,7 +431,7 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
               <div className="budget-readout">
                 <span>Budget today</span>
                 <strong>{Math.round(day.available_budget)} <small>/ {Math.round(result.scenario.daily_budget)}</small></strong>
-                <em>{shockTaxed ? 'shock tax' : 'full daily arrival'}</em>
+                <em>{shockReduced ? 'shock-adjusted arrival' : 'full daily arrival'}</em>
               </div>
             </div>
 
@@ -446,8 +481,15 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
               disabled={!canThrow}
               remaining={disasterRemaining}
               mode={session?.mode ?? 'sandbox'}
+              aimedDistrict={aimedDistrict}
               targetLabel={aimLabel}
               onSeverity={setSeverity}
+              onArm={(type) => {
+                if (!canThrow) return
+                setAimingType((current) => current === type ? null : type)
+                setAimedDistrict(null)
+                setKickError(null)
+              }}
               onAimStart={(type, event) => {
                 if (!canThrow) return
                 event.dataTransfer.effectAllowed = 'copy'
@@ -457,8 +499,11 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
                 setKickError(null)
               }}
               onAimEnd={() => { setAimingType(null); setAimedDistrict(null) }}
+              onDistrictSelect={(district) => setAimedDistrict(district)}
+              onConfirm={confirmDistrictKick}
+              onCancel={() => { setAimingType(null); setAimedDistrict(null) }}
             />
-            {aimingType ? <div className="aim-vignette" aria-hidden="true"><span>Release over the plate</span></div> : null}
+            {aimingType ? <div className="aim-vignette" aria-hidden="true"><span>Choose a district or release over the plate</span></div> : null}
             {recomputing ? <span className="sr-only" role="status">RELAY is resolving the appended shock trajectory.</span> : null}
             {kickError ? <div className="kick-error" role="alert">{kickError}</div> : null}
           </>

@@ -1,4 +1,5 @@
 import { ArrowRight, BarChart3, RefreshCw } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import type { Difficulty, GameMode } from './session'
 import { DIFFICULTY_DETAILS, MODE_DETAILS } from './session'
 import type { CityOutcome, FallCause, RunDebrief } from './stakes'
@@ -25,13 +26,17 @@ export function CollapseScreen({
   onDebrief: () => void
 }) {
   const fall = outcome.fall
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (fall) headingRef.current?.focus()
+  }, [fall])
   if (!fall) return null
   return (
     <section className="collapse-screen" role="dialog" aria-modal="true" aria-labelledby="collapse-heading">
       <div className="collapse-haze" aria-hidden="true"><i /><i /><i /></div>
       <div className="collapse-card">
         <p>RELAY / RUN TERMINATED</p>
-        <h1 id="collapse-heading">The city fell on day {fall.day}.</h1>
+        <h1 id="collapse-heading" ref={headingRef} tabIndex={-1}>The city fell on day {fall.day}.</h1>
         <div className="collapse-rule" aria-hidden="true" />
         {fall.causes.map((cause) => <span key={cause.kind}>{fallCauseLine(cause)}</span>)}
         <small>The trajectory stops here. The collapse is measured from city condition only.</small>
@@ -64,6 +69,10 @@ export function RunDebriefScreen({
   onRestart: () => void
 }) {
   const outcome = debrief.candidate
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
   const worst = outcome.worstMoment
   const modeLabel = MODE_DETAILS[mode].label
   const difficultyLabel = difficulty ? DIFFICULTY_DETAILS[difficulty].label : 'Custom conditions'
@@ -73,7 +82,7 @@ export function RunDebriefScreen({
         <header className="debrief-heading">
           <div>
             <p>End-of-run debrief</p>
-            <h1 id="debrief-heading"><OutcomeStatement outcome={outcome} /></h1>
+            <h1 id="debrief-heading" ref={headingRef} tabIndex={-1}><OutcomeStatement outcome={outcome} /></h1>
             <span>{modeLabel} · {difficultyLabel}</span>
           </div>
           <span className="debrief-condition"><i data-survived={outcome.survived} />{outcome.survived ? 'City standing' : 'City fallen'}</span>
