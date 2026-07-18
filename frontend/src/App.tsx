@@ -10,6 +10,8 @@ import {
   Scale,
 } from 'lucide-react'
 import { ComparisonError, listSimulations, loadSimulation, runComparison } from './api'
+import { CityGame } from './game/CityGame'
+import { defaultScenario, defaultSeed } from './scenarios'
 import {
   services,
   type CompareResponse,
@@ -32,18 +34,6 @@ const serviceCodes: Record<Service, string> = {
   food: 'FD',
   healthcare: 'HC',
   public_services: 'PS',
-}
-
-const defaultScenario: Scenario = {
-  name: 'Central district restart',
-  horizon_days: 14,
-  daily_budget: 180,
-  initial_services: [0.34, 0.26, 0.41, 0.38, 0.3],
-  priorities: [1, 1.1, 1.2, 1.4, 1],
-  shock_probability: 0.2,
-  severity_min: 0.1,
-  severity_max: 0.28,
-  forced_shock: { day: 5, type: 'utility', severity: 0.26 },
 }
 
 type ViewMode = 'trajectory' | 'audit'
@@ -388,9 +378,9 @@ function AuditTable({ result }: { result: CompareResponse }) {
   )
 }
 
-function App() {
+function AnalystToolbox({ onOpenGame }: { onOpenGame: (result: CompareResponse | null) => void }) {
   const [draft, setDraft] = useState<Scenario>(defaultScenario)
-  const [seed, setSeed] = useState(424242)
+  const [seed, setSeed] = useState(defaultSeed)
   const [result, setResult] = useState<CompareResponse | null>(null)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<ComparisonFailure | null>(null)
@@ -443,7 +433,7 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void execute(defaultScenario, 424242, controller.signal)
+    void execute(defaultScenario, defaultSeed, controller.signal)
     return () => controller.abort()
   }, [execute])
 
@@ -464,7 +454,7 @@ function App() {
 
   const reset = () => {
     setDraft(defaultScenario)
-    setSeed(424242)
+    setSeed(defaultSeed)
     setResult(null)
     setError(null)
     setSelectedDay(5)
@@ -507,12 +497,15 @@ function App() {
           <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
           <div><p>Civic Relay</p><h1>Recovery desk</h1></div>
         </div>
-        <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
-          <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
-          <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
-          <span className="runtime-mobile-label" aria-hidden="true">{busy ? 'Running' : 'Local'}</span>
-          <b>ONNX / PCG64</b>
-          <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
+        <div className="toolbox-top-actions">
+          <button type="button" className="city-switch" onClick={() => onOpenGame(result)}><Play size={15} fill="currentColor" />City view</button>
+          <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
+            <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
+            <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
+            <span className="runtime-mobile-label" aria-hidden="true">{busy ? 'Running' : 'Local'}</span>
+            <b>ONNX / PCG64</b>
+            <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
+          </div>
         </div>
       </header>
 
@@ -623,6 +616,35 @@ function App() {
       </main>
     </div>
   )
+}
+
+type AppRoute = 'game' | 'toolbox'
+
+function routeFromHash(): AppRoute {
+  return window.location.hash.toLowerCase().startsWith('#/toolbox') ? 'toolbox' : 'game'
+}
+
+function App() {
+  const [route, setRoute] = useState<AppRoute>(routeFromHash)
+  const [gameResult, setGameResult] = useState<CompareResponse | null>(null)
+
+  useEffect(() => {
+    if (!window.location.hash) window.history.replaceState(null, '', '#/game')
+    const syncRoute = () => setRoute(routeFromHash())
+    window.addEventListener('hashchange', syncRoute)
+    return () => window.removeEventListener('hashchange', syncRoute)
+  }, [])
+
+  const navigate = (next: AppRoute) => {
+    window.location.hash = `#/${next}`
+    setRoute(next)
+  }
+
+  const recordGameResult = useCallback((result: CompareResponse) => setGameResult(result), [])
+
+  return route === 'toolbox'
+    ? <AnalystToolbox onOpenGame={(result) => { if (result) setGameResult(result); navigate('game') }} />
+    : <CityGame initialResult={gameResult} onResult={recordGameResult} onOpenToolbox={() => navigate('toolbox')} />
 }
 
 export default App

@@ -53,6 +53,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .brand-mark span:nth-child(2) { height: 92%; background: #65b9a8; }
 .brand-mark span:nth-child(3) { height: 68%; background: #e99a6c; }
 .runtime-strip { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+.toolbox-top-actions { display: flex; align-items: center; gap: 13px; }
+.city-switch { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #afbbb5; border-radius: 4px; background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 750; cursor: pointer; transition: transform 120ms ease, border-color 120ms ease, background 120ms ease; }
+.city-switch:hover { border-color: var(--teal); background: #f5faf8; }
+.city-switch:active { transform: scale(0.97); }
 .runtime-strip b { color: var(--ink); font-family: Consolas, monospace; }
 .runtime-mobile-label { display: none; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a62; box-shadow: 0 0 0 3px rgba(45, 138, 98, 0.14); }
@@ -250,6 +254,8 @@ tbody tr:hover { background: #f5f8f6; }
   .topbar { height: auto; min-height: 66px; padding: 10px 14px; }
   .brand-block { min-width: 0; gap: 8px; }
   .runtime-strip > .runtime-label, .runtime-strip > b { display: none; }
+  .toolbox-top-actions { gap: 7px; }
+  .city-switch { width: 40px; padding: 0; font-size: 0; justify-content: center; }
   .runtime-mobile-label { display: inline; color: var(--ink); font-size: 11px; font-weight: 800; }
   .runtime-strip.runtime-blocked > .runtime-label { display: inline; color: var(--coral-ink); font-weight: 750; }
   .runtime-strip.runtime-blocked > .runtime-mobile-label { display: none; }

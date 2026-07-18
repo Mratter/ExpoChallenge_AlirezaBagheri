@@ -116,6 +116,7 @@ function responseFixture(): CompareResponse {
 
 describe('recovery desk', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '#/toolbox')
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input) === '/api/v1/simulations') {
         return { ok: true, json: async () => ({ results: [] }) }
@@ -126,6 +127,7 @@ describe('recovery desk', () => {
 
   afterEach(() => {
     cleanup()
+    window.history.replaceState(null, '', '#/toolbox')
     vi.unstubAllGlobals()
   })
 
@@ -345,5 +347,18 @@ describe('recovery desk', () => {
     })
 
     expect(await screen.findByRole('heading', { name: 'Restored corridor scenario' })).toBeVisible()
+  })
+
+  it('switches from the Toolbox route to the WebGL-safe city route and back', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null)
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Central district restart' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'City view' }))
+
+    expect(await screen.findByRole('heading', { name: 'This browser could not start WebGL.' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Analyst Toolbox' }))
+    expect(await screen.findByRole('heading', { name: 'Central district restart' })).toBeVisible()
+    expect(window.location.hash).toBe('#/toolbox')
   })
 })
