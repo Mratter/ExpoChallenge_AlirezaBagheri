@@ -32,6 +32,7 @@ class Scenario(StrictModel):
     forced_shock: ForcedShock | None = Field(
         default=ForcedShock(day=5, type="utility", severity=0.26)
     )
+    forced_shocks: list[ForcedShock] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_scenario(self) -> "Scenario":
@@ -43,10 +44,11 @@ class Scenario(StrictModel):
             raise ValueError("severity_min must be less than severity_max")
         if self.forced_shock and self.forced_shock.day > self.horizon_days:
             raise ValueError("forced_shock.day must be within horizon_days")
+        if any(shock.day > self.horizon_days for shock in self.forced_shocks):
+            raise ValueError("each forced_shocks day must be within horizon_days")
         return self
 
 
 class CompareRequest(StrictModel):
     seed: int = Field(default=424242, ge=0, le=4_294_967_295)
     scenario: Scenario = Field(default_factory=Scenario)
-

@@ -10,6 +10,7 @@ export const defaultScenario: Scenario = {
   severity_min: 0.1,
   severity_max: 0.28,
   forced_shock: { day: 5, type: 'utility', severity: 0.26 },
+  forced_shocks: [],
 }
 
 export const defaultSeed = 424242

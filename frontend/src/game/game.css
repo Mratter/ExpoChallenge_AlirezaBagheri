@@ -178,6 +178,58 @@
 .playback-controls label { width: 106px; display: grid; align-items: center; padding: 0 6px; }
 .playback-controls input { width: 100%; accent-color: #657a69; cursor: pointer; }
 
+.disaster-tray {
+  position: absolute;
+  z-index: 14;
+  top: 76px;
+  right: 18px;
+  width: 246px;
+  padding: 10px;
+  border: 1px solid rgba(48, 55, 51, 0.2);
+  border-radius: 5px;
+  background: rgba(247, 243, 233, 0.93);
+  box-shadow: 0 8px 25px rgba(38, 53, 44, 0.13);
+  backdrop-filter: blur(11px);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.disaster-tray.is-aiming { border-color: rgba(143, 83, 60, 0.62); box-shadow: 0 10px 30px rgba(71, 49, 40, 0.18); transform: translateY(2px); }
+.tray-heading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.tray-heading > div { display: grid; gap: 1px; }
+.tray-heading span,
+.severity-control > span { color: #865a47; font-size: 8px; font-weight: 820; letter-spacing: 0.1em; text-transform: uppercase; }
+.tray-heading b { font-size: 10px; font-weight: 680; }
+.tray-heading output { min-width: 39px; padding: 3px 5px; border: 1px solid rgba(74, 80, 76, 0.17); border-radius: 3px; background: rgba(255, 255, 255, 0.5); font: 700 11px Consolas, monospace; text-align: center; }
+.severity-control { display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 7px; margin-top: 8px; }
+.severity-control > span { grid-column: 1 / -1; margin-bottom: 2px; color: var(--game-muted); }
+.severity-control input { min-width: 0; width: 100%; accent-color: #9a654d; }
+.severity-control small { color: #7a827c; font: 8px Consolas, monospace; }
+.disaster-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 7px; }
+.disaster-cards button {
+  min-width: 0;
+  height: 47px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: 3px 1px;
+  border: 1px solid rgba(67, 73, 69, 0.2);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.38);
+  color: #404943;
+  cursor: grab;
+  transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
+}
+.disaster-cards button:hover { border-color: #8e6956; background: rgba(255, 250, 243, 0.92); }
+.disaster-cards button:active,
+.disaster-cards button.active { transform: translateY(2px) scale(0.97); border-color: #945d45; background: #eee3d5; cursor: grabbing; }
+.disaster-cards button:disabled { opacity: 0.42; cursor: not-allowed; }
+.disaster-cards button span { max-width: 100%; overflow: hidden; font-size: 7px; font-weight: 730; text-overflow: ellipsis; white-space: nowrap; }
+.aim-readout { min-height: 13px; margin: 6px 0 0; color: #626d66; font-size: 8.5px; line-height: 1.35; }
+.aim-vignette { position: absolute; inset: 8px; z-index: 9; display: grid; place-items: end center; padding-bottom: 88px; border: 1px solid rgba(141, 86, 61, 0.55); border-radius: 7px; background: radial-gradient(circle, transparent 48%, rgba(87, 63, 50, 0.08)); pointer-events: none; }
+.aim-vignette span { padding: 6px 9px; border-radius: 3px; background: rgba(34, 39, 36, 0.82); color: #f4efe4; font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.city-stage.aiming-disaster .city-canvas { cursor: crosshair; }
+.kick-error { position: absolute; z-index: 25; right: 18px; top: 230px; max-width: 246px; padding: 9px 11px; border-left: 3px solid #9f5542; border-radius: 3px; background: rgba(247, 234, 226, 0.96); color: #763e30; box-shadow: 0 8px 20px rgba(55, 38, 32, 0.14); font-size: 10px; }
+
 .service-strip {
   position: absolute;
   z-index: 10;
@@ -318,6 +370,7 @@
   .local-chip { display: none; }
   .city-hud { top: 12px; left: 12px; }
   .playback-controls { top: 12px; right: 12px; }
+  .disaster-tray { top: 64px; right: 12px; }
   .playback-controls label { display: none; }
   .service-strip { width: calc(100vw - 24px); bottom: 12px; }
   .camera-hint, .shock-ribbon { bottom: 68px; }
@@ -329,6 +382,7 @@
   .toolbox-switch { width: 42px; padding: 0; font-size: 0; }
   .toolbox-switch svg { margin: auto; }
   .city-stage { height: calc(100vh - 58px); min-height: 540px; }
+  .disaster-tray { top: auto; right: 12px; bottom: 66px; width: calc(100vw - 24px); }
   .city-hud { width: 188px; }
   .service-strip > div { padding: 7px 5px 8px; text-align: center; }
   .service-strip span { font-size: 7px; }

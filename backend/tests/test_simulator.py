@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from backend.app.models import Scenario
+from backend.app.models import ForcedShock, Scenario
 from backend.app.scenarios import (
     HELD_OUT_FAMILIES,
     HELD_OUT_SEEDS,
@@ -45,6 +46,57 @@ def test_shock_tape_is_repeatable_and_forced_override_does_not_shift_tail() -> N
     assert first[4].forced is True
     assert first[4].type == "utility"
     assert first[4].severity == 0.26
+
+
+def test_forced_shocks_apply_after_singular_in_list_order_without_shifting_ambient_tape() -> None:
+    seed = 918273
+    ambient = generate_shock_schedule(
+        Scenario(horizon_days=7, forced_shock=None),
+        seed,
+    )
+    scenario = Scenario(
+        horizon_days=7,
+        forced_shock=ForcedShock(day=2, type="utility", severity=0.19),
+        forced_shocks=[
+            ForcedShock(day=2, type="supply", severity=0.21),
+            ForcedShock(day=6, type="epidemic", severity=0.23),
+            ForcedShock(day=2, type="weather", severity=0.27),
+        ],
+    )
+
+    overridden = generate_shock_schedule(scenario, seed)
+
+    assert all(
+        actual == expected
+        for index, (actual, expected) in enumerate(zip(overridden, ambient, strict=True))
+        if index not in {1, 5}
+    )
+    assert overridden[1].type == "weather"
+    assert overridden[1].severity == 0.27
+    assert overridden[1].forced is True
+    assert overridden[5].type == "epidemic"
+    assert overridden[5].severity == 0.23
+    assert overridden[5].forced is True
+
+
+def test_every_forced_shock_list_day_must_be_within_scenario_horizon() -> None:
+    with pytest.raises(ValueError, match="each forced_shocks day must be within horizon_days"):
+        Scenario(
+            horizon_days=7,
+            forced_shocks=[
+                ForcedShock(day=7, type="utility", severity=0.20),
+                ForcedShock(day=8, type="weather", severity=0.24),
+            ],
+        )
+
+
+def test_forced_shocks_uses_an_independent_default_list() -> None:
+    first = Scenario()
+    second = Scenario()
+
+    first.forced_shocks.append(ForcedShock(day=3, type="supply", severity=0.18))
+
+    assert second.forced_shocks == []
 
 
 def test_gym_environment_replays_complete_inspectable_trajectory() -> None:

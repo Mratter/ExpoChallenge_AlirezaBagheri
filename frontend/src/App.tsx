@@ -59,6 +59,8 @@ function measuredViolations(result: CompareResponse, planner: 'candidate' | 'bas
 function scenariosMatch(left: Scenario, right: Scenario): boolean {
   const leftShock = left.forced_shock
   const rightShock = right.forced_shock
+  const leftShocks = left.forced_shocks ?? []
+  const rightShocks = right.forced_shocks ?? []
 
   return left.name === right.name
     && left.horizon_days === right.horizon_days
@@ -68,6 +70,12 @@ function scenariosMatch(left: Scenario, right: Scenario): boolean {
     && left.severity_max === right.severity_max
     && left.initial_services.every((value, index) => value === right.initial_services[index])
     && left.priorities.every((value, index) => value === right.priorities[index])
+    && leftShocks.length === rightShocks.length
+    && leftShocks.every((shock, index) => (
+      shock.day === rightShocks[index]?.day
+      && shock.type === rightShocks[index]?.type
+      && shock.severity === rightShocks[index]?.severity
+    ))
     && ((leftShock === null && rightShock === null) || (
       leftShock !== null
       && rightShock !== null

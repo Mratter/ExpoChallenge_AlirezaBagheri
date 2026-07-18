@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  appendForcedShock,
+  closestDistrict,
   damageStateFor,
   isBuildingRebuilding,
   relayNarration,
+  shockImpactFor,
   type DamageState,
 } from '../src/game/model'
 import type { CompareResponse, DayResult, Service, Shock } from '../src/types'
@@ -101,6 +104,56 @@ describe('damageStateFor', () => {
     expect(distribution(0)).toEqual([
       'rubble', 'rubble', 'rubble', 'rubble', 'rubble', 'rubble', 'rubble',
     ])
+  })
+})
+
+describe('forced disaster game layer', () => {
+  it('appends kicks without mutating either the authored scenario or its existing history', () => {
+    const scenario = {
+      name: 'Kick history',
+      horizon_days: 14,
+      daily_budget: 180,
+      initial_services: [0.4, 0.4, 0.4, 0.4, 0.4],
+      priorities: [1, 1, 1, 1, 1],
+      shock_probability: 0.2,
+      severity_min: 0.1,
+      severity_max: 0.28,
+      forced_shock: null,
+      forced_shocks: [{ day: 3, type: 'weather' as const, severity: 0.17 }],
+    }
+
+    const appended = appendForcedShock(scenario, { day: 7, type: 'utility', severity: 0.31 })
+
+    expect(appended.forced_shocks).toEqual([
+      { day: 3, type: 'weather', severity: 0.17 },
+      { day: 7, type: 'utility', severity: 0.31 },
+    ])
+    expect(scenario.forced_shocks).toEqual([{ day: 3, type: 'weather', severity: 0.17 }])
+    expect(appended).not.toBe(scenario)
+  })
+
+  it('uses the authored engine footprint for all five disaster types', () => {
+    expect(shockImpactFor('aftershock', 'housing')).toBe(1)
+    expect(shockImpactFor('supply', 'food')).toBe(1)
+    expect(shockImpactFor('epidemic', 'healthcare')).toBe(1)
+    expect(shockImpactFor('utility', 'public_services')).toBe(1)
+    expect(shockImpactFor('weather', 'transport')).toBe(0.75)
+    expect(shockImpactFor('weather', 'healthcare')).toBe(0.4)
+  })
+
+  it('maps a plate point to the same nearest district on every pass', () => {
+    const points = [
+      [-7.2, -5.3, 'housing'],
+      [6.9, -5.4, 'healthcare'],
+      [-6.8, 5.1, 'food'],
+      [7.4, 5.2, 'transport'],
+      [0.1, 7.3, 'public_services'],
+    ] as const
+
+    for (const [x, z, service] of points) {
+      expect(closestDistrict(x, z).service).toBe(service)
+      expect(closestDistrict(x, z).service).toBe(service)
+    }
   })
 })
 

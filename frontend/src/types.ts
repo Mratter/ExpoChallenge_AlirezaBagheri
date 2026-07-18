@@ -1,9 +1,11 @@
 export const services = ['transport', 'housing', 'food', 'healthcare', 'public_services'] as const
 export type Service = (typeof services)[number]
+export const shockTypes = ['aftershock', 'supply', 'epidemic', 'utility', 'weather'] as const
+export type ShockType = (typeof shockTypes)[number]
 
 export type ForcedShock = {
   day: number
-  type: 'aftershock' | 'supply' | 'epidemic' | 'utility' | 'weather'
+  type: ShockType
   severity: number
 }
 export type Scenario = {
@@ -16,6 +18,7 @@ export type Scenario = {
   severity_min: number
   severity_max: number
   forced_shock: ForcedShock | null
+  forced_shocks?: ForcedShock[]
 }
 
 export type Shock = {

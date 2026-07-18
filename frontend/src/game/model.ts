@@ -1,4 +1,4 @@
-import type { CompareResponse, DayResult, Service } from '../types'
+import type { CompareResponse, DayResult, ForcedShock, Scenario, Service, ShockType } from '../types'
 
 export type DamageState = 'intact' | 'slight' | 'moderate' | 'rubble'
 export type BuildingArchetype =
@@ -10,6 +10,16 @@ export type BuildingArchetype =
   | 'warehouse'
   | 'transit'
   | 'civic'
+
+export type CityImpactEvent = {
+  id: number
+  type: ShockType
+  severity: number
+  day: number
+  point: [number, number, number]
+  service: Service
+  impact: number[]
+}
 
 export type DistrictDefinition = {
   service: Service
@@ -35,6 +45,34 @@ export const DISTRICTS: DistrictDefinition[] = [
   { service: 'transport', label: 'Transit works', shortLabel: 'Transport', accent: '#5a8290', body: '#6e8790', center: [7.0, 0, 5.0] },
   { service: 'public_services', label: 'Civic quarter', shortLabel: 'Civic', accent: '#71866a', body: '#8b9a7f', center: [0, 0, 7.0] },
 ]
+
+export const DISTRICT_BUILDING_OFFSETS: ReadonlyArray<readonly [number, number]> = [
+  [-2.0, -1.35], [0, -1.55], [2.0, -1.2], [-2.1, 0.75], [0, 0.55], [2.1, 0.8], [0, 2.25],
+]
+
+export const SHOCK_IMPACTS: Record<ShockType, [number, number, number, number, number]> = {
+  aftershock: [0.65, 1, 0.2, 0.35, 0.45],
+  supply: [0.35, 0.05, 1, 0.55, 0.1],
+  epidemic: [0.1, 0.2, 0.25, 1, 0.35],
+  utility: [0.3, 0.35, 0.45, 0.7, 1],
+  weather: [0.75, 0.55, 0.5, 0.4, 0.6],
+}
+
+export function shockImpactFor(type: ShockType, service: Service): number {
+  return SHOCK_IMPACTS[type][serviceIndex(service)]
+}
+
+export function appendForcedShock(scenario: Scenario, shock: ForcedShock): Scenario {
+  return { ...scenario, forced_shocks: [...(scenario.forced_shocks ?? []), shock] }
+}
+
+export function closestDistrict(x: number, z: number): DistrictDefinition {
+  return DISTRICTS.reduce((closest, district) => {
+    const closestDistance = Math.hypot(x - closest.center[0], z - closest.center[2])
+    const distance = Math.hypot(x - district.center[0], z - district.center[2])
+    return distance < closestDistance ? district : closest
+  })
+}
 
 const damageBias = [-0.78, -0.45, -0.12, 0.18, 0.43, 0.72, 0.98]
 

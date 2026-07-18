@@ -113,8 +113,9 @@ def generate_shock_schedule(scenario: Scenario, seed: int) -> list[Shock]:
         else:
             schedule.append(Shock(day, None, 0.0, [0.0] * 5, 0.0, False))
 
-    forced = scenario.forced_shock
-    if forced is not None:
+    forced_overrides = [] if scenario.forced_shock is None else [scenario.forced_shock]
+    forced_overrides.extend(scenario.forced_shocks)
+    for forced in forced_overrides:
         shock_index = SHOCKS.index(forced.type)
         schedule[forced.day - 1] = Shock(
             day=forced.day,
@@ -580,7 +581,7 @@ def compare(scenario: Scenario, seed: int, policy_bundle: Any) -> dict[str, Any]
     else:
         outcome = "rauc_tie"
     return {
-        "schema_version": "2.0.0",
+        "schema_version": "2.1.0",
         "seed": seed,
         "generator": "numpy.PCG64",
         "scenario": scenario.model_dump(mode="json"),

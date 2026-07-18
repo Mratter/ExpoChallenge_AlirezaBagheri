@@ -2,18 +2,21 @@ import { Html, Line, OrbitControls } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import type { Group, InstancedMesh, Mesh } from 'three'
+import type { Group, InstancedMesh, Mesh, MeshBasicMaterial } from 'three'
 import type { CompareResponse, Service } from '../types'
 import {
+  DISTRICT_BUILDING_OFFSETS,
   DISTRICTS,
   damageStateFor,
   isBuildingRebuilding,
   relayNarration,
   serviceIndex,
   type BuildingArchetype,
+  type CityImpactEvent,
   type DamageState,
   type DistrictDefinition,
 } from './model'
+import { SceneEffects } from './SceneEffects'
 
 type BuildingPlacement = {
   archetype: BuildingArchetype
@@ -39,10 +42,6 @@ const ARCHETYPES: Record<BuildingArchetype, ArchetypeSpec> = {
   civic: { size: [2.35, 2.25, 1.75], capScale: [1.65, 0.36, 1.2], capOffset: [0, 2.48, 0] },
 }
 
-const DISTRICT_OFFSETS: Array<[number, number]> = [
-  [-2.0, -1.35], [0, -1.55], [2.0, -1.2], [-2.1, 0.75], [0, 0.55], [2.1, 0.8], [0, 2.25],
-]
-
 const SERVICE_ARCHETYPES: Record<Service, BuildingArchetype[]> = {
   transport: ['transit', 'warehouse', 'office', 'transit', 'warehouse', 'office', 'civic'],
   housing: ['apartment', 'rowhouse', 'apartment', 'rowhouse', 'office', 'apartment', 'rowhouse'],
@@ -52,7 +51,7 @@ const SERVICE_ARCHETYPES: Record<Service, BuildingArchetype[]> = {
 }
 
 function buildingPlacements(district: DistrictDefinition): BuildingPlacement[] {
-  return DISTRICT_OFFSETS.map(([offsetX, offsetZ], index) => ({
+  return DISTRICT_BUILDING_OFFSETS.map(([offsetX, offsetZ], index) => ({
     archetype: SERVICE_ARCHETYPES[district.service][index],
     position: [district.center[0] + offsetX, 0.15, district.center[2] + offsetZ],
     rotation: ((index + serviceIndex(district.service)) % 4) * (Math.PI / 2),
@@ -350,10 +349,11 @@ function Building({ placement, district, state, rebuilding }: {
   )
 }
 
-function District({ district, result, dayIndex }: {
+function District({ district, result, dayIndex, aimed }: {
   district: DistrictDefinition
   result: CompareResponse
   dayIndex: number
+  aimed: boolean
 }) {
   const day = result.candidate.trajectory[dayIndex]
   const previous = result.candidate.trajectory[dayIndex - 1]
@@ -364,8 +364,14 @@ function District({ district, result, dayIndex }: {
     <group>
       <mesh position={[district.center[0], 0.035, district.center[2]]} receiveShadow>
         <boxGeometry args={[5.5, 0.07, 5.45]} />
-        <meshStandardMaterial color={district.accent} opacity={0.2} transparent roughness={1} />
+        <meshStandardMaterial color={district.accent} opacity={aimed ? 0.52 : 0.2} transparent roughness={1} />
       </mesh>
+      {aimed ? (
+        <mesh position={[district.center[0], 0.31, district.center[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[2.72, 2.82, 48]} />
+          <meshBasicMaterial color="#f3eee1" transparent opacity={0.9} depthWrite={false} />
+        </mesh>
+      ) : null}
       {placements.map((placement, buildingIndex) => {
         const state = damageStateFor(level, buildingIndex)
         return (
@@ -480,9 +486,55 @@ function Tabletop() {
   )
 }
 
-export function CityScene({ result, dayIndex }: { result: CompareResponse; dayIndex: number }) {
+function ImpactRing({ position, strength, color, delay = 0 }: {
+  position: [number, number, number]
+  strength: number
+  color: string
+  delay?: number
+}) {
+  const mesh = useRef<Mesh>(null)
+  const material = useRef<MeshBasicMaterial>(null)
+  const started = useRef<number | null>(null)
+  useFrame(({ clock }) => {
+    if (started.current === null) started.current = clock.elapsedTime
+    const progress = Math.max(0, Math.min(1, (clock.elapsedTime - started.current - delay) / 1.2))
+    const scale = 0.45 + progress * (2.1 + strength * 1.7)
+    if (mesh.current) mesh.current.scale.setScalar(scale)
+    if (material.current) material.current.opacity = progress <= 0 ? 0 : (1 - progress) * (0.18 + strength * 0.46)
+  })
+  return (
+    <mesh ref={mesh} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.82, 0.96, 48]} />
+      <meshBasicMaterial ref={material} color={color} transparent opacity={0} depthWrite={false} />
+    </mesh>
+  )
+}
+
+function TypedImpactFootprint({ impact }: { impact: CityImpactEvent }) {
+  return (
+    <group>
+      {DISTRICTS.map((district, index) => (
+        <ImpactRing
+          key={district.service}
+          position={[district.center[0], 0.32, district.center[2]]}
+          strength={impact.impact[serviceIndex(district.service)] ?? 0}
+          color={district.accent}
+          delay={0.08 + index * 0.035}
+        />
+      ))}
+    </group>
+  )
+}
+
+export function CityScene({ result, dayIndex, aimedService, activeImpact }: {
+  result: CompareResponse
+  dayIndex: number
+  aimedService: Service | null
+  activeImpact: CityImpactEvent | null
+}) {
   const day = result.candidate.trajectory[dayIndex]
   const narration = relayNarration(result, dayIndex)
+  const world = useRef<Group>(null)
   return (
     <>
       <color attach="background" args={['#dce8e2']} />
@@ -503,13 +555,33 @@ export function CityScene({ result, dayIndex }: { result: CompareResponse; dayIn
         shadow-normalBias={0.025}
       />
       <directionalLight position={[14, 10, -12]} intensity={0.6} color="#b9d2d3" />
-      <Tabletop />
-      <Baseplate />
-      {DISTRICTS.map((district) => (
-        <District key={district.service} district={district} result={result} dayIndex={dayIndex} />
-      ))}
-      <Silo allocations={day.allocation} />
-      <RelayOrb narration={narration} day={day.day} />
+      <group ref={world}>
+        <Tabletop />
+        <Baseplate />
+        {DISTRICTS.map((district) => (
+          <District
+            key={district.service}
+            district={district}
+            result={result}
+            dayIndex={dayIndex}
+            aimed={aimedService === district.service}
+          />
+        ))}
+        <Silo allocations={day.allocation} />
+        <RelayOrb narration={narration} day={day.day} />
+        <SceneEffects
+          result={result}
+          dayIndex={dayIndex}
+          impact={activeImpact ? {
+            id: activeImpact.id,
+            type: activeImpact.type,
+            severity: activeImpact.severity,
+            position: activeImpact.point,
+          } : null}
+          tremorTarget={world}
+        />
+        {activeImpact ? <TypedImpactFootprint key={activeImpact.id} impact={activeImpact} /> : null}
+      </group>
       <OrbitControls
         makeDefault
         enableDamping

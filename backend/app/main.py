@@ -25,7 +25,7 @@ from backend.app.persistence import PersistenceError, RunStore
 from backend.app.simulator import SERVICES, compare
 
 APP_VERSION = "0.3.0"
-API_SCHEMA_VERSION = "2.0.0"
+API_SCHEMA_VERSION = "2.1.0"
 DATASET_SCHEMA_VERSION = "2.0.0"
 DATASET_VERSION = "2.0.0"
 DEFAULT_SEED = 20260714

@@ -106,7 +106,7 @@ def main() -> None:
     meta = json.loads(meta_bytes)
     if status != 200 or meta["default_seed"] != 20260714:
         raise AssertionError("runtime metadata is incomplete")
-    if meta["schema_version"] != "2.0.0":
+    if meta["schema_version"] != "2.1.0":
         raise AssertionError("runtime API schema metadata is incomplete")
     if (
         meta["model"]["artifact_type"] != "stable_baselines3_ppo"
@@ -130,7 +130,12 @@ def main() -> None:
             "shock_probability": 0.23,
             "severity_min": 0.09,
             "severity_max": 0.31,
-            "forced_shock": {"day": 7, "type": "weather", "severity": 0.24},
+            "forced_shock": {"day": 7, "type": "utility", "severity": 0.20},
+            "forced_shocks": [
+                {"day": 7, "type": "supply", "severity": 0.21},
+                {"day": 7, "type": "weather", "severity": 0.24},
+                {"day": 9, "type": "epidemic", "severity": 0.18},
+            ],
         },
     }
     responses = [fetch(f"{args.base_url}/api/v1/simulations/compare", unseen) for _ in range(5)]
@@ -139,6 +144,16 @@ def main() -> None:
     if len({body for _, body in responses}) != 1:
         raise AssertionError("canonical response changed across five identical runs")
     result = json.loads(responses[0][1])
+    if result["schema_version"] != "2.1.0":
+        raise AssertionError("comparison schema version is incomplete")
+    if (
+        result["shock_schedule"][6]["type"] != "weather"
+        or result["shock_schedule"][6]["severity"] != 0.24
+        or result["shock_schedule"][6]["forced"] is not True
+        or result["shock_schedule"][8]["type"] != "epidemic"
+        or result["shock_schedule"][8]["forced"] is not True
+    ):
+        raise AssertionError("ordered forced shock list was not applied")
     checks = assert_constraints(result)
     result_id = result["result_id"]
     restore_status, restore_bytes = fetch(f"{args.base_url}/api/v1/simulations/{result_id}")

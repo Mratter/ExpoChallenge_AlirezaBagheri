@@ -27,9 +27,14 @@ from backend.app.main import (  # noqa: E402
     DATASET_VERSION,
     metadata_payload,
 )
-from backend.app.models import Scenario  # noqa: E402
+from backend.app.models import ForcedShock, Scenario  # noqa: E402
 from backend.app.persistence import RunStore  # noqa: E402
-from backend.app.simulator import SERVICES, canonical_json_bytes, compare  # noqa: E402
+from backend.app.simulator import (  # noqa: E402
+    SERVICES,
+    canonical_json_bytes,
+    compare,
+    generate_shock_schedule,
+)
 
 EVALUATION_PATH = ROOT / "evaluation" / "feature_complete_report.v1.json"
 PROTOCOL_PATH = ROOT / "evaluation" / "protocol.v1.json"
@@ -142,6 +147,21 @@ def main() -> None:
     evaluation = validate_evaluation(bundle)
     if result["shock_schedule"][4]["type"] != "utility":
         raise RuntimeError("forced fixture shock is missing")
+    ordered_forced_schedule = generate_shock_schedule(
+        Scenario(
+            forced_shocks=[
+                ForcedShock(day=5, type="supply", severity=0.21),
+                ForcedShock(day=5, type="weather", severity=0.24),
+            ]
+        ),
+        424242,
+    )
+    if (
+        ordered_forced_schedule[4].type != "weather"
+        or ordered_forced_schedule[4].severity != 0.24
+        or ordered_forced_schedule[4].forced is not True
+    ):
+        raise RuntimeError("ordered forced shock list precedence failed")
     print(
         json.dumps(
             {

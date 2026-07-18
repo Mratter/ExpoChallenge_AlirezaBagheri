@@ -1,8 +1,9 @@
+from copy import deepcopy
 from pathlib import Path
 
 from backend.app.artifact import load_policy_bundle
 from backend.app.models import Scenario
-from backend.app.persistence import RunStore
+from backend.app.persistence import RunStore, result_identity
 from backend.app.simulator import canonical_json_bytes, compare
 
 
@@ -29,3 +30,32 @@ def test_result_identity_is_idempotent_and_restores_across_store_instances(
             "seed": 314159,
         }
     ]
+
+
+def test_v2_result_without_forced_shocks_restores_exact_canonical_bytes(
+    tmp_path: Path,
+) -> None:
+    legacy_result = deepcopy(
+        compare(Scenario(name="Legacy v2 persisted scenario"), 271828, load_policy_bundle())
+    )
+    legacy_result["schema_version"] = "2.0.0"
+    assert legacy_result["scenario"].pop("forced_shocks") == []
+
+    result_id = result_identity(legacy_result)
+    legacy_result["result_id"] = result_id
+    legacy_result["persistence"] = {
+        "format": "canonical-json-v1",
+        "idempotent": True,
+        "result_id": result_id,
+    }
+    legacy_bytes = canonical_json_bytes(legacy_result)
+    persisted_path = tmp_path / "runs" / f"{result_id}.json"
+    persisted_path.parent.mkdir(parents=True)
+    persisted_path.write_bytes(legacy_bytes)
+
+    restored = RunStore(tmp_path).load(result_id)
+
+    assert restored["schema_version"] == "2.0.0"
+    assert "forced_shocks" not in restored["scenario"]
+    assert canonical_json_bytes(restored) == legacy_bytes
+    assert persisted_path.read_bytes() == legacy_bytes

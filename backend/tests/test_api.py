@@ -24,7 +24,7 @@ def test_required_health_and_meta_endpoints() -> None:
     meta = client.get("/api/v1/meta")
     assert meta.status_code == 200
     body = meta.json()
-    assert body["schema_version"] == "2.0.0"
+    assert body["schema_version"] == "2.1.0"
     assert body["dataset"]["empirical"] is False
     assert body["dataset"]["schema_version"] == "2.0.0"
     assert body["model"]["artifact_type"] == "stable_baselines3_ppo"
@@ -41,6 +41,8 @@ def test_feature_complete_fixture_is_canonical_deterministic_and_constrained() -
     assert first.status_code == 200
     assert first.content == second.content
     body = first.json()
+    assert body["schema_version"] == "2.1.0"
+    assert body["scenario"]["forced_shocks"] == []
     expected_schedule_hash = "af3a57e9b378700a49a2da8d2042ebc9eb08178cc525cad93f4954306ae5ec81"
     assert body["shock_schedule_sha256"] == expected_schedule_hash
     assert body["candidate"]["rauc"] == 0.48599305
@@ -106,6 +108,32 @@ def test_invalid_input_has_structured_error() -> None:
         "/api/v1/simulations/compare",
         json={"seed": 1, "scenario": {"horizon_days": 99}},
     )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "INVALID_SCENARIO"
+    assert response.json()["error"]["details"]
+
+
+@pytest.mark.parametrize(
+    "forced_shocks",
+    [
+        [{"day": 8, "type": "weather", "severity": 0.24}],
+        [{"day": 7, "type": "utility", "severity": 0.20, "unknown": True}],
+        [{"day": 4, "type": "meteor", "severity": 0.20}],
+        [{"day": 4, "type": "supply", "severity": 0.049}],
+        [{"day": 4, "type": "epidemic", "severity": 0.401}],
+    ],
+)
+def test_forced_shocks_remain_strict_and_bounded_by_horizon(
+    forced_shocks: list[dict[str, object]],
+) -> None:
+    response = client.post(
+        "/api/v1/simulations/compare",
+        json={
+            "seed": 1,
+            "scenario": {"horizon_days": 7, "forced_shocks": forced_shocks},
+        },
+    )
+
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "INVALID_SCENARIO"
     assert response.json()["error"]["details"]
