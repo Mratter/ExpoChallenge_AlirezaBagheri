@@ -13,7 +13,10 @@ import onnx
 import onnxruntime as ort
 
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST_PATH = ROOT / "artifacts" / "manifest.lock.json"
+# The v1 runtime is an archival compatibility boundary.  Its manifest remains
+# immutable even when the active manifest advances for later environment and
+# policy versions.
+MANIFEST_PATH = ROOT / "artifacts" / "manifest.v2.lock.json"
 LEGACY_POLICY_PATH = ROOT / "artifacts" / "frozen_policy.v1.json"
 POLICY_PATH = LEGACY_POLICY_PATH
 SB3_POLICY_PATH = ROOT / "artifacts" / "city_recovery_ppo.v1.zip"

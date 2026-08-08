@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_id": "city-recovery-sb3-ppo-v2",
+  "architecture": "MLP",
+  "algorithm": "PPO",
+  "checkpoint_role": "released_single-seed artifact selected for amendment smoke evaluation",
+  "onnx_path": "artifacts/city_recovery_ppo.v2.onnx",
+  "onnx_sha256": "0c40a585b0cddc5d4564e4a1ae6af2ed651a85a08b09c5e374be07278aa0ed20",
+  "sb3_checkpoint_sha256": "5da60929411320ca30cf50a8716cfa6965394fb01adfd72d9aa02346e673cc3b",
+  "simulator_version_hash": "7e5046905a3fb048dad4f064c468d252eef69d2d838a6f13658db672035221c2",
+  "frozen_evaluation_manifest_sha256": "4e1da8caae1841939d22f482661c23dd7f48e3c51634cabcfbc3120585be5e1f",
+  "actual_policy_training_seeds": [
+    17017
+  ],
+  "planned_final_policy_training_seeds": [
+    17017,
+    17018,
+    17019,
+    17020,
+    17021
+  ],
+  "final_protocol_executed": false,
+  "limitations": [
+    "This sidecar does not alter or backfill the immutable released checkpoint bytes.",
+    "Only one independently trained PPO seed exists in the selected artifact bundle.",
+    "The checkpoint is an MLP and contains no relational GNN or learned reserve head."
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v1",
+  "candidate_manifest": {
+    "benchmark_id": "adaptive-cascades-showcase-v1",
+    "checkpoint_sha256": "752b2c1e0477567cad3a878aa9b9778131216accbc1f3a21961174bc67aa3c2a",
+    "config_sha256": "0d8a165b0a03239cbbad4a650f29cc0d1d1d8d4af7f3055cd2878d39ba31e7ac",
+    "development_report_sha256": "ce4d31edeefbb43c315f51f4ec862c2cf10dc2eba39e1f0ab9d571e7c7df8633",
+    "model_id": "adaptive-cascade-mlp-v1",
+    "onnx_sha256": "a609794d5ab08347698a48b3f52f7533b8073177bf0d7d5a13dbc13e5eddcea8",
+    "schema_version": "adaptive-cascade-candidate-manifest-v1",
+    "training_receipt_sha256": "84228f48717f2e461edab229a9e967a48bef5d655916b50792c7df7f05b1867f"
+  },
+  "config_sha256": "0d8a165b0a03239cbbad4a650f29cc0d1d1d8d4af7f3055cd2878d39ba31e7ac",
+  "evaluation": {
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 77117,
+    "exact_replay_required": true,
+    "head_to_head_metric": "cascade_windows_contained",
+    "heuristic_objective_pass_target": [
+      20,
+      25
+    ],
+    "model_objective_pass_target": [
+      38,
+      40
+    ],
+    "targets_descriptive_only": true,
+    "tie_rule": "exact equality in integer contained-window count",
+    "zero_violations_required": true
+  },
+  "evidence_class": "sealed_synthetic_pattern_learning_showcase",
+  "objective": {
+    "definition": "A scenario passes when at least 10 of 12 hidden cascade windows are contained by the public action chosen for that window.",
+    "direction": "higher_is_better",
+    "id": "cascade_windows_contained",
+    "success_threshold": 10
+  },
+  "prohibitions": [
+    "no holdout tuning",
+    "no policy-specific transitions",
+    "no future tape access",
+    "no seed-conditioned policy logic",
+    "no result overwrite or row exclusion"
+  ],
+  "schema_version": "adaptive-cascade-preregistration-v1",
+  "source_seal_sha256": "53f8056ef27166608ee5d6ad1c5a4bd109340a8e1d5976cdcc54d2570b6e001d",
+  "split_commitment_sha256": "664b32812f7eb39f7530beaf3aeed2a46b446a401bdc7cd6b71b9af422a24774",
+  "synthetic_disclosure": "Engineered synthetic benchmark of learnable observable patterns; not real-world validation."
+}

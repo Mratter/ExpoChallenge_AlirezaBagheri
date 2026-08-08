@@ -1,0 +1,18 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v1",
+  "commit": "c331a000d0239dcf473ad5b088f1d2e441c922bd",
+  "files": {
+    "AGENTS.md": "d25a1bd8669e47d71393ded879a2253f67488384d5de94f66a6e8d225f280002",
+    "README.md": "89e97418b57166f10bb158abf0d0c468957aab7561b6db52267ca83cb73abe2a",
+    "configs/adaptive_cascades_v1.json": "0d8a165b0a03239cbbad4a650f29cc0d1d1d8d4af7f3055cd2878d39ba31e7ac",
+    "pyproject.toml": "42680e0e9a1df36d9a024747fa4f94e1c57450ffde696304a5244fd939f19f55",
+    "scripts/run_campaign.py": "886badf1a2dae98caba250690a5aaf47ba516d3272a0be391a2aa62fdf788e75",
+    "src/city_showcase/__init__.py": "81af41df8d7dc83090207a7d72ae4eaf8615dfe8a2c96c7f6e85625cccd02cc6",
+    "src/city_showcase/benchmark.py": "2a2387dcf569d34461b5d4ec3dfda94895f513c0972a6964c5743fe5af630082",
+    "src/city_showcase/evidence.py": "b248f9bde414e7f6c6dd0e95d802fb4eb13b9478a737684f1e8267557286ca2a",
+    "src/city_showcase/model.py": "0c44124e12d36745f08741b34994c2eb94bb4fdf8977766e1b01e173cb594628",
+    "tests/test_benchmark.py": "eefaf21708566b700abfd71787559a07c2b06d2f64bf3736872f0944e13185f9"
+  },
+  "schema_version": "adaptive-cascade-source-seal-v1",
+  "tree": "ef3d9f44e7e8899cc4ff2dc8a5ec41cb2a15096b"
+}

@@ -7,7 +7,10 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 4173,
     strictPort: true,
-    proxy: { '/api': 'http://127.0.0.1:4117', '/health': 'http://127.0.0.1:4117' },
+    proxy: {
+      '/api': 'http://127.0.0.1:4117',
+      '/health': 'http://127.0.0.1:4117',
+    },
   },
   test: {
     environment: 'jsdom',

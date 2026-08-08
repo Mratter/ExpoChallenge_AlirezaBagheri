@@ -1,0 +1,13 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v1",
+  "duplicate_scenario_ids": 0,
+  "forbidden_fields_absent": true,
+  "future_tape_access": false,
+  "observation_size": 21,
+  "policy_blind_same_state_action_transition": true,
+  "row_exclusions": 0,
+  "same_tape_for_both_policies": true,
+  "schema_version": "adaptive-cascade-anti-gaming-v1",
+  "seed_conditioned_policy_logic": false,
+  "training_development_final_seeds_disjoint": true
+}

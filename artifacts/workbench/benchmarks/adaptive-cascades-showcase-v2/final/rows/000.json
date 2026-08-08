@@ -1,0 +1,60 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v2",
+  "family_id": "aftershock_reserve_timing",
+  "head_to_head": "learned_win",
+  "heuristic": {
+    "actions": [
+      3,
+      2,
+      3,
+      2,
+      4,
+      0,
+      4,
+      3,
+      1,
+      1,
+      4,
+      1
+    ],
+    "contained_windows": 8,
+    "critical_service_deficit_auc": 0.3790930909,
+    "final_minimum_health": 0.4159363424,
+    "objective_pass": false,
+    "policy_id": "static-visible-need-heuristic-v1",
+    "receipts_sha256": "e11645a2fe188aa392a00e6f0662fcd9942ed0d8e1abfc3d42171bed0911d6ef",
+    "scenario_id": "final-aftershock_reserve_timing-660000",
+    "tape_sha256": "8d1c96f2f0ef87d94312b1f13ed873925a9adfdf1852b9708a694a1a3afd2258",
+    "violation_count": 0
+  },
+  "learned": {
+    "actions": [
+      3,
+      3,
+      4,
+      2,
+      4,
+      4,
+      4,
+      3,
+      1,
+      0,
+      4,
+      1
+    ],
+    "contained_windows": 12,
+    "critical_service_deficit_auc": 0.3093031119,
+    "final_minimum_health": 0.6302552462,
+    "objective_pass": true,
+    "policy_id": "adaptive-cascade-mlp-v2-300k",
+    "receipts_sha256": "4e8288d5d0885d2bbc500180ba209cd3d1cd0ceed18abbce5e69b2631797a0d4",
+    "scenario_id": "final-aftershock_reserve_timing-660000",
+    "tape_sha256": "8d1c96f2f0ef87d94312b1f13ed873925a9adfdf1852b9708a694a1a3afd2258",
+    "violation_count": 0
+  },
+  "row_index": 0,
+  "scenario_id": "final-aftershock_reserve_timing-660000",
+  "schema_version": "adaptive-cascade-final-row-v1",
+  "seed": 660000,
+  "tape_sha256": "8d1c96f2f0ef87d94312b1f13ed873925a9adfdf1852b9708a694a1a3afd2258"
+}

@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'project_environment.ps1')
 
-if ($Profile -ne 'cpu') { throw 'The frozen Feature Complete policy supports the CPU profile only.' }
+if ($Profile -ne 'cpu') { throw 'The City Recovery Model Workbench supports the CPU profile only.' }
 foreach ($Command in @('uv', 'node', 'npm')) {
     if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
         throw "Required setup command is missing: $Command"
@@ -57,7 +57,7 @@ try {
     & uv sync --frozen --python 3.12 --no-group training
     if ($LASTEXITCODE -ne 0) { throw 'uv sync failed' }
     Assert-Ai17NativePathBudget -Context $ProjectEnvironment
-    & $ProjectEnvironment.PythonPath -c 'from onnx import onnx_cpp2py_export; import onnxruntime, ortools, gymnasium'
+    & $ProjectEnvironment.PythonPath -c 'from onnx import onnx_cpp2py_export; import fastapi, numpy, onnxruntime'
     if ($LASTEXITCODE -ne 0) { throw 'native runtime dependency smoke failed' }
     Write-Host '[setup] Installing pinned frontend dependencies'
     & npm ci --prefix frontend

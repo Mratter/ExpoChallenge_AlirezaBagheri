@@ -1,0 +1,672 @@
+{
+  "schema_version": "model-workbench-v1",
+  "project": {
+    "name": "Autonomous City Recovery Planner",
+    "summary": "A hybrid planning system that turns public city-state observations into recovery priorities, projects them through exact feasibility constraints, and evaluates the resulting plans on matched synthetic disaster tapes.",
+    "metric_note": "This is a planning system, not a classifier. Report resilience AUC, cumulative service loss, matched-scenario wins, replay, and constraint violations instead of generic accuracy."
+  },
+  "tracks": [
+    {
+      "id": "production-v2",
+      "name": "Production demo v2",
+      "role": "Finished policy used by the original interactive demo",
+      "status": "trained_evaluated",
+      "evidence_class": "held_out_synthetic_production_demo",
+      "claim_eligible": true,
+      "architecture": {
+        "family": "MLP PPO with deterministic ONNX export and feasibility projection",
+        "parameters": null,
+        "inputs": "33 normalized city, shock, budget, depot-stock, and throughput features",
+        "outputs": "5 service-allocation controls",
+        "runtime": "ONNX Runtime CPUExecutionProvider"
+      },
+      "training": {
+        "started": true,
+        "transitions": 30000,
+        "unit": "transitions",
+        "seed_count": 1,
+        "hardware": "CPU",
+        "note": "One PPO seed trained on 32 synthetic scenario units across four training families."
+      },
+      "evaluation": {
+        "headline": "Won 32 of 40 held-out synthetic scenarios on resilience AUC.",
+        "metrics": [
+          {
+            "id": "candidate_rauc",
+            "label": "AI resilience AUC",
+            "value": 0.44342203,
+            "display": "0.4434",
+            "polarity": "positive",
+            "note": "Higher is better."
+          },
+          {
+            "id": "baseline_rauc",
+            "label": "GLOP resilience AUC",
+            "value": 0.43489304,
+            "display": "0.4349",
+            "polarity": "neutral",
+            "note": "Matched visible-information OR-Tools comparator."
+          },
+          {
+            "id": "relative_improvement_percent",
+            "label": "Relative resilience gain",
+            "value": 1.9611695786,
+            "display": "+1.96%",
+            "polarity": "positive",
+            "note": "Relative difference in mean resilience AUC, not classification accuracy."
+          },
+          {
+            "id": "scenario_wins",
+            "label": "Matched scenario wins",
+            "value": 32,
+            "display": "32 / 40",
+            "polarity": "positive",
+            "note": "The baseline was higher in the remaining eight scenarios; there were no ties."
+          },
+          {
+            "id": "scenario_total",
+            "label": "Held-out scenarios",
+            "value": 40,
+            "display": "40",
+            "polarity": "neutral",
+            "note": "Five held-out scenario families with eight seeds per family."
+          },
+          {
+            "id": "baseline_wins",
+            "label": "Baseline scenario wins",
+            "value": 8,
+            "display": "8 / 40",
+            "polarity": "neutral",
+            "note": "There were no tied resilience-AUC outcomes."
+          },
+          {
+            "id": "deterministic_executions",
+            "label": "Determinism executions",
+            "value": 200,
+            "display": "200",
+            "polarity": "positive",
+            "note": "Five canonical repeats for each of 40 evaluation cases."
+          },
+          {
+            "id": "deterministic_mismatches",
+            "label": "Determinism mismatches",
+            "value": 0,
+            "display": "0",
+            "polarity": "positive",
+            "note": "Canonical result bytes were identical across repeats."
+          }
+        ]
+      },
+      "safety": {
+        "hard_violations": 0,
+        "resource_violations": 0,
+        "crew_violations": null,
+        "replay_verified": true
+      },
+      "limitations": [
+        "Synthetic-only benchmark; it is not evidence of real-city effectiveness.",
+        "Only one policy-training seed was used.",
+        "The model won the primary resilience-AUC comparison but did not win every secondary metric."
+      ],
+      "provenance": [
+        {
+          "label": "Released v2 model metadata",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/city_recovery_ppo.v2.metadata.json",
+          "sha256": "27b185dd30101d2291cda2ab4c3b25d2c75e0d46c26403a9e5e509f9fb6421ab"
+        },
+        {
+          "label": "Feature-complete v2 evaluation",
+          "source_repository": "city-model-workbench",
+          "path": "evaluation/feature_complete_report.v2.json",
+          "sha256": "cd7780ebcdfcf81035697560f5e4726f2228394bfcea238e0194951c1ac7bfc6"
+        }
+      ]
+    },
+    {
+      "id": "showcase-adaptive-v2",
+      "name": "Adaptive Cascade MLP v2 (300k)",
+      "role": "Trained model for the sealed artificial pattern-learning showcase",
+      "status": "trained_evaluated",
+      "evidence_class": "sealed_synthetic_pattern_learning_showcase",
+      "claim_eligible": true,
+      "architecture": {
+        "family": "Supervised 300k-parameter multilayer perceptron with deterministic ONNX export",
+        "parameters": 300113,
+        "inputs": "21 public observable telemetry and recovery-state features",
+        "outputs": "5 recovery-action classes",
+        "runtime": "ONNX Runtime CPUExecutionProvider"
+      },
+      "training": {
+        "started": true,
+        "transitions": 9600,
+        "unit": "labeled windows",
+        "seed_count": 1,
+        "hardware": "CPU",
+        "note": "9,600 labeled windows from 800 synthetic training scenarios; 120 supervised epochs completed in 66.73 seconds."
+      },
+      "evaluation": {
+        "headline": "Passed the registered objective in 38 of 40 sealed synthetic scenarios; head-to-head, the learned policy won 38 scenarios and tied two.",
+        "metrics": [
+          {
+            "id": "objective_learned_passes",
+            "label": "Learned-policy objective passes",
+            "value": 38,
+            "display": "38 / 40",
+            "polarity": "positive",
+            "note": "A pass contains at least 10 of 12 cascade windows."
+          },
+          {
+            "id": "objective_static_heuristic_passes",
+            "label": "Static-heuristic objective passes",
+            "value": 20,
+            "display": "20 / 40",
+            "polarity": "neutral",
+            "note": "This is an independent objective count, not the complement of the model count."
+          },
+          {
+            "id": "head_to_head_learned_wins",
+            "label": "Learned head-to-head wins",
+            "value": 38,
+            "display": "38 / 40",
+            "polarity": "positive",
+            "note": "Matched-tape comparison on cascade windows contained."
+          },
+          {
+            "id": "head_to_head_heuristic_wins",
+            "label": "Heuristic head-to-head wins",
+            "value": 0,
+            "display": "0 / 40",
+            "polarity": "neutral",
+            "note": "The remaining two matched scenarios were exact ties."
+          },
+          {
+            "id": "head_to_head_ties",
+            "label": "Head-to-head ties",
+            "value": 2,
+            "display": "2 / 40",
+            "polarity": "neutral",
+            "note": "Exact equality in integer contained-window count."
+          },
+          {
+            "id": "paired_mean_difference",
+            "label": "Mean contained-window advantage",
+            "value": 2.25,
+            "display": "+2.250",
+            "polarity": "positive",
+            "note": "Paired bootstrap 95% CI: [1.775, 2.750]."
+          }
+        ]
+      },
+      "safety": {
+        "hard_violations": 0,
+        "resource_violations": null,
+        "crew_violations": null,
+        "replay_verified": true
+      },
+      "limitations": [
+        "Purpose-built artificial patterns; not evidence of real-disaster performance.",
+        "The static heuristic intentionally uses visible need without learning the public telemetry mapping.",
+        "Objective pass counts are independent; they are not a single complementary win/loss scoreline.",
+        "Version 1 remains preserved as immutable archived predecessor evidence; its rows and results are not reused as Version 2 evidence."
+      ],
+      "provenance": [
+        {
+          "label": "Sealed Version 2 benchmark result",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/result.json",
+          "sha256": "a69fbb96087298abaec35bae2a2797cca24c696ff8ee1463913d6e1d84cd5a5b"
+        },
+        {
+          "label": "Version 2 final evidence manifest",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/manifest.json",
+          "sha256": "02dcc47c2389690d90f4f846e2d07ecd5e9fceba935404771e4751e758883640"
+        },
+        {
+          "label": "ONNX model",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/candidate/adaptive-cascade-mlp-v2-300k.onnx",
+          "sha256": "b3edf8007feb749ddc33fc3ebbb008a02ef98d561bd74cfde286dde030a4dae0"
+        },
+        {
+          "label": "PyTorch checkpoint",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/candidate/adaptive-cascade-mlp-v2-300k.pt",
+          "sha256": "c2e1770721713d6f1faa977c0b2c8e0f0bbb9af5abdc06f9322aa5c6bb8dbac5"
+        },
+        {
+          "label": "Candidate manifest",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/candidate/candidate-manifest.json",
+          "sha256": "e1181f4cc999f44f756468809d6ae44c357a81faaaf7fd2b2bce5b11cbdadac5"
+        },
+        {
+          "label": "Training receipt",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/candidate/training-receipt.json",
+          "sha256": "0ac8e60613cd047aac125d3edbdf155e2afc70313d0912bd3e945a521930cdec"
+        },
+        {
+          "label": "Archived Version 1 result",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v1/final/result.json",
+          "sha256": "2b5eec6657c0bd21825bd7f9bccfe274f72d9ba28a5b2b69cc10950e2f2bb13f"
+        },
+        {
+          "label": "Archived Version 1 final manifest",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v1/final/manifest.json",
+          "sha256": "55f7430d1561a4d387b78990328b9b59b67f3479944a80a60825c53206a7b6a4"
+        }
+      ]
+    },
+    {
+      "id": "scientific-v4",
+      "name": "Scientific relational GNN v4",
+      "role": "Preliminary architecture and ablation study",
+      "status": "trained_preliminary_no_claim",
+      "evidence_class": "preliminary_scientific_evaluation",
+      "claim_eligible": false,
+      "architecture": {
+        "family": "Relational graph neural network PPO with a shared QP feasibility layer",
+        "parameters": 65703,
+        "inputs": "368-value topology-aware observation",
+        "outputs": "21-value compressed v4 action",
+        "runtime": "Stable-Baselines3 PPO on CPU for the preserved preliminary run"
+      },
+      "training": {
+        "started": true,
+        "transitions": 12288,
+        "unit": "transitions",
+        "seed_count": 3,
+        "hardware": "CPU",
+        "note": "4,096 transitions per seed for the main relational model. The complete seven-configuration suite used 86,016 transitions."
+      },
+      "evaluation": {
+        "headline": "The relational model was slightly worse than the selected heuristic on the primary service-loss metric, while improving some unmet-need and worst-district metrics.",
+        "metrics": [
+          {
+            "id": "candidate_critical_service_loss",
+            "label": "Relational GNN service loss",
+            "value": 108.27764913,
+            "display": "108.278",
+            "polarity": "neutral",
+            "note": "Mean cumulative critical-service days lost; lower is better."
+          },
+          {
+            "id": "baseline_critical_service_loss",
+            "label": "Selected heuristic service loss",
+            "value": 107.62117013,
+            "display": "107.621",
+            "polarity": "neutral",
+            "note": "Validation-selected needs-weighted heuristic with fixed reserve."
+          },
+          {
+            "id": "primary_mean_improvement",
+            "label": "Primary mean improvement",
+            "value": -0.6564789982,
+            "display": "-0.656",
+            "polarity": "negative",
+            "note": "Negative means the learned model was worse on this lower-is-better metric."
+          },
+          {
+            "id": "primary_pair_wins",
+            "label": "Primary paired wins",
+            "value": 0,
+            "display": "0 / 180",
+            "polarity": "negative",
+            "note": "Preliminary paired evaluation across three policy seeds and 60 scenario instances."
+          }
+        ]
+      },
+      "safety": {
+        "hard_violations": 0,
+        "resource_violations": 0,
+        "crew_violations": null,
+        "replay_verified": true
+      },
+      "limitations": [
+        "Explicitly preliminary and not claim-eligible.",
+        "Training and scenario counts were below the preregistered final-evidence thresholds.",
+        "Only one held-out topology family was evaluated."
+      ],
+      "provenance": [
+        {
+          "label": "Preliminary v4 aggregate report",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/evaluations/preliminary-v4/aggregate_report.json",
+          "sha256": "39fbc9be9605d778c14ed3e2fa774657e542e7c704c7d0b4ac3f1898c2648de5"
+        },
+        {
+          "label": "Verified v4 judge-demo manifest",
+          "source_repository": "city-model-workbench",
+          "path": "artifacts/evaluations/judge-demo-v4/manifest.json",
+          "sha256": "05ff64db770fd279d7541b030f7fefcee9754592698937b483a3b2c4bb096682"
+        }
+      ]
+    },
+    {
+      "id": "pilot-r9",
+      "name": "CUDA relational pilot R9",
+      "role": "Large-model training and model-selection pilot",
+      "status": "trained_no_go",
+      "evidence_class": "developmental_cuda_pilot",
+      "claim_eligible": false,
+      "architecture": {
+        "family": "Behavior-cloned relational GNN PPO with shared feasibility projection",
+        "parameters": 635371,
+        "inputs": "Public district-sector graph observation and recovery context",
+        "outputs": "55 sector, district, and reserve controls",
+        "runtime": "PyTorch CUDA on NVIDIA GeForce RTX 3050"
+      },
+      "training": {
+        "started": true,
+        "transitions": 560000,
+        "unit": "transitions",
+        "seed_count": 2,
+        "hardware": "NVIDIA GeForce RTX 3050 on cuda:0",
+        "note": "The promoted candidate reached 280,000 transitions independently on each of two seeds; 560,000 is their aggregate, not one continuous model run."
+      },
+      "evaluation": {
+        "headline": "The promoted candidate improved through 250k transitions, regressed by 280k, and ended in a preregistered NO_GO selection.",
+        "metrics": [
+          {
+            "id": "primary_mean_250k",
+            "label": "Two-seed primary mean at 250k",
+            "value": 201.9186228684,
+            "display": "201.919",
+            "polarity": "positive",
+            "note": "Mean of the two preserved 250k checkpoints; lower is better."
+          },
+          {
+            "id": "primary_mean_280k",
+            "label": "Two-seed primary mean at 280k",
+            "value": 210.315352842,
+            "display": "210.315",
+            "polarity": "negative",
+            "note": "The later checkpoint was worse, so the learning curve was not stably improving."
+          },
+          {
+            "id": "final_seed_count",
+            "label": "Final matched training seeds",
+            "value": 2,
+            "display": "2",
+            "polarity": "neutral",
+            "note": "Both final checkpoints were evaluated on the same 20 validation tapes."
+          },
+          {
+            "id": "selection_decision",
+            "label": "Pilot selection",
+            "value": "NO_GO",
+            "display": "NO GO",
+            "polarity": "negative",
+            "note": "No finalist was authorized for the final campaign."
+          }
+        ]
+      },
+      "safety": {
+        "hard_violations": 0,
+        "resource_violations": 0,
+        "crew_violations": 0,
+        "replay_verified": true
+      },
+      "limitations": [
+        "Developmental v5 simulator and model-selection evidence; not operationally validated.",
+        "The final candidate ranking was incomplete because a parameter-matched alternative architecture was absent.",
+        "The 280k learning curve was not stably improving."
+      ],
+      "provenance": [
+        {
+          "label": "R9 final pilot selection",
+          "source_repository": "city-r7",
+          "path": "artifacts/v5/evidence/final/pilot_selection.json",
+          "sha256": "7cf8d0f240be5f0d51c1f0b0abf6458e8ef7699108b6334c1ac2ec43ee25460e"
+        },
+        {
+          "label": "R9 complete pilot evidence",
+          "source_repository": "city-r7",
+          "path": "artifacts/v5/evidence/final/pilot_results.json",
+          "sha256": "c3b3b36f4a2c745caef61425960c6cf05a14c491bcf87d830a0d7d366ac0d2d5"
+        }
+      ]
+    },
+    {
+      "id": "architecture-r22-v10",
+      "name": "Structured graph scheduler R22 / V10",
+      "role": "Most ambitious architecture and pre-training reachability study",
+      "status": "untrained_terminal_no_go",
+      "evidence_class": "privileged_developmental_reachability_diagnostic",
+      "claim_eligible": false,
+      "architecture": {
+        "family": "Typed heterogeneous graph transformer, separate actor/critic GRUs, structured decoder, and exact solver-guided scheduling",
+        "parameters": 3673671,
+        "inputs": "Public belief graph, project state, crew/material state, dependencies, and recurrent context",
+        "outputs": "Structured project selections, allocations, reserve, and multi-horizon schedule controls",
+        "runtime": "Planned PyTorch CUDA stack; no trained checkpoint exists"
+      },
+      "training": {
+        "started": false,
+        "transitions": 0,
+        "unit": "transitions",
+        "seed_count": 0,
+        "hardware": "Training was planned for cuda:0 but never authorized",
+        "note": "R22 received zero optimizer updates and zero production-training transitions. V10 was a bounded search diagnostic, not neural training."
+      },
+      "evaluation": {
+        "headline": "A future-informed developmental search found 7.34% reduction, below the preregistered 40% reachability gate, so training was stopped before it began.",
+        "metrics": [
+          {
+            "id": "diagnostic_candidate_primary",
+            "label": "Diagnostic candidate cost",
+            "value": 77.1450371736,
+            "display": "77.145",
+            "polarity": "neutral",
+            "note": "Achieved feasible search witness on seed 530004; lower is better."
+          },
+          {
+            "id": "diagnostic_comparator_primary",
+            "label": "Pinned comparator cost",
+            "value": 83.2584382335,
+            "display": "83.258",
+            "polarity": "neutral",
+            "note": "Same synthetic tape and exact mechanics."
+          },
+          {
+            "id": "diagnostic_reduction_percent",
+            "label": "Reachability reduction",
+            "value": 7.3426804414,
+            "display": "7.34%",
+            "polarity": "negative",
+            "note": "Privileged, future-tape developmental result; not trained-model performance."
+          },
+          {
+            "id": "required_gate_percent",
+            "label": "Required training gate",
+            "value": 40,
+            "display": "40%",
+            "polarity": "neutral",
+            "note": "The diagnostic had to meet this floor before neural training could be authorized."
+          },
+          {
+            "id": "exact_simulator_calls",
+            "label": "Exact simulator calls",
+            "value": 8406,
+            "display": "8,406",
+            "polarity": "neutral",
+            "note": "Includes 8,376 search attempts and 30 independent replay transitions."
+          },
+          {
+            "id": "selected_novel_actions",
+            "label": "Novel actions selected",
+            "value": 20,
+            "display": "20 / 30",
+            "polarity": "neutral",
+            "note": "The broader action menu worked mechanically but did not approach the 40% target."
+          }
+        ]
+      },
+      "safety": {
+        "hard_violations": 0,
+        "resource_violations": 0,
+        "crew_violations": 0,
+        "replay_verified": true
+      },
+      "limitations": [
+        "This is a privileged future-tape developmental diagnostic, not deployable public-policy performance.",
+        "Only the first preregistered seed ran because it failed the 40% gate.",
+        "The search was bounded and therefore is not a proof that stronger architectures are impossible.",
+        "No R22 neural model was trained or exported."
+      ],
+      "provenance": [
+        {
+          "label": "Registered R22 architecture",
+          "source_repository": "city-r22-attempt-v10",
+          "path": "configs/v5/models/r18_solver_guided_autoregressive.json",
+          "sha256": "041b60b2a5e495517d87744926fdcf8d6d78a56602c1852d0044cc30619604ea"
+        },
+        {
+          "label": "V10 seed-530004 diagnostic result",
+          "source_repository": "city-r22-v10-allocation-distance-support-v1",
+          "path": "seed-530004.json",
+          "sha256": "ae67ac9c97fa58c2129e04f2387a99dde0a9fa8c263d96f850bcad1ddee04381"
+        },
+        {
+          "label": "V10 terminal no-go receipt",
+          "source_repository": "city-r22-v10-allocation-distance-support-v1",
+          "path": "terminal-no-go.json",
+          "sha256": "2558a23c7a7800a559bcfde72defa6c43bfce00377d62b3496f1605217709efe"
+        }
+      ]
+    }
+  ],
+  "pipeline": [
+    {
+      "id": "observe",
+      "label": "Observe",
+      "detail": "Build a public city-state representation from service damage, topology, projects, resources, crews, logistics, and uncertainty."
+    },
+    {
+      "id": "propose",
+      "label": "Propose",
+      "detail": "A learned policy assigns strategic priorities or structured project choices."
+    },
+    {
+      "id": "decode",
+      "label": "Decode",
+      "detail": "Translate neural outputs into concrete district-sector projects, allocations, and reserve decisions."
+    },
+    {
+      "id": "project",
+      "label": "Make feasible",
+      "detail": "An exact optimization layer enforces budget, crew, material, accessibility, dependency, and reserve constraints."
+    },
+    {
+      "id": "simulate",
+      "label": "Simulate",
+      "detail": "Execute the feasible plan on the same deterministic synthetic disaster tape used by its comparator."
+    },
+    {
+      "id": "verify",
+      "label": "Verify",
+      "detail": "Record endpoint metrics, constraint counts, hashes, matched comparisons, and independent replay evidence."
+    }
+  ],
+  "benchmark": {
+    "status": "measured",
+    "benchmark_id": "adaptive-cascades-showcase-v2",
+    "name": "Adaptive Cascades Synthetic Showcase v2",
+    "evidence_class": "sealed_synthetic_pattern_learning_showcase",
+    "model_track_id": "showcase-adaptive-v2",
+    "scenario_total": 40,
+    "objective": {
+      "label": "Contain at least 10 of 12 cascade windows",
+      "definition": "A scenario passes when at least 10 of 12 hidden cascade windows are contained by the public action chosen for that window.",
+      "success_threshold": 10,
+      "learned_policy": {
+        "label": "Adaptive Cascade MLP v2 (300k)",
+        "passes": 38,
+        "misses": 2
+      },
+      "static_heuristic": {
+        "label": "Static visible-need heuristic",
+        "passes": 20,
+        "misses": 20
+      },
+      "counts_are_independent_not_complementary": true
+    },
+    "head_to_head": {
+      "metric": {
+        "id": "cascade_windows_contained",
+        "label": "Cascade windows contained per scenario",
+        "direction": "higher_is_better",
+        "tie_rule": "exact equality in integer contained-window count"
+      },
+      "learned_wins": 38,
+      "heuristic_wins": 0,
+      "ties": 2,
+      "learned_mean": 11.5,
+      "heuristic_mean": 9.25,
+      "paired_mean_difference": 2.25,
+      "paired_bootstrap_ci95": [
+        1.775,
+        2.75
+      ]
+    },
+    "secondary": {
+      "metric": {
+        "id": "critical_service_deficit_auc",
+        "label": "Critical service deficit AUC",
+        "direction": "lower_is_better"
+      },
+      "learned_mean": 0.30383109070500003,
+      "heuristic_mean": 0.33655319428
+    },
+    "synthetic_disclosure": "Engineered synthetic benchmark of learnable observable patterns; not real-world validation.",
+    "limitations": [
+      "Purpose-built artificial patterns; not evidence of real-disaster performance.",
+      "The static heuristic intentionally uses visible need without learning the public telemetry mapping.",
+      "Objective pass counts are independent; they are not a single complementary win/loss scoreline.",
+      "Version 1 remains preserved as immutable archived predecessor evidence; its rows and results are not reused as Version 2 evidence."
+    ],
+    "note": "The 38/40 learned-policy and 20/40 static-heuristic figures are independent objective pass counts. The complementary matched head-to-head scoreline is 38 learned wins, 0 heuristic wins, and 2 ties.",
+    "provenance": [
+      {
+        "label": "Sealed Version 2 result",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/result.json",
+        "sha256": "a69fbb96087298abaec35bae2a2797cca24c696ff8ee1463913d6e1d84cd5a5b"
+      },
+      {
+        "label": "Version 2 write-once final manifest",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/manifest.json",
+        "sha256": "02dcc47c2389690d90f4f846e2d07ecd5e9fceba935404771e4751e758883640"
+      },
+      {
+        "label": "Version 2 exact replay report",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/replay-report.json",
+        "sha256": "6c7deacf4a4134635bed5d15aa5a5ebc8b05d946529e19f08aa6ee415b80a1ca"
+      },
+      {
+        "label": "Version 2 anti-gaming report",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v2/final/anti-gaming-report.json",
+        "sha256": "0dcfad59e652974e958e6d86705c8491cdb4531d3950529585c11ac161b18586"
+      },
+      {
+        "label": "Archived Version 1 result",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v1/final/result.json",
+        "sha256": "2b5eec6657c0bd21825bd7f9bccfe274f72d9ba28a5b2b69cc10950e2f2bb13f"
+      },
+      {
+        "label": "Archived Version 1 final manifest",
+        "source_repository": "city-model-workbench",
+        "path": "artifacts/workbench/benchmarks/adaptive-cascades-showcase-v1/final/manifest.json",
+        "sha256": "55f7430d1561a4d387b78990328b9b59b67f3479944a80a60825c53206a7b6a4"
+      }
+    ]
+  }
+}

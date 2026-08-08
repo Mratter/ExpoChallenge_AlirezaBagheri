@@ -1,0 +1,291 @@
+{
+  "authored_coefficients": {
+    "aftershock_hazard_clustering": {
+      "day_1_previous_quake_severity_multiplier": 0.28,
+      "day_2_previous_quake_severity_multiplier": 0.12,
+      "occurrence_probability": "clip(scenario_probability + 0.28 * prior_day_aftershock_severity + 0.12 * two_days_prior_aftershock_severity, 0, 1)",
+      "uses_existing_seeded_occurrence_draw": true,
+      "forced_precedence": "legacy singular first, ordered forced_shocks list after it, last write wins; forced aftershock severity contributes to the next two days",
+      "trigger_type": "aftershock"
+    },
+    "allocation_delivery": {
+      "next_day_fraction": 0.35,
+      "same_day_fraction": 0.65
+    },
+    "depot_damage": {
+      "candidate_penalty": "clip(1.50 * severity * typed_impact, 0, 0.72)",
+      "current_penalty": "stored_peak_penalty * remaining_days / duration_days",
+      "duration_days": "ceil(2 + 8 * severity * typed_impact)",
+      "factor": "max(0.30, 1 - current_penalty)",
+      "factor_floor": 0.3,
+      "linear_recovery": true,
+      "penalty_cap": 0.72,
+      "penalty_scale": 1.5,
+      "replacement_rule": "stronger penalty or longer remaining duration wins"
+    },
+    "depot_stock": {
+      "capacity_units_by_service": [
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0
+      ],
+      "initial_fraction": "clip(initial_service, 0.05, 0.50)",
+      "pending_next_day": "0.35 * projected_allocation",
+      "repair_dispatch": "min(stock_ready + 0.65 * projected_allocation, projected_allocation + reserve_draw)",
+      "repair_supply": "repair_dispatch * effective_throughput",
+      "repair_request": "projected_allocation + reserve_draw",
+      "reserve_draw": "0.04 * capacity * (1 - post_shock_service)",
+      "reserve_draw_capacity_fraction": 0.04
+    },
+    "food_spoilage": {
+      "daily_fraction_of_remaining_food_stock": 0.006,
+      "service": "food"
+    },
+    "inter_depot_transfer": {
+      "daily_transfer_capacity_fraction": 0.06,
+      "donor_post_transfer_reserve_fraction": 0.35,
+      "donor_stock_fraction_above": 0.42,
+      "donor_throughput_at_least": 0.55,
+      "maximum_transfers_per_day": 1,
+      "receiver_stock_fraction_below": 0.15,
+      "receiver_target_fraction": 0.3,
+      "receiver_throughput_at_least": 0.55,
+      "selection": "most starved receiver, then largest eligible surplus donor, ties by service order"
+    },
+    "road_capacity": {
+      "floor": 0.4,
+      "other_service_throughput": "depot_damage_factor * road_capacity",
+      "road_capacity": "0.40 + 0.60 * post_shock_transport_state",
+      "transport_state_multiplier": 0.6,
+      "transport_throughput": "transport_depot_damage_factor"
+    }
+  },
+  "baseline": {
+    "action_space": [
+      "transport",
+      "housing",
+      "food",
+      "healthcare",
+      "public_services"
+    ],
+    "future_shocks_visible": false,
+    "id": "ortools-glop-visible-v2",
+    "library": "OR-Tools",
+    "objective": {
+      "allocation_variable": "x, the five projected daily allocations",
+      "dependency_centrality_weight": 0.04,
+      "description": "maximize current-day priority-weighted feasible repair supply under the identical v2 state, logistics ledger, daily bounds, and full-allocation equality",
+      "objective": "maximize sum(priority * service_deficit * (eta * support + 0.04 * dependency_centrality) * effective_throughput * y)",
+      "repair_dispatch_variable": "y, the five pre-throughput repair dispatches",
+      "shared_constraints": [
+        "sum(x) = available_budget",
+        "lower <= x <= upper",
+        "0 <= y",
+        "y <= stock_ready + 0.65 * x",
+        "y <= x + reserve_draw"
+      ]
+    },
+    "solver": "GLOP"
+  },
+  "candidate": {
+    "action_space_unchanged": true,
+    "fixed_before_evaluation": true,
+    "id": "city-recovery-sb3-ppo-v2",
+    "observation_count": 33,
+    "runtime": "checksum-pinned ONNX CPU"
+  },
+  "coefficient_freeze": {
+    "adjustment_after_any_held_out_result": "prohibited",
+    "finalized_before_training_and_evaluation": true,
+    "no_post_hoc_tuning": true,
+    "rule": "Any coefficient or protocol change invalidates all v2 training, parity, and held-out evidence and requires a new protocol version plus a complete rerun."
+  },
+  "determinism": {
+    "canonical_result_bytes_must_match": true,
+    "repeats": 5,
+    "total_executions": 200
+  },
+  "evaluation_seeds": [
+    271700,
+    271701,
+    271702,
+    271703,
+    271704,
+    271705,
+    271706,
+    271707
+  ],
+  "environment": {
+    "id": "city-recovery-env-v2",
+    "spec_sha256": "e6d9fed7346fd3e12b2837c6e31ea26179d340d6cc89b671162ba70624c8c89c"
+  },
+  "hard_invariants": {
+    "action_dimension": 5,
+    "allocation_budget_violations": 0,
+    "allocation_lower_violations": 0,
+    "allocation_sum_violations": 0,
+    "allocation_upper_violations": 0,
+    "candidate_and_baseline_shock_tapes_identical": true,
+    "depot_stock_bounds_violations": 0,
+    "five_depot_conservation_ledger_residual_tolerance": 1e-06,
+    "food_only_spoilage": true,
+    "nonnegative_delivery_queue_violations": 0,
+    "nonnegative_overflow_ledger_violations": 0,
+    "observation_dimension": 33,
+    "throughput_bounds_violations": 0
+  },
+  "held_out_scenario_families": [
+    "holdout_coastal_weather",
+    "holdout_blackout",
+    "holdout_food_access",
+    "holdout_aftershock",
+    "holdout_public_health"
+  ],
+  "held_out_unit_count": 40,
+  "metrics": {
+    "logistics": [
+      "mean_depot_stock_fraction",
+      "queued_delivery_unit_days",
+      "throughput_constrained_unit_days",
+      "inter_depot_transfer_units",
+      "food_spoilage_units"
+    ],
+    "primary": "weighted_daily_resilience_auc",
+    "recovery": [
+      "post_shock_recovery_shortfall_auc",
+      "days_to_pre_shock_recovery_after_largest_loss",
+      "critical_service_days"
+    ],
+    "uncertainty": {
+      "bootstrap_seed": 2717,
+      "confidence_interval": 0.95,
+      "method": "paired deterministic nonparametric bootstrap over complete scenario-seed units",
+      "samples": 5000
+    }
+  },
+  "metric_definitions": {
+    "food_spoilage_units": "sum of the food component of the serialized daily spoilage vector",
+    "inter_depot_transfer_units": "sum of positive components of the zero-sum daily mutual-aid transfer vector",
+    "mean_depot_stock_fraction": "arithmetic mean of all five end-of-day stock/capacity fractions over the complete trajectory",
+    "queued_delivery_unit_days": "sum of the five end-of-day next-day delivery queue values over the complete trajectory",
+    "throughput_constrained_unit_days": "sum over services and days of pre-throughput repair dispatch minus actual throughput-scaled repair supply"
+  },
+  "logistics_ledger_equalities": [
+    "prior_pending = pending_arrivals = pending_arrivals_landed + pending_arrivals_held",
+    "same_day_delivery_scheduled = 0.65 * projected_allocation = same_day_delivery_landed + same_day_delivery_held",
+    "delayed_delivery_scheduled = 0.35 * projected_allocation",
+    "pending_next_day = pending_arrivals_held + same_day_delivery_held + delayed_delivery_scheduled",
+    "capacity_overflow = pending_arrivals_held + same_day_delivery_held",
+    "sum(mutual_aid_net) = 0",
+    "depot_stock_end = depot_stock_before + pending_arrivals_landed + mutual_aid_net + same_day_delivery_landed - repair_supply - spoilage",
+    "depot_stock_before + pending_arrivals + projected_allocation + mutual_aid_net - repair_supply - spoilage - depot_stock_end - pending_next_day = 0"
+  ],
+  "outcome_rule": "Report the measured v2 candidate-minus-baseline results for every registered metric. Call the primary result an improvement only when mean candidate resilience AUC is higher; otherwise report the measured resilience, recovery, and logistics trade-off without changing the candidate, baseline, holdout, coefficients, or metric set.",
+  "parity_regimen": {
+    "action_absolute_tolerance": 1e-05,
+    "cases_per_training_family": 8,
+    "family_seed_mapping": {
+      "train_displacement": 280101,
+      "train_health_surge": 280103,
+      "train_supply_interrupt": 280102,
+      "train_transit_cascade": 280100
+    },
+    "observation_case_count": 32,
+    "onnx_opset": 17,
+    "projected_allocation_absolute_tolerance": 0.0001
+  },
+  "registered_date": "2026-07-18",
+  "schema_version": "2.0.0",
+  "split_unit": "complete authored scenario-family member plus seed",
+  "synthetic_disclosure": "structurally realistic, authored-synthetic, not empirically calibrated to real disasters",
+  "synthetic_only": true,
+  "training_exclusions": {
+    "family_prefix": "holdout_",
+    "seeds": [
+      271700,
+      271701,
+      271702,
+      271703,
+      271704,
+      271705,
+      271706,
+      271707
+    ]
+  },
+  "training_regimen": {
+    "algorithm": "Stable-Baselines3 PPO",
+    "cpu_only": true,
+    "environment": "CityRecoveryEnv-v2",
+    "fixed_seed": 17017,
+    "hyperparameters": {
+      "batch_size": 64,
+      "clip_range": 0.2,
+      "ent_coef": 0.003,
+      "gae_lambda": 0.95,
+      "gamma": 0.98,
+      "learning_rate": 0.0003,
+      "max_grad_norm": 0.5,
+      "n_epochs": 4,
+      "n_steps": 256,
+      "orthogonal_initialization": true,
+      "policy_activation": "Tanh",
+      "policy_network": [
+        32,
+        32
+      ],
+      "value_function_network": [
+        32,
+        32
+      ],
+      "vf_coef": 0.5
+    },
+    "libraries": {
+      "onnx": "1.19.0",
+      "onnxruntime": "1.23.0",
+      "stable_baselines3": "2.7.0",
+      "torch": "2.8.0"
+    },
+    "single_threaded": true,
+    "torch_deterministic_algorithms": true,
+    "timesteps": 30000,
+    "training_family_ids": [
+      "train_transit_cascade",
+      "train_displacement",
+      "train_supply_interrupt",
+      "train_health_surge"
+    ],
+    "training_seeds": [
+      170100,
+      170101,
+      170102,
+      170103,
+      170104,
+      170105,
+      170106,
+      170107
+    ]
+  },
+  "transition_equations": {
+    "depot_stock_ready": "depot_stock_after_pending + mutual_aid_net; evaluated before same-day allocation x lands",
+    "end_service": "clip(service_after_shock + gain - strain, 0, 1)",
+    "gain": "eta * sqrt(repair_dispatch_y / 200) * dependency_support * effective_throughput * (1 - service_after_shock)",
+    "repair_dispatch_y": "min(depot_stock_ready + same_day_delivery_landed, projected_allocation_x + repair_reserve)",
+    "repair_supply": "repair_dispatch_y * effective_throughput",
+    "resilience": "normalized_priority dot end_service",
+    "reward": "resilience + 0.35 * (resilience - shocked_resilience) - 0.0001 * projection_distance / available_budget",
+    "shocked_resilience": "normalized_priority dot service_after_shock",
+    "strain": "delta * max(0, 0.35 - service_after_shock) * (1 - clip(repair_supply / available_budget, 0, 1))",
+    "v1_relationship": "eta, delta, dependency support, resilience, and reward coefficients are unchanged; v2 uses repair dispatch and throughput in gain and substitutes actual repair_supply for allocation in strain"
+  },
+  "transition_order": {
+    "1": "land prior-day pending freight at capacity, recording pending_arrivals_landed and pending_arrivals_held separately",
+    "2": "apply the typed service and depot shock, update damage duration, and compute support, road capacity, and throughput",
+    "3": "execute at most one deterministic inter-depot transfer",
+    "4": "project the full available budget to allocation x; split 0.65*x into same_day_delivery_landed and same_day_delivery_held, schedule 0.35*x as delayed delivery, and carry every held unit into pending_next_day",
+    "5": "compute reserve draw, pre-throughput repair dispatch y, actual repair_supply=y*throughput, gain=eta*sqrt(y/200)*support*throughput*(1-service_after_shock), and strain using repair_supply",
+    "6": "apply 0.006 food-stock spoilage and no spoilage to the other four stocks",
+    "7": "serialize the complete deterministic allocation, service, stock, queue, damage, throughput, transfer, overflow, draw, and spoilage ledger"
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v2",
+  "cases_per_family": 10,
+  "materialization_policy": "after_committed_preregistration",
+  "scenario_count": 40,
+  "schedule": [
+    {
+      "family_index": 0,
+      "row_index": 0,
+      "seed": 660000
+    },
+    {
+      "family_index": 0,
+      "row_index": 1,
+      "seed": 660001
+    },
+    {
+      "family_index": 0,
+      "row_index": 2,
+      "seed": 660002
+    },
+    {
+      "family_index": 0,
+      "row_index": 3,
+      "seed": 660003
+    },
+    {
+      "family_index": 0,
+      "row_index": 4,
+      "seed": 660004
+    },
+    {
+      "family_index": 0,
+      "row_index": 5,
+      "seed": 660005
+    },
+    {
+      "family_index": 0,
+      "row_index": 6,
+      "seed": 660006
+    },
+    {
+      "family_index": 0,
+      "row_index": 7,
+      "seed": 660007
+    },
+    {
+      "family_index": 0,
+      "row_index": 8,
+      "seed": 660008
+    },
+    {
+      "family_index": 0,
+      "row_index": 9,
+      "seed": 660009
+    },
+    {
+      "family_index": 1,
+      "row_index": 10,
+      "seed": 660010
+    },
+    {
+      "family_index": 1,
+      "row_index": 11,
+      "seed": 660011
+    },
+    {
+      "family_index": 1,
+      "row_index": 12,
+      "seed": 660012
+    },
+    {
+      "family_index": 1,
+      "row_index": 13,
+      "seed": 660013
+    },
+    {
+      "family_index": 1,
+      "row_index": 14,
+      "seed": 660014
+    },
+    {
+      "family_index": 1,
+      "row_index": 15,
+      "seed": 660015
+    },
+    {
+      "family_index": 1,
+      "row_index": 16,
+      "seed": 660016
+    },
+    {
+      "family_index": 1,
+      "row_index": 17,
+      "seed": 660017
+    },
+    {
+      "family_index": 1,
+      "row_index": 18,
+      "seed": 660018
+    },
+    {
+      "family_index": 1,
+      "row_index": 19,
+      "seed": 660019
+    },
+    {
+      "family_index": 2,
+      "row_index": 20,
+      "seed": 660020
+    },
+    {
+      "family_index": 2,
+      "row_index": 21,
+      "seed": 660021
+    },
+    {
+      "family_index": 2,
+      "row_index": 22,
+      "seed": 660022
+    },
+    {
+      "family_index": 2,
+      "row_index": 23,
+      "seed": 660023
+    },
+    {
+      "family_index": 2,
+      "row_index": 24,
+      "seed": 660024
+    },
+    {
+      "family_index": 2,
+      "row_index": 25,
+      "seed": 660025
+    },
+    {
+      "family_index": 2,
+      "row_index": 26,
+      "seed": 660026
+    },
+    {
+      "family_index": 2,
+      "row_index": 27,
+      "seed": 660027
+    },
+    {
+      "family_index": 2,
+      "row_index": 28,
+      "seed": 660028
+    },
+    {
+      "family_index": 2,
+      "row_index": 29,
+      "seed": 660029
+    },
+    {
+      "family_index": 3,
+      "row_index": 30,
+      "seed": 660030
+    },
+    {
+      "family_index": 3,
+      "row_index": 31,
+      "seed": 660031
+    },
+    {
+      "family_index": 3,
+      "row_index": 32,
+      "seed": 660032
+    },
+    {
+      "family_index": 3,
+      "row_index": 33,
+      "seed": 660033
+    },
+    {
+      "family_index": 3,
+      "row_index": 34,
+      "seed": 660034
+    },
+    {
+      "family_index": 3,
+      "row_index": 35,
+      "seed": 660035
+    },
+    {
+      "family_index": 3,
+      "row_index": 36,
+      "seed": 660036
+    },
+    {
+      "family_index": 3,
+      "row_index": 37,
+      "seed": 660037
+    },
+    {
+      "family_index": 3,
+      "row_index": 38,
+      "seed": 660038
+    },
+    {
+      "family_index": 3,
+      "row_index": 39,
+      "seed": 660039
+    }
+  ],
+  "schedule_sha256": "b9e6e415f92ff411441895cfb49b479216d52e292963e72f4330df291703fa8d",
+  "schema_version": "adaptive-cascade-split-commitment-v2",
+  "seed_start": 660000,
+  "tapes_materialized_during_preregistration": false
+}

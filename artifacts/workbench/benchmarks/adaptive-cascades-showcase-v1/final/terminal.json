@@ -1,0 +1,8 @@
+{
+  "anti_gaming_report_sha256": "46367e9da547edc617c7bcec7d9c3a3fe2082011856cd090694522214026266e",
+  "benchmark_id": "adaptive-cascades-showcase-v1",
+  "replay_report_sha256": "1c7d4f1a34cb099024e1b4e627b75d3b6f5c44c2505eb564551e6998fd7a7006",
+  "result_sha256": "2b5eec6657c0bd21825bd7f9bccfe274f72d9ba28a5b2b69cc10950e2f2bb13f",
+  "schema_version": "adaptive-cascade-terminal-v1",
+  "status": "verified_complete"
+}
