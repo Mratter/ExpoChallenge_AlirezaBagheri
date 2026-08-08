@@ -1,0 +1,247 @@
+{
+  "all_exact": true,
+  "benchmark_id": "adaptive-cascades-showcase-v2",
+  "rows": [
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "6ff554ca3c300d953d0d83e7aaf151055a5c9fab7330fbbbb1b548d587c94986",
+      "scenario_id": "final-aftershock_reserve_timing-660000"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "b55ec72808e9ae1f7a972cd21079ce8307aeb2056bd9f73c986640ddd052be91",
+      "scenario_id": "final-aftershock_reserve_timing-660001"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "14eba726b38cac210e20b65ed5720ce469a2f459cbfc908587b9e730d46b59db",
+      "scenario_id": "final-aftershock_reserve_timing-660002"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "a7bf93ba6963fe4daa4b888dcdcc1f320ed8f46d48f56f9da57b93fdcc3a3072",
+      "scenario_id": "final-aftershock_reserve_timing-660003"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "2201595bcfc1b19cbd8b3d37fb2a5f16b5dbb8655995b495f2a70ca78abcf9de",
+      "scenario_id": "final-aftershock_reserve_timing-660004"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "5d27168c2a198d8f6ce3507b0b55abe9d2f0990cf2b0806dba70c963b6da9f6c",
+      "scenario_id": "final-aftershock_reserve_timing-660005"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "12b0d80e84cae9dac4cee65c7820cce86f90854a09f14cad08d681624974efbd",
+      "scenario_id": "final-aftershock_reserve_timing-660006"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "d7e321bcb43eee957f03f4d4cd9c5b1fcdccda07e9b3fe5a3e62b188dd805135",
+      "scenario_id": "final-aftershock_reserve_timing-660007"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "643251bd544684e40aac7704ec686926560ee4a3f6aba047eecf033e85cbaae5",
+      "scenario_id": "final-aftershock_reserve_timing-660008"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "ed858aeda77e83c17ad1dbae194006bf398d96a40169093aa8c6b74fd5d84cf2",
+      "scenario_id": "final-aftershock_reserve_timing-660009"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "f68bee1f5c345797427d2055e9cb0b1794a5c7bc9a601accb099628caf4ba3d4",
+      "scenario_id": "final-corridor_supply_lead-660010"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "4e3b084792867ee71e9e19df8f0844dc7ad5c46877b2f3769c216680c97d34ea",
+      "scenario_id": "final-corridor_supply_lead-660011"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "eb3d3f39b699870dca893b7276735393ff1a015a5107e278f0e543e494ce15a1",
+      "scenario_id": "final-corridor_supply_lead-660012"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "feb29519cd92995b80c5fa632d1e63a850682e7d85a0fef8c596cf0b28590911",
+      "scenario_id": "final-corridor_supply_lead-660013"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "4bbfe7e1a9761c435b1df08f074530cd5fc9b4cccb41c7409f0111cbfd0a0f10",
+      "scenario_id": "final-corridor_supply_lead-660014"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "6d1d7b52e760ca768f673a8985d39054de4b26be46f320af67483abf797e87ef",
+      "scenario_id": "final-corridor_supply_lead-660015"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "d81082c5999c40204b660327d6b88cb65147440ef5775cc9e8dcad8370b74e4a",
+      "scenario_id": "final-corridor_supply_lead-660016"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "6c756ae0ba62447ed22d0effd68d1c408b90b2bee394aeacb728eb396267f93d",
+      "scenario_id": "final-corridor_supply_lead-660017"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "9d44a8fd89f4c9b098c77e39571fbc0c9ba2dc20f3e37c7998f223a89a83be35",
+      "scenario_id": "final-corridor_supply_lead-660018"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "1535363aeaf103f22e20f2e30c50e717e5f72aa3b779b2e0eeac1517656a855a",
+      "scenario_id": "final-corridor_supply_lead-660019"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "f5f7f56f3fea9c9f96863ffb9c475e1e01739e1d7646b369f000156cb574dee5",
+      "scenario_id": "final-health_utility_delay-660020"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "bfeede4cb3896518f7a5e356c3a8d7e38488020ed523f695f9df06b456f31a73",
+      "scenario_id": "final-health_utility_delay-660021"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "4e10747ed9b7169b9ad5441806c5dd882e1602cb66e4ddfb5ed93acf7a162230",
+      "scenario_id": "final-health_utility_delay-660022"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "1b736884c4b52e65326a0558d36514092ed739c8f0663c8521a28cb651a95e7c",
+      "scenario_id": "final-health_utility_delay-660023"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "ed4a3eaf5627eaf4329520b1050347809c2fd90d7b77ab123b944288ae2de8d1",
+      "scenario_id": "final-health_utility_delay-660024"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "18172cfa32dec326ed359e6c7c7ba086fb8c5598e4c5b8880619f5206d88162b",
+      "scenario_id": "final-health_utility_delay-660025"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "3044138c7c8d12ee57294b502b49a40033b7aa70f71b2003e329262db1c3187a",
+      "scenario_id": "final-health_utility_delay-660026"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "cf58e9bd18b12c164c6b6228a75513512c16596cad007c3cf9bddcd97938e5a0",
+      "scenario_id": "final-health_utility_delay-660027"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "71ef398c284488753bf5e701838f61494d3b0b9c6e1cae8fa4694af91b88b6aa",
+      "scenario_id": "final-health_utility_delay-660028"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "807ee4d345190b3d7aa612c38f623e9877f856bdf35ebfb2faeb492b9c302c96",
+      "scenario_id": "final-health_utility_delay-660029"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "a128fc3a714b76fc58533287240f235ac664f366bafb076ddc6837c7ac7636b0",
+      "scenario_id": "final-mixed_dependency_cascade-660030"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "d0d0945c148d9323470d5b606d80f689ed15650d001b06f6e565ef991cdfd49b",
+      "scenario_id": "final-mixed_dependency_cascade-660031"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "e3435a39ce3c3b5561f8c37da8662e7ff23e7e9d3c7d692e30b36a366d431b64",
+      "scenario_id": "final-mixed_dependency_cascade-660032"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "983b6493a3e9b7b4e69ab1bd2f5d24233d91f882ffa69365a65f2a3c18d9c28c",
+      "scenario_id": "final-mixed_dependency_cascade-660033"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "7469ba1afb745681195dec59fca9f5aa96a340ea07a7033ceb558e2351e0cf25",
+      "scenario_id": "final-mixed_dependency_cascade-660034"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "1095385ada0bdfb0dd4106e5b26e7ac183d43202bca36620eeb8f2e329c3b1a0",
+      "scenario_id": "final-mixed_dependency_cascade-660035"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "934333846ff10c23228bdb38f71405b080f3a81e6b1fc97c3867c3febee25be3",
+      "scenario_id": "final-mixed_dependency_cascade-660036"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "23ece2cc3308e1c81eb95738419efccd0971e95e1ec6786510939a192ef865b9",
+      "scenario_id": "final-mixed_dependency_cascade-660037"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "70238bcdaa8f5693aa8ad8873bae0a3e0549b38da5593579c0fead71d36d31a7",
+      "scenario_id": "final-mixed_dependency_cascade-660038"
+    },
+    {
+      "heuristic_exact": true,
+      "learned_exact": true,
+      "row_sha256": "8f2f76b1ef1f17ba0b813752015aa047106be78d45bc3853f1a8f71ace319eac",
+      "scenario_id": "final-mixed_dependency_cascade-660039"
+    }
+  ],
+  "schema_version": "adaptive-cascade-replay-report-v1"
+}

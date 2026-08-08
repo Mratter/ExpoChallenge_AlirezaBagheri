@@ -16,8 +16,8 @@ try {
     $env:INNOVERSE_PROFILE = $Profile
     $env:INNOVERSE_RUNTIME = '1'
     $env:INNOVERSE_COMMIT = (& git rev-parse --short=12 HEAD).Trim()
-    Write-Host 'Civic Relay is running at http://127.0.0.1:4117'
-    & $ProjectEnvironment.PythonPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port 4117 --no-access-log
+    Write-Host 'City Recovery Model Workbench is running at http://127.0.0.1:4117'
+    & $ProjectEnvironment.PythonPath -m uvicorn backend.app.workbench_main:app --host 127.0.0.1 --port 4117 --no-access-log
     $RuntimeExitCode = $LASTEXITCODE
 }
 finally {

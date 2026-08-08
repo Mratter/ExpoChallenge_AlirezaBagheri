@@ -1,0 +1,238 @@
+export type RealismLedgerEntry = {
+  behavior: string
+  source: string
+  derivation: string
+  doesNotMean: string
+  items: string
+}
+
+/**
+ * Anti-fabrication register for every visible behavior family in the diorama.
+ * The table is intentionally explicit about presentation-only thresholds.
+ */
+export const REALISM_LEDGER: readonly RealismLedgerEntry[] = [
+  {
+    behavior: 'Continuous presentation clock',
+    source: 'immutable candidate trajectory plus presentation cursor (returned day index and fractional progress)',
+    derivation: 'One requestAnimationFrame clock samples deterministic quintic paths between returned daily endpoints. On a shock day, the first 18% moves from services_before to the exact services_after_shock vector, assessment holds that floor through 36%, and response then moves to services_end. The game view also eases available arrival, depot stock/damage/throughput, road capacity, and daily dock/repair activity signals between adjacent returned values. Exact daily allocations, shocks, manifests, stakes, narration facts, inspectors, and Toolbox values are never interpolated.',
+    doesNotMean: 'Intermediate values are view-layer estimates, not extra simulator steps, predictions, policy decisions, or changes to the canonical comparison result.',
+    items: 'R3 continuous-presentation contract',
+  },
+  {
+    behavior: 'Central intake freight',
+    source: 'candidate.trajectory[day].available_budget',
+    derivation: 'Exact vehicle manifests partition the returned daily total without loss. Hub pallets and the HUD arrival readout ease between adjacent returned daily totals and are visibly labeled as presentation interpolation; exact current-day arrival remains in the inspector and Toolbox.',
+    doesNotMean: 'All available units are assigned; no carry-over or unassigned balance exists.',
+    items: '4, 38, 63, 101–102, 105–106',
+  },
+  {
+    behavior: 'District depot condition',
+    source: 'schema v3 logistics.depot_damage_factor; unavailable for legacy v1',
+    derivation: 'Schema v3 maps the recorded depot damage factor to the four visible conditions. Legacy results show no depot-condition claim.',
+    doesNotMean: 'Service condition is never substituted for missing legacy depot condition.',
+    items: '1–3, 8, 11, 141',
+  },
+  {
+    behavior: 'Depot pallet staging',
+    source: 'schema v3 logistics.depot_stock_end; legacy v1 allocation only for assigned-pallet presentation',
+    derivation: 'Schema v3 stacks grow and shrink continuously from the returned depot_stock_before endpoint to depot_stock_end, with one visible pallet-equivalent per unit and a fractional final pallet when needed. Legacy results may stage exact assigned pallets but label depot stock unavailable.',
+    doesNotMean: 'Assigned legacy pallets are not presented as stock or an extra inventory ledger.',
+    items: '6, 65, 67, 104–105, 139, 144',
+  },
+  {
+    behavior: 'Dock activity and queues',
+    source: 'schema v3 throughput_factor + capacity_overflow (= pending_arrivals_held + same_day_delivery_held) + landed arrivals + repair_dispatch + repair_supply; pending_next_day is a separate scheduled/held inbound window; unavailable for legacy v1',
+    derivation: 'Adjacent returned throughput, landed freight, held/overflow, next-day schedule, dispatch, and repair-supply totals are eased only to drive continuous dock dressing. Only capacity-constrained held/overflow becomes a physical queue; routine next-day freight remains an inbound schedule. Exact recorded quantities drive manifests and inspectors.',
+    doesNotMean: 'Allocation-backed legacy vehicles do not imply throughput, queues, damage, stock, or landed freight.',
+    items: '3, 7, 22, 128, 139–142',
+  },
+  {
+    behavior: 'Depot reroute',
+    source: 'schema v3 depot_damage_factor plus fixed depot positions; mutual_aid_transfers cross-checked against mutual_aid_net; unavailable for legacy v1',
+    derivation: 'Recorded local rubble selects the nearest non-rubble point of distribution for a disclosed longer presentation route when one exists; if every assisting depot is rubble, no reroute is shown. Separately, a donor-to-receiver mutual-aid vehicle appears only when its signed transfer ledger agrees.',
+    doesNotMean: 'A rendered route never creates supply, guesses an unavailable assisting depot or mutual-aid donor, or rewrites the completed trajectory.',
+    items: '8, 12, 31, 139',
+  },
+  {
+    behavior: 'Inbound, line-haul, and last-mile fleets',
+    source: 'inbound: available_budget; schema v3 line-haul: pending_arrivals_landed + same_day_delivery_landed; schema v3 last-mile: repair_supply; mutual aid: cross-checked mutual_aid_transfers/net; legacy fallback: allocation[service]',
+    derivation: 'Each source stage is split independently into fixed-capacity load equivalents. The Toolbox keeps that complete quantity-derived manifest. The diorama deterministically selects at most 17 unchanged mission slots—never merging cargo—and a pure run-identity-plus-presentation-time schedule carries each selected load through origin dwell, distance-based road travel, a visible curb/depot dock, unload, and empty return. Legacy allocation-backed missions remain labeled as presentation because landed freight and effective repair supply were not recorded.',
+    doesNotMean: 'The 17-slot view cap is not an engine vehicle inventory or a second resource pool.',
+    items: '5, 13–16, 27',
+  },
+  {
+    behavior: 'Typed service vehicles',
+    source: 'shared vehicle manifest service/wave plus daily allocation; schema v3 repair_supply for last-mile missions; disclosed legacy allocation fallback',
+    derivation: 'Healthcare, housing, food, civic, and transport manifest entries select distinct procedural bodies. Every selected scene mission preserves its complete-manifest service, cargo, destination, and return leg byte-for-byte.',
+    doesNotMean: 'A vehicle type does not imply capabilities outside the five allocation actions.',
+    items: '14, 23',
+  },
+  {
+    behavior: 'Emergency and recovery waves',
+    source: 'recorded shock.impact + shock.severity + incident phase for the assessment wave; shared line-haul/last-mile manifests for the recovery wave',
+    derivation: 'The service with the largest returned typed impact receives a bounded, cargo-free damage-assessment wave. Heavy line-haul and typed last-mile vehicles follow only once RESPONSE and their recorded v3 quantities—or explicitly disclosed legacy allocation fallback—permit them.',
+    doesNotMean: 'No casualty count, dispatch optimization, or unrecorded emergency event.',
+    items: '17, 21, 23, 125',
+  },
+  {
+    behavior: 'Repair crews and work sites',
+    source: 'incident phase, true per-service recovery arc, positive services_end change, schema v3 repair_supply, and deterministic stable building rank',
+    derivation: 'A site is assigned only from RESPONSE onward on a positive realized recovery tick and—when recorded—positive effective repair supply. Exact returned day endpoints define the recoverable distance; stable per-building offsets spread scaffold, crane, damage-tier, and removal changes through that interval. Once assigned, its parked crew and work dressing remain through the multi-day arc; progress stalls whenever the returned trajectory stalls. At each day boundary, a pure shared-cursor work clock holds yesterday’s parked pose for a 650ms-equivalent shift handoff, then resumes without a timer or phase jump.',
+    doesNotMean: 'Visible crews are vehicles and equipment only; no people or fabricated labor count.',
+    items: '18, 75, 77–79, 82, 85, 89, 94',
+  },
+  {
+    behavior: 'Civilian and commuter traffic',
+    source: 'housing, transport, weighted resilience, and unresolved typed earthquake transport recovery',
+    derivation: 'At most two deterministic civilian road slots and one commuter slot use disclosed thresholds and current city scalars, and stay suspended while the quake-derived arterial debris state remains uncleared.',
+    doesNotMean: 'No population total, trip count, or demographic claim.',
+    items: '19, 24–25, 28, 95, 98, 100',
+  },
+  {
+    behavior: 'Inspection and maintenance patrols',
+    source: 'building damage tier, current shock day, and low allocation/high state',
+    derivation: 'Inspection vans lead damaged-site activity; sweepers patrol healthy low-allocation districts.',
+    doesNotMean: 'Placards are visual classifications, not an official field assessment.',
+    items: '20, 73, 85',
+  },
+  {
+    behavior: 'Deterministic roadside breakdown',
+    source: 'transport services_end + seed/day hash',
+    derivation: 'A rare fixed repeatable threshold pulls one truck over and sends a relief leg.',
+    doesNotMean: 'It does not consume extra budget or change the completed trajectory.',
+    items: '26',
+  },
+  {
+    behavior: 'Road condition, closures, and detours',
+    source: 'transport services_end + latest earthquake-of-type impact and its own pre-event recovery target',
+    derivation: 'Thresholds add cracks, barriers, debris, queues, and deterministic detour geometry. A later different shock cannot erase unresolved quake damage; positive recorded transport repair adds patches that weather over four day ticks.',
+    doesNotMean: 'Legacy road visuals do not claim a spatial road network inside the engine.',
+    items: '29–33, 35–37',
+  },
+  {
+    behavior: 'Signals, substation, water, and poles',
+    source: 'public-services services_end + latest utility-of-type and earthquake-of-type impacts against their own recovery targets',
+    derivation: 'Daylight-visible lamps, repair assets, generator trailers, water indicator, toppled poles, and capped main break follow typed incident-specific trajectory recovery rather than arbitrary event age.',
+    doesNotMean: 'No separate electricity or water demand model in legacy results.',
+    items: '34, 39, 68–71, 86',
+  },
+  {
+    behavior: 'Earthquake footprint and aftermath',
+    source: 'stored engine type presented as Earthquake, returned severity and typed impact vector, presentation-only aim/drop district, and following trajectory days',
+    derivation: 'Telegraph, camera pulse/shake, scatter, cracks, exclusion zones, and decaying dust use the returned event. The aim/drop district selects only a view focus and never changes the returned five-service impact.',
+    doesNotMean: 'The presentation name Earthquake does not introduce a sixth engine shock type.',
+    items: '41–48, 121, 126, 136',
+  },
+  {
+    behavior: 'Weather front and recovery residue',
+    source: 'weather shock, severity, impact vector, seed/day wind, and subsequent service recovery',
+    derivation: 'One deterministic vector drives clouds, rain, trees, and flag; pools and debris fade as recovery advances.',
+    doesNotMean: 'There is no unlogged ambient weather or calendar forecast.',
+    items: '49–56, 119, 123, 127',
+  },
+  {
+    behavior: 'Epidemic logistics',
+    source: 'latest unresolved epidemic shock impact/severity + incident-specific healthcare services_after_shock/services_end; healthcare manifest uses schema v3 repair_supply or disclosed legacy allocation fallback',
+    derivation: 'Pressure copy, advisory structures, bounded triage capacity, and oxygen/continuity trailers persist against that incident’s own healthcare recovery target. The separate typed healthcare fleet uses the shared daily manifest and its recorded cargo stage.',
+    doesNotMean: 'No invented case count, patient count, pathogen visualization, or casualty imagery.',
+    items: '57–62',
+  },
+  {
+    behavior: 'Supply disruption',
+    source: 'latest unresolved supply shock severity/impact + available_budget + incident-specific food services_after_shock/services_end; schema v3 landed freight and food repair_supply for vehicles',
+    derivation: 'Inbound loads use the actual shock-adjusted arrival. Depot barriers, sparse staging, and restock dressing persist until the food service reaches that supply incident’s own pre-event target; v3 freight missions use their recorded stages.',
+    doesNotMean: 'No prices, currency, private inventory, or unmodeled ration entitlement.',
+    items: '63–67',
+  },
+  {
+    behavior: 'Utility cascade note',
+    source: 'day.support + DEPENDENCIES-authored simulator relationship',
+    derivation: 'RELAY cites degraded supporting capacity only when the returned support values are reduced.',
+    doesNotMean: 'No omniscient root-cause diagnosis or added policy action.',
+    items: '72, 115',
+  },
+  {
+    behavior: 'Building damage and placards',
+    source: 'services_before, services_after_shock, and services_end on the active returned day, distributed deterministically across stable building indices',
+    derivation: 'The shared presentation clock eases the visible condition through the exact phase-correct service endpoints, while stable building ranks and offsets prevent a district-wide snap. Inspection placards still appear only once the response handoff exposes the exact end-of-day record.',
+    doesNotMean: 'No structural-engineering certification or individual casualty inference.',
+    items: '44, 46, 73, 76, 84, 133',
+  },
+  {
+    behavior: 'Demolition, debris, and reconstruction stages',
+    source: 'true service recovery arc + per-building deterministic stagger',
+    derivation: 'Assessment precedes debris; frame, wrap, active work, and removal advance only with trajectory progress.',
+    doesNotMean: 'No instant repair or invented construction schedule.',
+    items: '74–83, 92',
+  },
+  {
+    behavior: 'Temporary shelter and field kitchen',
+    source: 'housing and food deficits',
+    derivation: 'Counts are bounded visual signals from 1 − services_end and decommission as the scalar recovers.',
+    doesNotMean: 'No household, meal, bed, or displaced-person count.',
+    items: '87–88, 97',
+  },
+  {
+    behavior: 'Reopening milestones',
+    source: 'service threshold crossings in candidate trajectory',
+    derivation: 'Market, transit, civic, and return-traffic messages record the first real crossing day.',
+    doesNotMean: 'Thresholds are presentation rules, not official operating standards.',
+    items: '28, 37, 90–91, 96, 98',
+  },
+  {
+    behavior: 'City activity pulse',
+    source: 'candidate day resilience and service scalars',
+    derivation: 'Traffic, park props, and the restrained ambient mix rise with returned city condition.',
+    doesNotMean: 'It is not a population mood survey or economic output measure.',
+    items: '95–100, 118, 124',
+  },
+  {
+    behavior: 'Shock-adjusted arrival shortfall',
+    source: 'scenario.daily_budget − each day.available_budget',
+    derivation: 'Debrief sums the exact difference against the arithmetic calm arrival baseline.',
+    doesNotMean: 'It is not money, damage cost, debt, or an unspent balance.',
+    items: '101, 107',
+  },
+  {
+    behavior: 'Dispatch manifest and throughput count',
+    source: 'available_budget inbound; schema v3 pending_arrivals_landed + same_day_delivery_landed line-haul, repair_supply last-mile, and mutual_aid_transfers/net; legacy v1 allocation arrays; fixed disclosed vehicle capacities',
+    derivation: 'The complete Toolbox manifest and the bounded 3D subset share one cargo splitter. Each v3 stage uses its own recorded quantity, mutual aid uses cross-checked transfer events, and legacy allocation is an explicitly labeled fallback. Visible role seats are apportioned deterministically from exact cargo totals; every selected load remains unchanged.',
+    doesNotMean: 'Rendered vehicle instances do not create supply, and complete load-equivalent counts are not a claim that the engine records or owns vehicles.',
+    items: '12, 16, 103, 108, 139–142',
+  },
+  {
+    behavior: 'RELAY sitrep and triage rationale',
+    source: 'shock, allocation, weighted deficits, phase-correct service changes, support, and optional schema v3 stock/landed/throughput/repair/transfer/spoilage plus freight-timing ledger',
+    derivation: 'Deterministic incident-command templates cite actual allocation and tradeoffs. V3 lines distinguish scheduled next-day freight from capacity-constrained held/overflow freight and may cite only recorded stock, landed freight, throughput, repair dispatch/supply, transfers, and food spoilage.',
+    doesNotMean: 'No language model, hidden forecast, hidden policy authority, or unsimulated command.',
+    items: '66, 104, 109, 111–117, 139–144',
+  },
+  {
+    behavior: 'Incident phase banner',
+    source: 'pending forced shock, active typed strike, recorded shock day, and positive recovery days',
+    derivation: 'The display advances through TELEGRAPH, IMPACT, ASSESSMENT, RESPONSE, and RECOVERY around the real day boundary. The strike begins at that boundary; the first 18% carries the visible footprint to the returned after-shock endpoint, assessment holds that state through 36%, and only RESPONSE begins the eased path toward the returned end state.',
+    doesNotMean: 'Intraday labels do not add extra engine steps.',
+    items: '85, 93, 134',
+  },
+  {
+    behavior: 'Procedural audio mix',
+    source: 'shock type/severity, wellbeing, repair activity, emergency wave, and depot dwell',
+    derivation: 'Bundled WebAudio oscillators/noise are mixed from the current deterministic snapshot and stop on mute/fall.',
+    doesNotMean: 'No recorded media, alarm score, or casualty signal.',
+    items: '124–130',
+  },
+  {
+    behavior: 'Inspectors and hover cards',
+    source: 'same depot, manifest, damage, placard, and repair-arc selectors used by the scene',
+    derivation: 'Interaction reveals source values and disclosed view thresholds without adding primary HUD metrics. Game-view service condition and depot stock are explicitly labeled visual interpolation; exact daily values remain in the Analyst Toolbox. During IMPACT and ASSESSMENT the game withholds end-of-day allocation, landing, throughput, dispatch, and repair records until RESPONSE.',
+    doesNotMean: 'A tooltip is evidence about the simulation view, not a live operational recommendation or an extra simulator observation.',
+    items: '131–137',
+  },
+  {
+    behavior: 'Motion accessibility',
+    source: 'prefers-reduced-motion media query',
+    derivation: 'Camera shakes, flashes, and sways become static pulses while all state and keyboard controls remain present.',
+    doesNotMean: 'Reduced motion does not remove disaster magnitude or change simulation results.',
+    items: '138',
+  },
+] as const

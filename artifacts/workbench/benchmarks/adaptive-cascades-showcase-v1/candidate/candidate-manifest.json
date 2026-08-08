@@ -1,0 +1,10 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v1",
+  "checkpoint_sha256": "752b2c1e0477567cad3a878aa9b9778131216accbc1f3a21961174bc67aa3c2a",
+  "config_sha256": "0d8a165b0a03239cbbad4a650f29cc0d1d1d8d4af7f3055cd2878d39ba31e7ac",
+  "development_report_sha256": "ce4d31edeefbb43c315f51f4ec862c2cf10dc2eba39e1f0ab9d571e7c7df8633",
+  "model_id": "adaptive-cascade-mlp-v1",
+  "onnx_sha256": "a609794d5ab08347698a48b3f52f7533b8073177bf0d7d5a13dbc13e5eddcea8",
+  "schema_version": "adaptive-cascade-candidate-manifest-v1",
+  "training_receipt_sha256": "84228f48717f2e461edab229a9e967a48bef5d655916b50792c7df7f05b1867f"
+}

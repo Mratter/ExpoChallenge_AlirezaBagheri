@@ -1,0 +1,68 @@
+{
+  "benchmark_id": "adaptive-cascades-showcase-v2",
+  "candidate_manifest": {
+    "benchmark_id": "adaptive-cascades-showcase-v2",
+    "checkpoint_sha256": "c2e1770721713d6f1faa977c0b2c8e0f0bbb9af5abdc06f9322aa5c6bb8dbac5",
+    "config_sha256": "afff074ea3f9e594ed4b0d2fee3f2e754507db1737dd34b8e3e14fc9764ed7d5",
+    "development_report_sha256": "f0ac027222e7c36862945267afcc7ebe96ea7766c00bba7fed21f47c0453a95d",
+    "model_id": "adaptive-cascade-mlp-v2-300k",
+    "onnx_sha256": "b3edf8007feb749ddc33fc3ebbb008a02ef98d561bd74cfde286dde030a4dae0",
+    "schema_version": "adaptive-cascade-candidate-manifest-v1",
+    "source_document": {
+      "commit": "1e6601f3e4613af6d6966f7ea732b3d232807ac0",
+      "files": {
+        "AGENTS.md": "d25a1bd8669e47d71393ded879a2253f67488384d5de94f66a6e8d225f280002",
+        "README.md": "f58f8537fdd1391c735259cd7dc183271833b8947b86b71bb1364bd3e6314e3f",
+        "configs/adaptive_cascades_v1.json": "0d8a165b0a03239cbbad4a650f29cc0d1d1d8d4af7f3055cd2878d39ba31e7ac",
+        "configs/adaptive_cascades_v2.json": "afff074ea3f9e594ed4b0d2fee3f2e754507db1737dd34b8e3e14fc9764ed7d5",
+        "pyproject.toml": "42680e0e9a1df36d9a024747fa4f94e1c57450ffde696304a5244fd939f19f55",
+        "scripts/run_campaign.py": "20c3093ec8ed1cff55f5dbac6cf9f7dcc8350ac70c47c0e5d82f0d085056a74c",
+        "src/city_showcase/__init__.py": "81af41df8d7dc83090207a7d72ae4eaf8615dfe8a2c96c7f6e85625cccd02cc6",
+        "src/city_showcase/benchmark.py": "415a620324acf1903a24be16e99aaf85976170b53ad06ec18504ed3441b9d01c",
+        "src/city_showcase/evidence.py": "b248f9bde414e7f6c6dd0e95d802fb4eb13b9478a737684f1e8267557286ca2a",
+        "src/city_showcase/model.py": "679d1bcb42c2a5494694ac858dc29b5adcd4298f4ef7edc741b5937ba853c188",
+        "tests/test_benchmark.py": "a61887e0603b755d29503df8139c080373b78f27984476255f0d79bb1188eab2"
+      },
+      "tree": "a53cc791af6ba011e81e82737a396d274af765ec"
+    },
+    "source_sha256": "e386e8d8dfeee85e438bc3541e6ce6e56df9015124ca75352408a444d0225f4b",
+    "training_receipt_sha256": "0ac8e60613cd047aac125d3edbdf155e2afc70313d0912bd3e945a521930cdec"
+  },
+  "config_sha256": "afff074ea3f9e594ed4b0d2fee3f2e754507db1737dd34b8e3e14fc9764ed7d5",
+  "evaluation": {
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 87117,
+    "exact_replay_required": true,
+    "head_to_head_metric": "cascade_windows_contained",
+    "heuristic_objective_pass_target": [
+      20,
+      25
+    ],
+    "model_objective_pass_target": [
+      38,
+      40
+    ],
+    "targets_descriptive_only": true,
+    "tie_rule": "exact equality in integer contained-window count",
+    "zero_violations_required": true
+  },
+  "evidence_class": "sealed_synthetic_pattern_learning_showcase",
+  "final_materialization_policy": "after_committed_preregistration",
+  "objective": {
+    "definition": "A scenario passes when at least 10 of 12 hidden cascade windows are contained by the public action chosen for that window.",
+    "direction": "higher_is_better",
+    "id": "cascade_windows_contained",
+    "success_threshold": 10
+  },
+  "prohibitions": [
+    "no holdout tuning",
+    "no policy-specific transitions",
+    "no future tape access",
+    "no seed-conditioned policy logic",
+    "no result overwrite or row exclusion"
+  ],
+  "schema_version": "adaptive-cascade-preregistration-v1",
+  "source_seal_sha256": "3105ed6b19230e71baafbea45988cc20836d18d0cdaa05a93789a63b43fb61a4",
+  "split_commitment_sha256": "efd4a426eb1be75405d9d0f0902c5bdd422bea35eb88831f7d8637a0652e813a",
+  "synthetic_disclosure": "Engineered synthetic benchmark of learnable observable patterns; not real-world validation."
+}

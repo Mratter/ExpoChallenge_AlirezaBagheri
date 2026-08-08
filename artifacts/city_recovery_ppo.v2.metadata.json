@@ -1,0 +1,117 @@
+{
+  "action_order": [
+    "transport",
+    "housing",
+    "food",
+    "healthcare",
+    "public_services"
+  ],
+  "artifact_type": "stable_baselines3_ppo",
+  "disclosure": "Stable-Baselines3 PPO trained only on structurally realistic, authored-synthetic, not empirically calibrated to real disasters; local simulation evidence only, not operational guidance.",
+  "environment": {
+    "change_log": "ENGINE_V2_CHANGELOG.md",
+    "engine_spec_sha256": "e6d9fed7346fd3e12b2837c6e31ea26179d340d6cc89b671162ba70624c8c89c",
+    "id": "CityRecoveryEnv-v2",
+    "observation_count": 33,
+    "protocol_path": "evaluation/protocol.v2.json",
+    "protocol_sha256": "a67d3bfc4842639e6d976c311ed9b7b35b83e59dbcbb130643ed16dba1bdc0e1"
+  },
+  "export": {
+    "deterministic": true,
+    "format": "ONNX",
+    "input_name": "observation",
+    "onnx_sha256": "0c40a585b0cddc5d4564e4a1ae6af2ed651a85a08b09c5e374be07278aa0ed20",
+    "opset": 17,
+    "output_name": "action",
+    "runtime_provider": "CPUExecutionProvider"
+  },
+  "id": "city-recovery-sb3-ppo-v2",
+  "legacy_candidate": {
+    "artifact_type": "deterministic_linear_policy_candidate",
+    "disclosure": "Accepted deterministic grid-selected synthetic linear candidate; not PPO and not used for Feature Complete inference.",
+    "id": "frozen-policy-candidate-v1",
+    "is_ppo": false,
+    "sha256": "23762a44d67e83dd487558d595d3d9ed5f5e406915f488a076ac21190ab9a6e3"
+  },
+  "license": "CC0-1.0",
+  "observation_order": [
+    "service_transport",
+    "service_housing",
+    "service_food",
+    "service_healthcare",
+    "service_public_services",
+    "priority_transport",
+    "priority_housing",
+    "priority_food",
+    "priority_healthcare",
+    "priority_public_services",
+    "support_transport",
+    "support_housing",
+    "support_food",
+    "support_healthcare",
+    "support_public_services",
+    "shock_impact_transport",
+    "shock_impact_housing",
+    "shock_impact_food",
+    "shock_impact_healthcare",
+    "shock_impact_public_services",
+    "available_budget_fraction",
+    "horizon_remaining_fraction",
+    "shock_severity",
+    "depot_stock_fraction_transport",
+    "depot_stock_fraction_housing",
+    "depot_stock_fraction_food",
+    "depot_stock_fraction_healthcare",
+    "depot_stock_fraction_public_services",
+    "throughput_factor_transport",
+    "throughput_factor_housing",
+    "throughput_factor_food",
+    "throughput_factor_healthcare",
+    "throughput_factor_public_services"
+  ],
+  "parity": {
+    "action_tolerance": 1e-05,
+    "projected_allocation_tolerance": 0.0001,
+    "report_path": "evaluation/policy_parity.v2.json",
+    "report_sha256": "0ff46cd2b12de0e3aae68db7ba819b393b8c779d7425ab848bf360f1303047e1"
+  },
+  "predecessor_policy": {
+    "id": "city-recovery-sb3-ppo-v1",
+    "onnx_sha256": "983b7090e9cfc761b7b2118a24cff907abfc9caa74036cfb16bd9218346b11d8",
+    "preserved": true,
+    "version": "1.0.0"
+  },
+  "sb3_checkpoint_sha256": "5da60929411320ca30cf50a8716cfa6965394fb01adfd72d9aa02346e673cc3b",
+  "schema_version": "3.0.0",
+  "training": {
+    "algorithm": "PPO",
+    "device": "cpu",
+    "engine_spec_sha256": "e6d9fed7346fd3e12b2837c6e31ea26179d340d6cc89b671162ba70624c8c89c",
+    "environment": "CityRecoveryEnv-v2",
+    "family_ids": [
+      "train_transit_cascade",
+      "train_displacement",
+      "train_supply_interrupt",
+      "train_health_surge"
+    ],
+    "library": "stable-baselines3",
+    "library_version": "2.7.0",
+    "scenario_seed_count": 8,
+    "scenario_unit_count": 32,
+    "seed": 17017,
+    "synthetic_only": true,
+    "timesteps": 30000,
+    "torch_version": "2.8.0+cpu"
+  },
+  "v1_bundle_preserved": {
+    "artifacts/city_recovery_ppo.v1.metadata.json": "becc2eed1e552e9a503c3210d2ebae18eeccc593c9a7d716fae11e1e69b1c62e",
+    "artifacts/city_recovery_ppo.v1.onnx": "983b7090e9cfc761b7b2118a24cff907abfc9caa74036cfb16bd9218346b11d8",
+    "artifacts/city_recovery_ppo.v1.zip": "f270bc720e7d2866d293feab27692d3ac9542d064d275b13c33f4d960dad4e33",
+    "artifacts/frozen_policy.v1.json": "23762a44d67e83dd487558d595d3d9ed5f5e406915f488a076ac21190ab9a6e3",
+    "evaluation/feature_complete_report.v1.json": "fea00d1bf578c7d52cad816eed732a58ffb3f9b809c2788ba35c601e976f9351",
+    "evaluation/gate2-evidence.json": "82aa655ecff8c91db99d8db72ec561955ca23badf86689285424a6e90a5c74df",
+    "evaluation/policy_parity.v1.json": "20d87aafc638f3c6e7942a1578eea0710e0cd083c5a2054063f1813a76916a82",
+    "evaluation/protocol.v1.json": "b36bba8dba6948b6b2a29170f6e5a9f7ebf012f95ce859edcece87bb5c9c5655"
+  },
+  "version": "2.0.0"
+}

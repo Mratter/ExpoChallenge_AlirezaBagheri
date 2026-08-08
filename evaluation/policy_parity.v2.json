@@ -1,0 +1,21 @@
+{
+  "action_tolerance": 1e-05,
+  "cases": 32,
+  "engine_spec_sha256": "e6d9fed7346fd3e12b2837c6e31ea26179d340d6cc89b671162ba70624c8c89c",
+  "environment": "CityRecoveryEnv-v2",
+  "max_action_abs_error": 1.1920928955078125e-07,
+  "max_pre_projector_proposal_abs_error": 3.536338674337003e-06,
+  "max_projected_allocation_abs_error": 3.530000000750988e-06,
+  "observation_count": 33,
+  "onnx_sha256": "0c40a585b0cddc5d4564e4a1ae6af2ed651a85a08b09c5e374be07278aa0ed20",
+  "onnxruntime_version": "1.23.0",
+  "passed": true,
+  "projected_allocation_tolerance": 0.0001,
+  "protocol_sha256": "a67d3bfc4842639e6d976c311ed9b7b35b83e59dbcbb130643ed16dba1bdc0e1",
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "pytorch_version": "2.8.0+cpu",
+  "sb3_checkpoint_sha256": "5da60929411320ca30cf50a8716cfa6965394fb01adfd72d9aa02346e673cc3b",
+  "schema_version": "2.0.0"
+}

@@ -1,0 +1,73 @@
+{
+  "artifact_type": "sealed_synthetic_showcase_result",
+  "benchmark_id": "adaptive-cascades-showcase-v2",
+  "evidence_class": "sealed_synthetic_pattern_learning_showcase",
+  "evidence_status": "measured",
+  "head_to_head": {
+    "heuristic_mean": 9.25,
+    "heuristic_wins": 0,
+    "learned_mean": 11.5,
+    "learned_wins": 38,
+    "metric": {
+      "direction": "higher_is_better",
+      "id": "cascade_windows_contained",
+      "label": "Cascade windows contained per scenario",
+      "tie_rule": "exact equality in integer contained-window count"
+    },
+    "paired_bootstrap_ci95": [
+      1.775,
+      2.75
+    ],
+    "paired_mean_difference": 2.25,
+    "ties": 2
+  },
+  "invariants": {
+    "all_rows_present": true,
+    "exact_replay": true,
+    "hard_violations": 0,
+    "same_tapes": true,
+    "unique_scenario_ids": true
+  },
+  "limitations": [
+    "Purpose-built artificial patterns; not evidence of real-disaster performance.",
+    "The static heuristic intentionally uses visible need without learning the public telemetry mapping.",
+    "Objective pass counts are independent; they are not a single complementary win/loss scoreline."
+  ],
+  "objective": {
+    "counts_are_independent_not_complementary": true,
+    "definition": "A scenario passes when at least 10 of 12 hidden cascade windows are contained by the public action chosen for that window.",
+    "direction": "higher_is_better",
+    "id": "cascade_windows_contained",
+    "learned_policy": {
+      "id": "adaptive-cascade-mlp-v2-300k",
+      "misses": 2,
+      "passes": 38,
+      "target_band": [
+        38,
+        40
+      ],
+      "target_met": true
+    },
+    "static_heuristic": {
+      "id": "static-visible-need-heuristic-v1",
+      "misses": 20,
+      "passes": 20,
+      "target_band": [
+        20,
+        25
+      ],
+      "target_met": true
+    },
+    "success_threshold": 10
+  },
+  "rows_index_sha256": "ac800beb54c1163149652d1056fe57352770189ac25ddacd6cb4a825eee304dd",
+  "scenario_total": 40,
+  "schema_version": "adaptive-cascade-final-result-v1",
+  "secondary": {
+    "direction": "lower_is_better",
+    "heuristic_mean": 0.33655319428,
+    "learned_mean": 0.30383109070500003,
+    "metric": "critical_service_deficit_auc"
+  },
+  "synthetic_disclosure": "Engineered synthetic benchmark of learnable observable patterns; not real-world validation."
+}
