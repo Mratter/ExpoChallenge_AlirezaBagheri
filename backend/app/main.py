@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
 
 from backend.app.artifact import (
     ARTIFACT_LICENSE,
@@ -205,10 +203,3 @@ def compare_simulations(request: Request, payload: CompareRequest) -> Response |
             status_code=500,
             content=error_payload("COMPUTATION_FAILED", str(exc)),
         )
-
-
-frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-if frontend_dist.is_dir():
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
-elif os.environ.get("INNOVERSE_RUNTIME") == "1":
-    raise RuntimeError("frontend build is missing; run scripts/setup.ps1")

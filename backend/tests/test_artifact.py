@@ -12,7 +12,7 @@ from backend.app.artifact import (
     load_policy_bundle,
 )
 from backend.app.main import metadata_payload
-from scripts.preflight_check import validate_exposed_metadata
+from backend.app.preflight import validate_exposed_metadata
 
 
 def _write_json(path: Path, value: Any) -> None:

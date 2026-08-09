@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from backend.app.artifact import load_policy_bundle
-from scripts.preflight_check import validate_evaluation
+from backend.app.preflight import validate_evaluation
 
 ROOT = Path(__file__).resolve().parents[2]
 
