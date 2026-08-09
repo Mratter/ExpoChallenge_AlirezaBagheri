@@ -4,9 +4,74 @@ Civic Relay is a deterministic recovery simulation presented as an interactive t
 
 Every scenario, coefficient, dynamic, and training input is authored synthetic and non-empirical. This is local simulation evidence, not a real-city forecast or operational recommendation. The tracked legacy linear candidate remains disclosed as non-PPO and is never used as a runtime fallback.
 
-## Play
+## Architecture
 
-The application opens at `http://127.0.0.1:4117/#/game`.
+The application runs as two independent processes:
+
+```text
+Terminal 1 — Backend API   uvicorn on 127.0.0.1:4117   (FastAPI + ONNX + OR-Tools)
+Terminal 2 — Frontend dev   vite on    127.0.0.1:4173   (React 19 + Three.js)
+```
+
+The Vite dev server proxies `/api` and `/health` requests to the backend, so the frontend talks to the API through a single origin without CORS friction in the browser. The backend is API-only and never serves frontend assets.
+
+```text
+React scenario editor / saved-result restore
+                    |
+        strict bounded Pydantic scenario
+                    |
+    complete PCG64 shock tape generated once
+              /                 \
+ SB3 PPO -> ONNX action     OR-Tools GLOP plan
+              \                 /
+       same capped-simplex projector
+                    |
+       same synthetic state transition
+                    |
+ full daily trajectories + resilience/recovery metrics
+                    |
+ canonical content-addressed local persistence
+```
+
+## Prerequisites
+
+- Python 3.12
+- Node.js with npm
+- `uv` 0.7.21 or newer
+
+## Run
+
+Start the backend and the frontend in two separate terminals.
+
+### Backend (terminal 1)
+
+```powershell
+uv sync --frozen --python 3.12 --no-group training
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 4117 --no-access-log
+```
+
+### Frontend (terminal 2)
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:4173`. The application opens at `http://127.0.0.1:4173/#/game`.
+
+The backend makes no outbound runtime connection. A port collision, missing policy artifact, or invalid frozen bundle is a blocking error: every route except `/health/live` returns structured `503 DEPENDENCY_NOT_READY` and the API is not served in a degraded state.
+
+### Environment variables (optional)
+
+| Variable | Purpose |
+| --- | --- |
+| `INNOVERSE_STATE_DIR` | Override the persisted result storage location (default `%LOCALAPPDATA%\Innoverse\ai17-city-recovery`). |
+| `UV_PROJECT_ENVIRONMENT` | Redirect the Python venv to a shorter path. Use this when ONNX native DLLs hit the Windows 240-char loader limit on long clones. |
+| `INNOVERSE_COMMIT` | Shown in `/api/v1/meta` (default `development`). |
+| `INNOVERSE_PROFILE` | Shown in `/api/v1/meta` (default `cpu`). |
+
+## Play
 
 1. Choose **Sandbox** for an unlimited, unscored run or **Stress Test** for a six-disaster arsenal and a measured end-of-run debrief.
 2. Choose **Calm**, **Moderate**, or **Severe**. These presets change ambient shock probability, severity bounds, and daily capacity; they never change the Stress Test arsenal.
@@ -43,37 +108,18 @@ A fall ends playback on the first qualifying day. The debrief reports disasters 
 
 ## Analyst Toolbox
 
-Open the complete Analyst Toolbox at `http://127.0.0.1:4117/#/toolbox` or use the quiet switch in the application header. It retains the raw scenario controls, both-planner trajectory comparison, daily allocation and projection audit, constraint evidence, and byte-identical saved-result restoration. A Toolbox result can launch directly into the city view without changing its authored scenario or issuing a replacement comparison.
+Open the complete Analyst Toolbox at `http://127.0.0.1:4173/#/toolbox` or use the quiet switch in the application header. It retains the raw scenario controls, both-planner trajectory comparison, daily allocation and projection audit, constraint evidence, and byte-identical saved-result restoration. A Toolbox result can launch directly into the city view without changing its authored scenario or issuing a replacement comparison.
 
 If WebGL is unavailable, the game displays a clear fallback and the Analyst Toolbox remains usable.
 
-## Windows 11 CPU run
-
-Requirements are Python 3.12, Node.js with npm, and `uv` 0.7.21 or newer.
+## Tests
 
 ```powershell
-.\scripts\setup.ps1 -Profile cpu
-.\scripts\preflight.ps1 -Profile cpu -Full
-.\scripts\run.ps1 -Profile cpu
+uv run pytest          # backend
+cd frontend; npm test  # frontend
 ```
 
-Open `http://127.0.0.1:4117`. `run.ps1` serves the compiled frontend and API from one loopback process, does not open a browser, and makes no outbound runtime connection. A port collision, missing compiled UI, or invalid frozen bundle is a blocking error. If a required artifact becomes unavailable after startup, every route except `/health/live` returns structured `503 DEPENDENCY_NOT_READY`; the primary UI is not served in a degraded state.
-
-Setup uses the frozen dependency lock, verifies package hashes, excludes the closed training toolchain, installs pinned frontend dependencies, and builds `frontend/dist`. Normal paths use the repository `.venv`. When a long clone approaches the Windows native-loader limit, the scripts select a short root-hashed environment under `%LOCALAPPDATA%\Innoverse\ai17-city-recovery\environments`. An absolute short `UV_PROJECT_ENVIRONMENT` can override it.
-
-Successful comparison results are stored under `%LOCALAPPDATA%\Innoverse\ai17-city-recovery` unless `INNOVERSE_STATE_DIR` selects another directory.
-
-## Verification
-
-Run the bounded CPU verification while port `4117` is free:
-
-```powershell
-.\scripts\verify.ps1 -Profile cpu
-```
-
-The verifier checks the frozen artifacts and environment, runs backend and frontend tests, builds the production UI, starts the loopback application, submits the same 11-day fixture five times, checks canonical result bytes and every allocation invariant, restarts the server, restores the persisted result byte-identically, rejects invalid input, and shuts the server down.
-
-The accepted policy and evaluation records are frozen release inputs. Normal setup, runtime, and verification do not rewrite them. Training and artifact generation are intentionally outside this product workflow.
+Backend tests cover health/meta endpoints, canonical determinism, constraint invariants, strict scenario validation, artifact drift detection, and persistence integrity. Frontend tests cover the game model, scene effects, camera framing, audio, stakes, and the application shell.
 
 ## API
 
@@ -87,3 +133,16 @@ The accepted policy and evaluation records are frozen release inputs. Normal set
 Comparison schema `2.1.0` adds the ordered `Scenario.forced_shocks` list while retaining strict unknown-field rejection and the legacy singular field. Previously persisted `2.0.0` results remain self-verifying and restore with their original canonical bytes; they are not migrated.
 
 The canonical compare response contains the shared shock schedule, both daily trajectories, action proposals, exact projected allocations, bounds and violation evidence, resilience and recovery metrics, artifact provenance, deterministic result identity, and limitations. See `ARCHITECTURE.md` for runtime and identity contracts and `EVALUATION.md` for the preregistered synthetic holdout.
+
+## Repository layout
+
+```text
+backend/app/      FastAPI app, simulator, scenarios, models, persistence, artifact guard
+backend/tests/    backend pytest suite
+frontend/src/    React + TypeScript source (App, game, api, types, scenarios)
+frontend/tests/   frontend vitest suite
+artifacts/        frozen policy bundle (ONNX, SB3 checkpoint, metadata, manifest, legacy)
+evaluation/       preregistered protocol, parity evidence, gate2 evidence
+```
+
+The accepted policy and evaluation records are frozen release inputs. Normal setup, runtime, and tests do not rewrite them. Training and artifact generation are intentionally outside this product workflow.

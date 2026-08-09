@@ -20,17 +20,28 @@ Last refreshed: 2026-07-17. This file is the standalone resumption authority aft
 - Python 3.12, FastAPI/Uvicorn, Gymnasium, NumPy, ONNX Runtime, OR-Tools; training-only Stable-Baselines3/PyTorch group; React 19 + TypeScript + Vite.
 - Backend entry: `backend/app/main.py`; simulator, scenarios, artifact guard, models, and persistence are in `backend/app/`.
 - UI entry: `frontend/src/main.tsx`.
-- `scripts/run.ps1` serves API and built UI from one loopback process at `http://127.0.0.1:4117`.
-- `scripts/project_environment.ps1` chooses repository `.venv` for normal paths or a short root-hashed `%LOCALAPPDATA%\Innoverse\ai17-city-recovery\environments\...` environment when ONNX native paths would approach the Windows loader limit.
+- The backend and frontend run as two independent processes. The backend is API-only (no static file serving); the Vite dev server proxies `/api` and `/health` to the backend.
 
 ```powershell
-.\scripts\setup.ps1 -Profile cpu
-.\scripts\preflight.ps1 -Profile cpu -Full
-.\scripts\run.ps1 -Profile cpu
-.\scripts\verify.ps1 -Profile cpu
+# Backend (terminal 1)
+uv sync --frozen --python 3.12 --no-group training
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 4117 --no-access-log
+
+# Frontend (terminal 2)
+cd frontend
+npm install
+npm run dev
 ```
 
-The normal setup/preflight/run/verify scripts select the loader-safe environment automatically. Direct training/evaluation commands require the same printed `UV_PROJECT_ENVIRONMENT` in long clones.
+Open `http://127.0.0.1:4173`.
+
+```powershell
+# Tests
+uv run pytest
+cd frontend; npm test
+```
+
+If ONNX native DLLs hit the Windows 240-char loader limit on a long clone, set `UV_PROJECT_ENVIRONMENT` to a shorter absolute environment path before running `uv sync`. Source, frontend dependencies, artifacts, and persistence remain at their original long-path boundaries; only the native Python environment is redirected.
 
 ## Critical data, models, and assets
 
@@ -56,7 +67,7 @@ The normal setup/preflight/run/verify scripts select the loader-safe environment
 
 1. Keep HEAD clean except for this context file; do not retrain or regenerate frozen artifacts.
 2. Reconcile any external Presentation/Release evidence with exact SHA `cece793` (or freeze a newer clean candidate), then record the accepted outcome in this `ai17agent.md` and the appropriate durable product records.
-3. Run `scripts/verify.ps1 -Profile cpu` on the exact candidate, including restart persistence and loader-safe native dependency checks.
+3. Run `uv run pytest` and `cd frontend; npm test` on the exact candidate to confirm backend and frontend suites pass.
 4. Route that same pushed SHA to an independent Presentation tester if no accepted ledger exists; only after Presentation PASS open the complete Release matrix and neutral judgment.
 5. Update this `ai17agent.md` plus durable product records such as `README.md`/`EVALUATION.md` when the gate is independently reconciled, not merely from builder hardening results.
 
