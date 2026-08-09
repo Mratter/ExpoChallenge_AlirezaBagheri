@@ -1,32 +1,72 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  lazy,
+  useMemo,
+  useRef,
+  useState,
+  Suspense,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
 import {
   Activity,
   AlertTriangle,
   ArchiveRestore,
-  Check,
+  ArrowUpRight,
+  Boxes,
+  Building2,
+  CheckCircle2,
+  ChevronRight,
+  CircleDot,
+  Cpu,
   Database,
+  PackageOpen,
   Play,
   RotateCcw,
-  Scale,
+  ShieldCheck,
+  SlidersHorizontal,
+  Users,
+  XCircle,
 } from 'lucide-react'
-import { ComparisonError, listSimulations, loadSimulation, runComparison } from './api'
-import { CityGame } from './game/CityGame'
-import { defaultScenario, defaultSeed } from './scenarios'
+import {
+  ComparisonError,
+  fetchMetadata,
+  listSimulations,
+  loadSimulation,
+  runComparison,
+} from './api'
+import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
+import { shockDisplayName } from './shockPresentation'
 import {
   services,
+  shockTypes,
   type CompareResponse,
+  type MetadataV3,
+  type OfficialOutcome,
   type SavedResultSummary,
   type Scenario,
   type Service,
+  type Vector5,
 } from './types'
+import {
+  actionEntriesForDay,
+  actionGroupSummaries,
+  observationEntriesForDay,
+  outcomeReasonLabel,
+  scenarioIssue,
+  serviceLabel,
+  tailStartDay,
+  type PlannerKey,
+} from './v3ViewModel'
 
-const serviceLabels: Record<Service, string> = {
-  transport: 'Transport',
-  housing: 'Housing',
-  food: 'Food',
-  healthcare: 'Healthcare',
-  public_services: 'Public services',
-}
+type ViewMode = 'trajectory' | 'audit' | 'dispatch' | 'decisions'
+type LoadFailure = { code: string; message: string }
+type AppRoute = 'game' | 'toolbox'
+
+const CityGame = lazy(() => import('./game/CityGame').then((module) => ({ default: module.CityGame })))
+
+const viewModes: ViewMode[] = ['trajectory', 'audit', 'dispatch', 'decisions']
 
 const serviceCodes: Record<Service, string> = {
   transport: 'TR',
@@ -36,133 +76,51 @@ const serviceCodes: Record<Service, string> = {
   public_services: 'PS',
 }
 
-type ViewMode = 'trajectory' | 'audit' | 'recommendations'
-type ComparisonFailure = { code: string; message: string }
-
-const viewModes: ViewMode[] = ['trajectory', 'audit', 'recommendations']
-
-function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`
+function percent(value: number, digits = 1): string {
+  return `${(value * 100).toFixed(digits)}%`
 }
 
-function formatUnits(value: number): string {
+function compactNumber(value: number): string {
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+}
+
+function units(value: number): string {
   return value.toFixed(1)
 }
 
-function measuredViolations(result: CompareResponse, planner: 'candidate' | 'baseline'): number {
-  return result[planner].trajectory.reduce(
-    (total, day) => total + day.projection.constraint_violations,
-    0,
-  )
+function shortHash(value: string): string {
+  return `${value.slice(0, 12)}…${value.slice(-6)}`
 }
 
-function scenariosMatch(left: Scenario, right: Scenario): boolean {
-  const leftShock = left.forced_shock
-  const rightShock = right.forced_shock
-  const leftShocks = left.forced_shocks ?? []
-  const rightShocks = right.forced_shocks ?? []
-
-  return left.name === right.name
-    && left.horizon_days === right.horizon_days
-    && left.daily_budget === right.daily_budget
-    && left.shock_probability === right.shock_probability
-    && left.severity_min === right.severity_min
-    && left.severity_max === right.severity_max
-    && left.initial_services.every((value, index) => value === right.initial_services[index])
-    && left.priorities.every((value, index) => value === right.priorities[index])
-    && leftShocks.length === rightShocks.length
-    && leftShocks.every((shock, index) => (
-      shock.day === rightShocks[index]?.day
-      && shock.type === rightShocks[index]?.type
-      && shock.severity === rightShocks[index]?.severity
-    ))
-    && ((leftShock === null && rightShock === null) || (
-      leftShock !== null
-      && rightShock !== null
-      && leftShock.day === rightShock.day
-      && leftShock.type === rightShock.type
-      && leftShock.severity === rightShock.severity
-    ))
+function updateVector(vector: Vector5, index: number, value: number): Vector5 {
+  const next = [...vector] as Vector5
+  next[index] = value
+  return next
 }
 
-function linePath(values: number[], width = 660, height = 156): string {
-  if (values.length === 0) return ''
-  return values
-    .map((value, index) => {
-      const x = values.length === 1 ? 0 : (index / (values.length - 1)) * width
-      const y = height - value * height
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
-    })
-    .join(' ')
+function plannerTitle(planner: PlannerKey): string {
+  return planner === 'candidate' ? 'PPO V3 policy' : 'Reactive public heuristic'
 }
 
-function ResilienceChart({ result, selectedDay }: { result: CompareResponse; selectedDay: number }) {
-  const baseline = result.baseline.trajectory.map((day) => day.resilience)
-  const candidate = result.candidate.trajectory.map((day) => day.resilience)
-  const selectedIndex = selectedDay - 1
-  const selectedX = (selectedIndex / Math.max(result.scenario.horizon_days - 1, 1)) * 660
-  const shockCount = result.shock_schedule.filter((shock) => shock.type).length
-  return (
-    <figure className="chart-wrap" aria-labelledby="chart-title">
-      <figcaption id="chart-title" className="chart-title">
-        Weighted service resilience by day
-      </figcaption>
-      <div className="chart-legend" aria-hidden="true">
-        <span><i className="legend-line candidate-line" />SB3 PPO / ONNX</span>
-        <span><i className="legend-line baseline-line" />OR-Tools GLOP</span>
-        <span><i className="legend-shock-pair"><b /><b /></i>Shared / forced shocks</span>
-        <span><i className="legend-selected" />Selected day</span>
+function BenchmarkRail({ metadata, failure }: { metadata: MetadataV3 | null; failure: LoadFailure | null }) {
+  if (!metadata) {
+    return (
+      <div className="benchmark-rail benchmark-pending" role="status">
+        <span><CircleDot size={14} />Official benchmark</span>
+        <b>Withheld until release verification</b>
+        <small>{failure?.code === 'DEPENDENCY_NOT_READY' ? 'Artifacts, parity, and final evidence are not all sealed.' : 'Verified metadata is unavailable.'}</small>
       </div>
-      <svg
-        className="chart"
-        viewBox="0 0 720 208"
-        role="img"
-        aria-label={`Resilience comparison line chart with ${shockCount} shared shocks; day ${selectedDay} selected`}
-      >
-        <g transform="translate(42 20)">
-          {[0.25, 0.5, 0.75, 1].map((tick) => (
-            <g key={tick}>
-              <line x1="0" x2="660" y1={156 - tick * 156} y2={156 - tick * 156} className="gridline" />
-              <text x="-10" y={160 - tick * 156} textAnchor="end" className="chart-label">
-                {Math.round(tick * 100)}
-              </text>
-            </g>
-          ))}
-          {result.shock_schedule.map((shock, index) => {
-            if (!shock.type) return null
-            const x = (index / Math.max(result.shock_schedule.length - 1, 1)) * 660
-            return (
-              <g key={`${shock.day}-${shock.type}`}>
-                <line
-                  x1={x}
-                  x2={x}
-                  y1="4"
-                  y2="156"
-                  className={shock.forced ? 'shared-shock-guide forced-shock-guide' : 'shared-shock-guide'}
-                />
-                <circle
-                  cx={x}
-                  cy="4"
-                  r={shock.forced ? 4.5 : 3.5}
-                  className={shock.forced ? 'shared-shock-dot forced-dot' : 'shared-shock-dot'}
-                >
-                  <title>{`Day ${shock.day}: ${shock.type}, ${formatPercent(shock.severity)}${shock.forced ? ', forced' : ''}`}</title>
-                </circle>
-              </g>
-            )
-          })}
-          <line x1={selectedX} x2={selectedX} y1="0" y2="156" className="selected-day-guide" />
-          <path d={linePath(baseline)} className="series baseline-series" />
-          <path d={linePath(candidate)} className="series candidate-series" />
-          <circle cx={selectedX} cy={156 - candidate[selectedIndex] * 156} r="4" className="selected-point candidate-point" />
-          <circle cx={selectedX} cy={156 - baseline[selectedIndex] * 156} r="3.5" className="selected-point baseline-point" />
-          <text x="0" y="181" className="chart-label">Day 1</text>
-          <text x="660" y="181" textAnchor="end" className="chart-label">
-            Day {result.scenario.horizon_days}
-          </text>
-        </g>
-      </svg>
-    </figure>
+    )
+  }
+  const benchmark = metadata.benchmark
+  return (
+    <div className="benchmark-rail benchmark-ready" aria-label="Verified independent disaster outcomes">
+      <span><ShieldCheck size={14} />Verified final benchmark · {benchmark.synthetic_case_count} synthetic cases</span>
+      <b>PPO solved {benchmark.candidate.solved_count}/{benchmark.synthetic_case_count}</b>
+      <i aria-hidden="true" />
+      <b>Heuristic solved {benchmark.baseline.solved_count}/{benchmark.synthetic_case_count}</b>
+      <small>Independent outcomes—not head-to-head wins</small>
+    </div>
   )
 }
 
@@ -170,560 +128,504 @@ function ScenarioEditor({
   draft,
   seed,
   busy,
+  runReady,
+  savedRuns,
   onDraft,
   onSeed,
   onRun,
   onReset,
-  savedRuns,
   onRestore,
+  onRecheck,
 }: {
   draft: Scenario
   seed: number
   busy: boolean
-  onDraft: (scenario: Scenario) => void
-  onSeed: (seed: number) => void
+  runReady: boolean
+  savedRuns: SavedResultSummary[]
+  onDraft: (value: Scenario) => void
+  onSeed: (value: number) => void
   onRun: () => void
   onReset: () => void
-  savedRuns: SavedResultSummary[]
-  onRestore: (resultId: string) => void
+  onRestore: (id: string) => void
+  onRecheck: () => void
 }) {
-  const updateService = (field: 'initial_services' | 'priorities', index: number, value: number) => {
-    const next = [...draft[field]]
-    next[index] = value
-    onDraft({ ...draft, [field]: next })
+  const issue = scenarioIssue(draft, seed)
+  const tailStart = tailStartDay(draft)
+  const forced = draft.forced_shock
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!busy && runReady && !issue) onRun()
   }
 
   return (
-    <aside className="scenario-panel" aria-labelledby="scenario-title">
-      <div className="scenario-scroll">
-      <div className="panel-heading">
-        <div>
-          <p className="section-kicker">Scenario controls</p>
-          <h2 id="scenario-title" tabIndex={-1}>Recovery envelope</h2>
+    <aside className="scenario-panel" aria-labelledby="scenario-heading">
+      <form onSubmit={submit}>
+        <div className="scenario-scroll">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Scenario control</p>
+              <h2 id="scenario-heading">30-day exercise</h2>
+            </div>
+            <button className="icon-button" type="button" onClick={onReset} disabled={busy} aria-label="Reset scenario">
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          <label className="field full-field">
+            <span>Exercise name</span>
+            <input value={draft.name} minLength={1} maxLength={64} required onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
+          </label>
+
+          <label className="field full-field saved-field">
+            <span><ArchiveRestore size={13} />V3 saved evidence</span>
+            <select value="" disabled={busy || savedRuns.length === 0} onChange={(event) => event.target.value && onRestore(event.target.value)}>
+              <option value="">{savedRuns.length ? `Restore one of ${savedRuns.length}` : 'No saved V3 runs'}</option>
+              {savedRuns.map((saved) => (
+                <option key={saved.result_id} value={saved.result_id}>
+                  {saved.scenario_name} · {saved.candidate_solved ? 'PPO solved' : 'PPO failed'} · {saved.result_id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="protocol-locks" aria-label="Frozen protocol">
+            <div><span>Horizon</span><b>30 days</b></div>
+            <div><span>Assessment</span><b>Days {tailStart}–30</b></div>
+            <div><span>Tail shocks</span><b>Blocked</b></div>
+          </div>
+
+          <div className="field-grid">
+            <label className="field"><span>Seed</span><input type="number" min="0" max="4294967295" step="1" value={seed} onChange={(event) => onSeed(Number(event.target.value))} /></label>
+            <label className="field"><span>Material / day</span><input type="number" min="50" max="500" step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} /></label>
+            <label className="field"><span>Crew / day</span><input type="number" min="50" max="300" step="1" value={draft.daily_crew_pool} onChange={(event) => onDraft({ ...draft, daily_crew_pool: Number(event.target.value) })} /></label>
+            <label className="field"><span>Shock chance</span><div className="input-suffix"><input type="number" min="0" max="35" step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity min</span><div className="input-suffix"><input type="number" min="5" max="25" value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity max</span><div className="input-suffix"><input type="number" min="10" max="40" value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+          </div>
+
+          <fieldset className="service-editor">
+            <legend>Starting state · priority · solved target</legend>
+            <div className="service-editor-head"><span>Service</span><span>Start</span><span>Weight</span><span>Target</span></div>
+            {services.map((service, index) => (
+              <div className="service-input-row" key={service}>
+                <span><b>{serviceCodes[service]}</b>{serviceLabel(service)}</span>
+                <input aria-label={`${serviceLabel(service)} starting state`} type="number" min="5" max="95" value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => onDraft({ ...draft, initial_services: updateVector(draft.initial_services, index, Number(event.target.value) / 100) })} />
+                <input aria-label={`${serviceLabel(service)} priority`} type="number" min="0.5" max="2" step="0.1" value={draft.priorities[index]} onChange={(event) => onDraft({ ...draft, priorities: updateVector(draft.priorities, index, Number(event.target.value)) })} />
+                <input aria-label={`${serviceLabel(service)} solved target`} type="number" min="45" max="75" value={Math.round(draft.recovery_targets[index] * 100)} onChange={(event) => onDraft({ ...draft, recovery_targets: updateVector(draft.recovery_targets, index, Number(event.target.value) / 100) })} />
+              </div>
+            ))}
+          </fieldset>
+
+          <fieldset className="forced-editor">
+            <legend>Controlled incident</legend>
+            <label className="toggle-row">
+              <input type="checkbox" checked={forced !== null} onChange={(event) => onDraft({ ...draft, forced_shock: event.target.checked ? { day: 5, type: 'utility', severity: 0.26 } : null })} />
+              <span><b>Schedule one forced shock</b><small>Always rejected on assessment days {tailStart}–30.</small></span>
+            </label>
+            {forced ? (
+              <div className="forced-fields">
+                <label className="field"><span>Day</span><input type="number" min="1" max={tailStart - 1} value={forced.day} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, day: Number(event.target.value) } })} /></label>
+                <label className="field"><span>Type</span><select value={forced.type} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, type: event.target.value as typeof forced.type } })}>{shockTypes.map((type) => <option value={type} key={type}>{shockDisplayName(type)}</option>)}</select></label>
+                <label className="field"><span>Severity</span><div className="input-suffix"><input type="number" min="5" max="40" value={Math.round(forced.severity * 100)} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, severity: Number(event.target.value) / 100 } })} /><b>%</b></div></label>
+              </div>
+            ) : null}
+            {draft.forced_shocks.length ? (
+              <div className="injected-shocks"><b>{draft.forced_shocks.length} city-view incident{draft.forced_shocks.length === 1 ? '' : 's'} attached</b><button type="button" onClick={() => onDraft({ ...draft, forced_shocks: [] })}>Clear</button></div>
+            ) : null}
+          </fieldset>
         </div>
-        <button
-          className="icon-button"
-          type="button"
-          onClick={() => { if (!busy) onReset() }}
-          title="Reset fixture"
-          aria-label="Reset fixture"
-          aria-disabled={busy}
-        >
-          <RotateCcw size={17} />
-        </button>
-      </div>
 
-      <label className="field full-field">
-        <span>Scenario name</span>
-        <input value={draft.name} required minLength={1} maxLength={64} onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
-      </label>
-
-      <label className="field full-field saved-result-field">
-        <span><ArchiveRestore size={13} />Saved results</span>
-        <select
-          aria-label="Restore saved result"
-          aria-disabled={busy || savedRuns.length === 0}
-          value=""
-          disabled={savedRuns.length === 0}
-          onChange={(event) => {
-            if (!busy && event.target.value) onRestore(event.target.value)
-          }}
-        >
-          <option value="">{savedRuns.length === 0 ? 'No saved results' : `Restore one of ${savedRuns.length}`}</option>
-          {savedRuns.map((saved) => (
-            <option key={saved.result_id} value={saved.result_id}>
-              {saved.scenario_name} · seed {saved.seed} · {saved.result_id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="field-grid">
-        <label className="field">
-          <span>Seed</span>
-          <input type="number" min="0" max="4294967295" value={seed} onChange={(event) => onSeed(Number(event.target.value))} />
-        </label>
-        <label className="field">
-          <span>Days</span>
-          <input id="horizon-days" type="number" min="7" max="30" value={draft.horizon_days} onChange={(event) => onDraft({ ...draft, horizon_days: Number(event.target.value) })} />
-        </label>
-        <label className="field">
-          <span>Daily units</span>
-          <input id="daily-budget" type="number" min="50" max="500" step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} />
-        </label>
-        <label className="field">
-          <span>Shock chance</span>
-          <div className="input-suffix">
-            <input id="shock-probability" type="number" min="0" max="35" step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} />
-            <b>%</b>
-          </div>
-        </label>
-      </div>
-
-      <fieldset className="service-editor">
-        <legend>Service condition and priority</legend>
-        <div className="service-header" aria-hidden="true"><span>Service</span><span>State %</span><span>Weight</span></div>
-        {services.map((service, index) => (
-          <div className="service-input-row" key={service}>
-            <span className="service-name"><b>{serviceCodes[service]}</b>{serviceLabels[service]}</span>
-            <input aria-label={`${serviceLabels[service]} initial state`} type="number" min="5" max="95" step="1" value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => updateService('initial_services', index, Number(event.target.value) / 100)} />
-            <input aria-label={`${serviceLabels[service]} priority`} type="number" min="0.5" max="2" step="0.1" value={draft.priorities[index]} onChange={(event) => updateService('priorities', index, Number(event.target.value))} />
-          </div>
-        ))}
-      </fieldset>
-
-      <div className="severity-fields">
-        <label className="field">
-          <span>Severity min %</span>
-          <input id="severity-min" type="number" min="5" max="25" value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} />
-        </label>
-        <label className="field">
-          <span>Severity max %</span>
-          <input id="severity-max" type="number" min="10" max="40" value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} />
-        </label>
-      </div>
-
-      <label className="forced-toggle">
-        <input
-          type="checkbox"
-          checked={draft.forced_shock !== null}
-          onChange={(event) => onDraft({ ...draft, forced_shock: event.target.checked ? { day: 5, type: 'utility', severity: 0.26 } : null })}
-        />
-        <span className="checkbox-control" aria-hidden="true"><Check size={14} /></span>
-        <span className="forced-copy"><b>Force utility failure</b><small>Day 5 at 26% severity</small></span>
-      </label>
-      </div>
-
-      <div className="scenario-action-dock">
-        <button className="run-button" type="button" onClick={() => { if (!busy) onRun() }} aria-disabled={busy}>
-          {busy ? <Activity className="spin" size={18} /> : <Play size={18} fill="currentColor" />}
-          {busy ? 'Running both plans' : 'Run comparison'}
-        </button>
-      </div>
+        <div className="scenario-dock">
+          {issue ? <p className="scenario-issue"><AlertTriangle size={13} />{issue}</p> : null}
+          {!runReady ? <div className="release-recheck"><p className="scenario-issue release-note"><CircleDot size={13} />Run disabled until the verified V3 release is ready.</p><button type="button" onClick={onRecheck} disabled={busy}>Recheck release</button></div> : null}
+          <button className="run-button" type="submit" disabled={busy || !runReady || Boolean(issue)}>
+            {busy ? <Activity className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
+            {busy ? 'Resolving paired trace' : 'Run paired 30-day trace'}
+          </button>
+        </div>
+      </form>
     </aside>
   )
 }
 
-function DayInspector({ result, selectedDay, onDay }: { result: CompareResponse; selectedDay: number; onDay: (day: number) => void }) {
-  const baseline = result.baseline.trajectory[selectedDay - 1]
-  const candidate = result.candidate.trajectory[selectedDay - 1]
-  const shock = result.shock_schedule[selectedDay - 1]
+function OutcomeChecks({ outcome }: { outcome: OfficialOutcome }) {
   return (
-    <section className={`day-inspector ${shock.type ? 'shock-day' : 'steady-day'}`} aria-labelledby="day-title">
-      <div className="day-control">
-        <div>
-          <p className="section-kicker">Daily allocation ledger</p>
-          <h3 id="day-title">Day {selectedDay}</h3>
-        </div>
-        <div className={`shock-label ${shock.type ? 'active-shock' : ''}`}>
-          {shock.type ? <AlertTriangle size={16} /> : <Check size={16} />}
-          <span>{shock.type ? `${shock.type} / ${formatPercent(shock.severity)}` : 'No shock'}</span>
-          {shock.forced ? <em>forced</em> : null}
-        </div>
-      </div>
-      <input className="day-slider" aria-label="Inspect simulation day" type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} />
-      <div className="ledger-table" role="table" aria-label={`Day ${selectedDay} service outcomes and allocations`}>
-        <div className="ledger-head" role="row">
-          <span role="columnheader">Service</span>
-          <span role="columnheader">End state</span>
-          <span className="candidate-column" role="columnheader">Candidate<small>units</small></span>
-          <span className="baseline-column" role="columnheader">Baseline<small>units</small></span>
-        </div>
-        <div className="service-ledger" role="rowgroup">
-          {services.map((service, index) => (
-            <div className="ledger-row" role="row" key={service}>
-              <div className="ledger-service" role="rowheader" aria-label={`${serviceCodes[service]} ${serviceLabels[service]}`}><b>{serviceCodes[service]}</b><span>{serviceLabels[service]}</span></div>
-              <div
-                className="state-comparison"
-                role="cell"
-                aria-label={`End state: candidate ${formatPercent(candidate.services_end[index])}, baseline ${formatPercent(baseline.services_end[index])}`}
-              >
-                <div className="state-tracks" aria-hidden="true">
-                  <span className="state-track"><i className="candidate-fill" style={{ width: `${candidate.services_end[index] * 100}%` }} /></span>
-                  <span className="state-track"><i className="baseline-fill" style={{ width: `${baseline.services_end[index] * 100}%` }} /></span>
-                </div>
-                <small aria-hidden="true"><span className="candidate-state">C {formatPercent(candidate.services_end[index])}</span><span className="baseline-state">B {formatPercent(baseline.services_end[index])}</span></small>
-              </div>
-              <strong className="candidate-number" role="cell">{formatUnits(candidate.allocation[index])}</strong>
-              <strong className="baseline-number" role="cell">{formatUnits(baseline.allocation[index])}</strong>
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className="projection-note">
-        Shared available budget {formatUnits(candidate.available_budget)} units. Projection distance: candidate {candidate.projection.distance.toFixed(2)} / baseline {baseline.projection.distance.toFixed(2)}.
-      </p>
+    <ul className="outcome-checks">
+      {Object.entries(outcome.checks).map(([name, passed]) => (
+        <li key={name} data-pass={passed}>
+          {passed ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+          <span>{outcomeReasonLabel(name)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function VerdictPair({ result }: { result: CompareResponse }) {
+  const candidate = result.candidate.absolute_outcome
+  const baseline = result.baseline.absolute_outcome
+  return (
+    <section className="verdict-pair" aria-label="Independent official disaster outcomes">
+      <article className="verdict-card candidate-verdict" data-solved={candidate.solved}>
+        <header><span>PPO V3 / ONNX</span><b>{candidate.solved ? 'SOLVED' : 'FAILED'}</b></header>
+        <p>Independent absolute outcome</p>
+        <strong>{percent(candidate.resilience_auc)}</strong><small>resilience AUC · floor {percent(candidate.resilience_auc_floor)}</small>
+        <OutcomeChecks outcome={candidate} />
+      </article>
+      <div className="verdict-divider"><span>same tape</span><i /><b>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</b></div>
+      <article className="verdict-card baseline-verdict" data-solved={baseline.solved}>
+        <header><span>Reactive heuristic V3</span><b>{baseline.solved ? 'SOLVED' : 'FAILED'}</b></header>
+        <p>Independent absolute outcome</p>
+        <strong>{percent(baseline.resilience_auc)}</strong><small>resilience AUC · floor {percent(baseline.resilience_auc_floor)}</small>
+        <OutcomeChecks outcome={baseline} />
+      </article>
     </section>
   )
 }
 
-function RecommendationsPanel({ result }: { result: CompareResponse }) {
-  const rec = result.recommendations
+function linePath(values: number[]): string {
+  const width = 736
+  const height = 176
+  return values.map((value, index) => {
+    const x = (index / Math.max(values.length - 1, 1)) * width
+    const y = height - value * height
+    return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
+  }).join(' ')
+}
+
+function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; selectedDay: number; onDay: (day: number) => void }) {
+  const candidate = result.candidate.trajectory.map((day) => day.resilience)
+  const baseline = result.baseline.trajectory.map((day) => day.resilience)
+  const selectedX = ((selectedDay - 1) / 29) * 736
+  const tailX = ((tailStartDay(result.scenario) - 1) / 29) * 736
   return (
-    <div className="recommendations-view">
-      <section className="recommendation-summary" aria-labelledby="rec-summary-title">
-        <p className="section-kicker">Decision optimization recommendations</p>
-        <h3 id="rec-summary-title">Strategy summary</h3>
-        <p className="strategy-summary">{rec.strategy_summary}</p>
-        <div className="winner-banner" data-winner={rec.winner}>
-          <strong>{rec.winner_label}</strong>
-          <span>{rec.winner_rationale}</span>
-        </div>
-      </section>
-
-      <section className="recommendation-block" aria-labelledby="rec-action-title">
-        <h3 id="rec-action-title">Actionable recommendations</h3>
-        <ul className="actionable-list">
-          {rec.actionable_recommendations.map((item, index) => (
-            <li key={index}>{item}</li>
+    <figure className="paired-trace" aria-labelledby="trace-title">
+      <figcaption>
+        <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired 30-day recovery trace</h3></div>
+        <div className="trace-legend"><span className="legend-ppo">PPO V3</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
+      </figcaption>
+      <svg viewBox="0 0 824 246" role="img" aria-label={`Both planners on the same 30-day shock tape; day ${selectedDay} selected`}>
+        <g transform="translate(52 24)">
+          <rect x={tailX} y="0" width={736 - tailX} height="176" className="tail-zone" />
+          {[0.25, 0.5, 0.75, 1].map((tick) => (
+            <g key={tick}><line x1="0" x2="736" y1={176 - tick * 176} y2={176 - tick * 176} className="trace-grid" /><text x="-10" y={180 - tick * 176} textAnchor="end">{Math.round(tick * 100)}</text></g>
           ))}
-        </ul>
-      </section>
+          {result.shock_schedule.map((shock, index) => shock.type ? (
+            <g key={`${shock.day}-${shock.type}`}>
+              <line x1={(index / 29) * 736} x2={(index / 29) * 736} y1="0" y2="176" className={shock.forced ? 'shock-guide forced' : 'shock-guide'} />
+              <circle cx={(index / 29) * 736} cy="5" r={shock.forced ? 4 : 3} className={shock.forced ? 'shock-dot forced' : 'shock-dot'}><title>Day {shock.day}: {shockDisplayName(shock.type)} · {percent(shock.severity)}</title></circle>
+            </g>
+          ) : null)}
+          <line x1={selectedX} x2={selectedX} y1="0" y2="176" className="selected-guide" />
+          <path d={linePath(baseline)} className="trace-line trace-baseline" />
+          <path d={linePath(candidate)} className="trace-line trace-candidate" />
+          <circle cx={selectedX} cy={176 - candidate[selectedDay - 1] * 176} r="4.5" className="selected-ppo" />
+          <circle cx={selectedX} cy={176 - baseline[selectedDay - 1] * 176} r="4" className="selected-heuristic" />
+          <text x="0" y="203">Day 1</text><text x={tailX + 6} y="17" className="tail-label">NO INJECTED SHOCKS</text><text x="736" y="203" textAnchor="end">Day 30</text>
+        </g>
+      </svg>
+      <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input type="range" min="1" max="30" value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
+    </figure>
+  )
+}
 
-      <section className="recommendation-block" aria-labelledby="rec-critical-title">
-        <h3 id="rec-critical-title">Critical moment</h3>
-        <p>{rec.critical_moment.description}</p>
-        <dl className="critical-facts">
-          <div><dt>Day</dt><dd>{rec.critical_moment.day}</dd></div>
-          <div><dt>Resilience</dt><dd>{formatPercent(rec.critical_moment.resilience)}</dd></div>
-          <div><dt>Most fragile service</dt><dd>{rec.most_fragile_service}</dd></div>
-          <div><dt>Days below threshold</dt><dd>{rec.most_fragile_days_below_threshold}</dd></div>
-        </dl>
-      </section>
-
-      <section className="recommendation-block" aria-labelledby="rec-daily-title">
-        <h3 id="rec-daily-title">Daily recommendations</h3>
-        <div className="audit-scroll" role="region" aria-label="Daily recommendations table" tabIndex={0}>
-          <table>
-            <caption>Deterministic per-day priority and risk assessment</caption>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Priority service</th>
-                <th>Allocation focus</th>
-                <th>Rationale</th>
-                <th>Risk alerts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rec.daily.map((day) => (
-                <tr key={day.day}>
-                  <td>{day.day}</td>
-                  <td><b>{day.priority_service}</b></td>
-                  <td>{day.allocation_focus} <small>({formatPercent(day.allocation_focus_share)})</small></td>
-                  <td>{day.priority_rationale}</td>
-                  <td>
-                    {day.risk_alerts.length === 0
-                      ? <span className="risk-none">None</span>
-                      : day.risk_alerts.map((alert, index) => (
-                        <span key={index} className={`risk-chip risk-${alert.level}`}>{alert.service}: {alert.detail}</span>
-                      ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+function PlannerToggle({ planner, onPlanner }: { planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
+  return (
+    <div className="planner-toggle" role="group" aria-label="Planner to inspect">
+      <button type="button" className={planner === 'candidate' ? 'active' : ''} aria-pressed={planner === 'candidate'} onClick={() => onPlanner('candidate')}>PPO V3</button>
+      <button type="button" className={planner === 'baseline' ? 'active' : ''} aria-pressed={planner === 'baseline'} onClick={() => onPlanner('baseline')}>Heuristic</button>
     </div>
   )
 }
 
-function AuditTable({ result }: { result: CompareResponse }) {
+function DayInspector({ result, selectedDay, planner, onPlanner }: { result: CompareResponse; selectedDay: number; planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
+  const dayIndex = selectedDay - 1
+  const day = result[planner].trajectory[dayIndex]
+  const observations = useMemo(() => observationEntriesForDay(result, planner, dayIndex), [dayIndex, planner, result])
+  const actions = useMemo(() => actionEntriesForDay(result, planner, dayIndex), [dayIndex, planner, result])
   return (
-    <div className="audit-view">
-      <p className="audit-cue">Scroll for candidate, baseline, and delta <span aria-hidden="true">→</span></p>
-      <div className="audit-scroll" role="region" aria-label="Scrollable daily comparison table" tabIndex={0}>
-        <table>
-          <caption>Full deterministic daily comparison</caption>
-          <thead><tr><th>Day</th><th>Shock</th><th>Budget</th><th>Candidate resilience</th><th>Baseline resilience</th><th>Delta</th></tr></thead>
-          <tbody>
-            {result.candidate.trajectory.map((day, index) => {
-              const baseline = result.baseline.trajectory[index]
-              return (
-                <tr key={day.day}>
-                  <td>{day.day}</td>
-                  <td>{day.shock.type ?? 'None'}{day.shock.forced ? ' (forced)' : ''}</td>
-                  <td>{formatUnits(day.available_budget)}</td>
-                  <td>{formatPercent(day.resilience)}</td>
-                  <td>{formatPercent(baseline.resilience)}</td>
-                  <td className={day.resilience - baseline.resilience >= 0 ? 'positive' : 'negative'}>{((day.resilience - baseline.resilience) * 100).toFixed(2)} pp</td>
-                </tr>
-              )
-            })}
-          </tbody>
+    <section className="day-inspector" aria-labelledby="day-inspector-title">
+      <header className="inspector-heading">
+        <div><p className="eyebrow">Day {selectedDay} command receipt</p><h3 id="day-inspector-title">{plannerTitle(planner)}</h3></div>
+        <PlannerToggle planner={planner} onPlanner={onPlanner} />
+      </header>
+      <div className="day-facts">
+        <div><PackageOpen size={15} /><span>Material</span><b>{units(day.material_used)} / {units(day.available_budget)}</b><small>{units(day.material_unspent)} unspent</small></div>
+        <div><Users size={15} /><span>Crew</span><b>{units(day.crew_used)} / {units(day.available_crew)}</b><small>{units(day.crew_idle)} idle</small></div>
+        <div><Boxes size={15} /><span>Stock released</span><b>{units(day.stock_release.reduce((sum, value) => sum + value, 0))}</b><small>five depots</small></div>
+        <div><ShieldCheck size={15} /><span>Preparedness</span><b>{units(day.preparedness_investment.reduce((sum, value) => sum + value, 0))}</b><small>effective investment</small></div>
+      </div>
+      <div className="service-ledger" role="table" aria-label={`Day ${selectedDay} intervention ledger`}>
+        <div className="service-ledger-head" role="row"><span>Service</span><span>End / target</span><span>Material</span><span>Crew</span><span>Release</span><span>Preparedness</span></div>
+        {services.map((service, index) => (
+          <div className="service-ledger-row" role="row" key={service}>
+            <span className="service-key"><b>{serviceCodes[service]}</b>{serviceLabel(service)}</span>
+            <span className="state-cell"><b>{percent(day.services_end[index])}</b><small>target {percent(result.scenario.recovery_targets[index])}</small><i><em style={{ width: `${day.services_end[index] * 100}%` }} /></i></span>
+            <strong>{units(day.material_allocation[index])}</strong>
+            <strong>{units(day.crew_allocation[index])}</strong>
+            <strong>{units(day.stock_release[index])}</strong>
+            <strong>{units(day.preparedness_investment[index])}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="projection-receipt">
+        <span>Material projection <b>{day.projection.distance.toFixed(3)}</b></span>
+        <span>Crew projection <b>{day.crew_projection.distance.toFixed(3)}</b></span>
+        <span>Hard violations <b>{day.hard_violation_count}</b></span>
+        <span>Conservation residual <b>{Math.max(...day.logistics.conservation_residual.map(Math.abs)).toExponential(2)}</b></span>
+      </div>
+      <div className="vector-pair">
+        <details>
+          <summary><span><Database size={15} />Public observation</span><b>{observations.length} inputs</b><ChevronRight size={15} /></summary>
+          <div className="vector-grid">{observations.map((entry, index) => <div key={entry.name}><span>{String(index + 1).padStart(2, '0')}</span><code>{entry.name}</code><b>{entry.value.toFixed(5)}</b></div>)}</div>
+        </details>
+        <details>
+          <summary><span><SlidersHorizontal size={15} />Policy output</span><b>{actions.length} actions</b><ChevronRight size={15} /></summary>
+          <div className="vector-grid action-vector">{actions.map((entry, index) => <div key={entry.name}><span>{String(index + 1).padStart(2, '0')}</span><code>{entry.name}</code><b>{entry.value.toFixed(5)}</b></div>)}</div>
+        </details>
+      </div>
+    </section>
+  )
+}
+
+function AuditView({ result }: { result: CompareResponse }) {
+  return (
+    <section className="table-view" aria-labelledby="audit-heading">
+      <header className="table-heading"><div><p className="eyebrow">All returned days</p><h3 id="audit-heading">Daily paired audit</h3></div><p>Both planners consume the same recorded shock schedule. Values are engine receipts.</p></header>
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Daily paired audit table">
+        <table><thead><tr><th>Day</th><th>Event</th><th>PPO resilience</th><th>Heuristic resilience</th><th>Δ RAUC signal</th><th>PPO material</th><th>PPO crew</th><th>PPO prep</th><th>Tail</th></tr></thead>
+          <tbody>{result.candidate.trajectory.map((day, index) => {
+            const baseline = result.baseline.trajectory[index]
+            return <tr key={day.day}><td>{day.day}</td><td>{day.shock.type ? shockDisplayName(day.shock.type) : 'Clear'}{day.shock.forced ? <small>forced</small> : null}</td><td>{percent(day.resilience)}</td><td>{percent(baseline.resilience)}</td><td className={day.resilience >= baseline.resilience ? 'positive' : 'negative'}>{((day.resilience - baseline.resilience) * 100).toFixed(2)} pp</td><td>{units(day.material_used)}</td><td>{units(day.crew_used)}</td><td>{units(day.preparedness_investment.reduce((sum, value) => sum + value, 0))}</td><td>{day.shock.assessment_tail ? 'Assessment' : 'Operations'}</td></tr>
+          })}</tbody>
         </table>
       </div>
-    </div>
+    </section>
   )
 }
 
-function AnalystToolbox({
-  onOpenGame,
-  initialResult,
-}: {
-  onOpenGame: (result: CompareResponse | null) => void
-  initialResult?: CompareResponse | null
-}) {
+function DispatchView({ result, selectedDay, planner, onPlanner }: { result: CompareResponse; selectedDay: number; planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
+  const day = result[planner].trajectory[selectedDay - 1]
+  const residual = Math.max(...day.logistics.conservation_residual.map(Math.abs))
+  return (
+    <section className="table-view dispatch-view" aria-labelledby="dispatch-heading">
+      <header className="table-heading"><div><p className="eyebrow">Day {selectedDay} / physical ledger</p><h3 id="dispatch-heading">Dispatch manifest</h3></div><PlannerToggle planner={planner} onPlanner={onPlanner} /></header>
+      <div className="manifest-summary"><div><span>Road capacity</span><b>{percent(day.logistics.road_capacity)}</b></div><div><span>Maximum residual</span><b>{residual.toExponential(3)}</b></div><div><span>Pending next day</span><b>{units(day.logistics.pending_next_day.reduce((sum, value) => sum + value, 0))}</b></div><div><span>Repair supply</span><b>{units(day.logistics.repair_supply.reduce((sum, value) => sum + value, 0))}</b></div></div>
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Depot dispatch manifest">
+        <table><thead><tr><th>Depot</th><th>Stock before</th><th>Arrivals landed</th><th>Preparedness consumed</th><th>Repair committed</th><th>Crew assigned</th><th>Effective repair</th><th>Stock end</th><th>Pending</th></tr></thead>
+          <tbody>{services.map((service, index) => <tr key={service}><td><b>{serviceCodes[service]}</b><small>{serviceLabel(service)}</small></td><td>{units(day.logistics.depot_stock_before[index])}</td><td>{units(day.logistics.pending_arrivals_landed[index] + day.logistics.same_day_delivery_landed[index])}</td><td>{units(day.logistics.preparedness_material_consumed[index])}</td><td>{units(day.logistics.repair_material_committed[index])}</td><td>{units(day.logistics.preparedness_crew_assigned[index] + day.logistics.repair_crew_assigned[index])}</td><td>{units(day.logistics.repair_supply[index])}</td><td>{units(day.logistics.depot_stock_end[index])}</td><td>{units(day.logistics.pending_next_day[index])}</td></tr>)}</tbody>
+        </table>
+      </div>
+      {day.logistics.mutual_aid_transfers.length ? <div className="transfer-list"><h4>Recorded mutual aid</h4>{day.logistics.mutual_aid_transfers.map((transfer, index) => <span key={`${transfer.from_service}-${transfer.to_service}-${index}`}>{serviceCodes[transfer.from_service]} → {serviceCodes[transfer.to_service]} <b>{units(transfer.units)}</b></span>)}</div> : <p className="quiet-receipt">No inter-depot mutual-aid transfer was recorded on this day.</p>}
+    </section>
+  )
+}
+
+function DecisionView({ result, planner, onPlanner }: { result: CompareResponse; planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
+  return (
+    <section className="decision-view" aria-labelledby="decision-heading">
+      <header className="table-heading"><div><p className="eyebrow">Raw policy interface / all days</p><h3 id="decision-heading">Decision log</h3></div><PlannerToggle planner={planner} onPlanner={onPlanner} /></header>
+      <div className="decision-list">{result[planner].trajectory.map((day) => (
+        <article key={day.day}>
+          <header><b>Day {String(day.day).padStart(2, '0')}</b><span>{day.shock.type ? `${shockDisplayName(day.shock.type)} · ${percent(day.shock.severity)}` : 'Clear operations'}</span><em>reward {day.reward.toFixed(3)}</em></header>
+          <div className="action-groups">{actionGroupSummaries(day).map((group) => <div key={group.label}><span>{group.label}</span><b>{group.value.toFixed(4)}</b></div>)}</div>
+          <footer><span>Material {units(day.material_used)}</span><span>Crew {units(day.crew_used)}</span><span>Stock {units(day.stock_release.reduce((sum, value) => sum + value, 0))}</span><span>Prep {units(day.preparedness_investment.reduce((sum, value) => sum + value, 0))}</span>{day.planner_evidence ? <code>{JSON.stringify(day.planner_evidence)}</code> : <small>Direct PPO action · no narrative forecast</small>}</footer>
+        </article>
+      ))}</div>
+    </section>
+  )
+}
+
+function ArchitecturePanel({ metadata, result, failure }: { metadata: MetadataV3 | null; result: CompareResponse | null; failure: LoadFailure | null }) {
+  const observations = metadata?.model.observation_order ?? result?.observation_order ?? []
+  const actions = metadata?.model.action_order ?? result?.action_order ?? []
+  return (
+    <section className="architecture-panel" aria-labelledby="architecture-heading">
+      <header><div><p className="eyebrow">V3 only / loaded evidence</p><h2 id="architecture-heading">Policy architecture & interface</h2></div><span className={metadata ? 'seal-ready' : 'seal-pending'}>{metadata ? <ShieldCheck size={15} /> : <CircleDot size={15} />}{metadata ? 'Verified release manifest' : 'Release manifest unavailable'}</span></header>
+      <div className="architecture-flow">
+        <article><Database size={18} /><span>Public observation</span><strong>{observations.length || '—'}</strong><small>causal channels</small></article><ChevronRight size={18} />
+        <article><Cpu size={18} /><span>{metadata?.model.algorithm ?? 'PPO V3 policy'}</span><strong>{metadata ? compactNumber(metadata.model.trainable_parameters) : '—'}</strong><small>{metadata ? 'trainable parameters' : 'parameters withheld'}</small></article><ChevronRight size={18} />
+        <article><SlidersHorizontal size={18} /><span>Continuous control</span><strong>{actions.length || '—'}</strong><small>bounded actions</small></article><ChevronRight size={18} />
+        <article><Building2 size={18} /><span>Exact solver</span><strong>2×</strong><small>material + crew projections</small></article>
+      </div>
+      {metadata ? (
+        <div className="architecture-facts">
+          <div><span>Model</span><b>{metadata.model.id}</b><small>{metadata.model.version} · {metadata.model.artifact_type}</small></div>
+          <div><span>Training</span><b>{metadata.model.completed_training_transitions.toLocaleString()}</b><small>completed / {metadata.model.requested_training_transitions.toLocaleString()} requested transitions</small></div>
+          <div><span>Runtime artifact</span><code>{shortHash(metadata.model.onnx_sha256)}</code><small>ONNX SHA-256</small></div>
+          <div><span>Parity receipt</span><code>{shortHash(metadata.model.parity_sha256)}</code><small>selected checkpoint ↔ export</small></div>
+        </div>
+      ) : <p className="architecture-withheld"><AlertTriangle size={15} />{failure?.message ?? 'Model parameters, hashes, and training receipts appear only after the backend verifies the sealed V3 bundle.'}</p>}
+      {observations.length && actions.length ? (
+        <div className="contract-columns">
+          <details><summary><span>Observation contract</span><b>{observations.length} ordered channels</b><ChevronRight size={15} /></summary><ol>{observations.map((name) => <li key={name}><code>{name}</code></li>)}</ol></details>
+          <details><summary><span>Action contract</span><b>{actions.length} ordered controls</b><ChevronRight size={15} /></summary><ol>{actions.map((name) => <li key={name}><code>{name}</code></li>)}</ol></details>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse) => void }) {
+  const [metadata, setMetadata] = useState<MetadataV3 | null>(null)
+  const [metadataFailure, setMetadataFailure] = useState<LoadFailure | null>(null)
   const [draft, setDraft] = useState<Scenario>(initialResult?.scenario ?? defaultScenario)
   const [seed, setSeed] = useState(initialResult?.seed ?? defaultSeed)
   const [result, setResult] = useState<CompareResponse | null>(initialResult ?? null)
-  const [busy, setBusy] = useState(!initialResult)
-  const [error, setError] = useState<ComparisonFailure | null>(null)
-  const [selectedDay, setSelectedDay] = useState(initialResult ? Math.min(5, initialResult.scenario.horizon_days) : 5)
-  const [view, setView] = useState<ViewMode>('trajectory')
   const [savedRuns, setSavedRuns] = useState<SavedResultSummary[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<LoadFailure | null>(null)
+  const [selectedDay, setSelectedDay] = useState(initialResult ? 5 : 5)
+  const [planner, setPlanner] = useState<PlannerKey>('candidate')
+  const [view, setView] = useState<ViewMode>('trajectory')
   const errorRef = useRef<HTMLDivElement>(null)
 
-  const execute = useCallback(async (scenario: Scenario, runSeed: number, signal?: AbortSignal) => {
-    setBusy(true)
-    setError(null)
+  const refreshMetadata = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await runComparison(runSeed, scenario, signal)
-      setResult(response)
-      setSelectedDay(Math.min(5, response.scenario.horizon_days))
-      setSavedRuns(await listSimulations(signal))
+      const payload = await fetchMetadata(signal)
+      setMetadata(payload)
+      setMetadataFailure(null)
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') return
-      setResult(null)
-      setError({
-        code: caught instanceof ComparisonError ? caught.code : 'RUNTIME_UNREACHABLE',
-        message: caught instanceof Error ? caught.message : 'The comparison could not be completed.',
+      if (signal?.aborted) return
+      setMetadata(null)
+      setMetadataFailure({
+        code: caught instanceof ComparisonError ? caught.code : 'METADATA_UNAVAILABLE',
+        message: caught instanceof Error ? caught.message : 'Verified V3 metadata is unavailable.',
       })
-    } finally {
-      if (!signal?.aborted) setBusy(false)
     }
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    void refreshMetadata(controller.signal)
+    void listSimulations(controller.signal).then(setSavedRuns).catch(() => undefined)
+    return () => controller.abort()
+  }, [refreshMetadata])
+
+  useEffect(() => {
+    if (!error) return
+    errorRef.current?.focus()
+  }, [error])
+
+  const execute = useCallback(async () => {
+    if (!metadata || scenarioIssue(draft, seed)) return
+    setBusy(true)
+    setError(null)
+    try {
+      const response = await runComparison(seed, draft)
+      setResult(response)
+      setSelectedDay(5)
+      setPlanner('candidate')
+      setView('trajectory')
+      setSavedRuns(await listSimulations())
+    } catch (caught) {
+      setError({
+        code: caught instanceof ComparisonError ? caught.code : 'RUNTIME_UNREACHABLE',
+        message: caught instanceof Error ? caught.message : 'The paired comparison could not be completed.',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }, [draft, metadata, seed])
+
   const restore = useCallback(async (resultId: string) => {
     setBusy(true)
-    setResult(null)
     setError(null)
     try {
       const response = await loadSimulation(resultId)
       setResult(response)
       setDraft(response.scenario)
       setSeed(response.seed)
-      setSelectedDay(Math.min(5, response.scenario.horizon_days))
+      setSelectedDay(5)
+      setPlanner('candidate')
       setView('trajectory')
-      setSavedRuns(await listSimulations())
     } catch (caught) {
       setError({
         code: caught instanceof ComparisonError ? caught.code : 'PERSISTENCE_FAILED',
-        message: caught instanceof Error ? caught.message : 'The saved result could not be restored.',
+        message: caught instanceof Error ? caught.message : 'The saved V3 result could not be restored.',
       })
     } finally {
       setBusy(false)
     }
   }, [])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    if (initialResult) {
-      void listSimulations(controller.signal).then(setSavedRuns).catch(() => undefined)
-      return () => controller.abort()
-    }
-    void execute(defaultScenario, defaultSeed, controller.signal)
-    return () => controller.abort()
-  }, [execute, initialResult])
-
-  useEffect(() => {
-    if (!error) return
-    errorRef.current?.focus()
-    errorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'auto' })
-  }, [error])
-
-  const candidateWins = (result?.comparison.candidate_minus_baseline ?? 0) >= 0
-  const shockCount = result?.shock_schedule.filter((shock) => shock.type).length ?? 0
-  const runtimeBlocked = error !== null && error.code !== 'INVALID_SCENARIO'
-  const candidateViolationTotal = result ? measuredViolations(result, 'candidate') : 0
-  const baselineViolationTotal = result ? measuredViolations(result, 'baseline') : 0
-  const draftChanged = result !== null && (
-    seed !== result.seed || !scenariosMatch(draft, result.scenario)
-  )
-
   const reset = () => {
     setDraft(defaultScenario)
     setSeed(defaultSeed)
-    setResult(null)
     setError(null)
-    setSelectedDay(5)
-    setView('trajectory')
   }
 
+  const draftChanged = result ? seed !== result.seed || !scenariosMatch(draft, result.scenario) : false
   const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const currentIndex = viewModes.indexOf(view)
-    let nextView: ViewMode | null = null
-    if (event.key === 'ArrowRight') nextView = viewModes[(currentIndex + 1) % viewModes.length]
-    if (event.key === 'ArrowLeft') nextView = viewModes[(currentIndex - 1 + viewModes.length) % viewModes.length]
-    if (event.key === 'Home') nextView = viewModes[0]
-    if (event.key === 'End') nextView = viewModes[viewModes.length - 1]
-    if (nextView === null) return
+    const index = viewModes.indexOf(view)
+    let next: ViewMode | null = null
+    if (event.key === 'ArrowRight') next = viewModes[(index + 1) % viewModes.length]
+    if (event.key === 'ArrowLeft') next = viewModes[(index - 1 + viewModes.length) % viewModes.length]
+    if (event.key === 'Home') next = viewModes[0]
+    if (event.key === 'End') next = viewModes.at(-1) ?? null
+    if (!next) return
     event.preventDefault()
-    setView(nextView)
-    document.getElementById(`tab-${nextView}`)?.focus()
-  }
-
-  const reviewScenarioControls = () => {
-    const invalidField = document.querySelector<HTMLElement>('input:invalid, select:invalid')
-    const fieldHints: [string, string][] = [
-      ['severity_min', '#severity-min'],
-      ['severity_max', '#severity-max'],
-      ['horizon_days', '#horizon-days'],
-      ['daily_budget', '#daily-budget'],
-      ['shock_probability', '#shock-probability'],
-    ]
-    const hintedSelector = fieldHints.find(([hint]) => error?.message.includes(hint))?.[1]
-    const hintedField = hintedSelector ? document.querySelector<HTMLElement>(hintedSelector) : null
-    const target = invalidField ?? hintedField ?? document.getElementById('scenario-title')
-    target?.focus()
-    target?.scrollIntoView?.({ block: 'center', behavior: 'auto' })
+    setView(next)
+    document.getElementById(`tab-${next}`)?.focus()
   }
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand-block">
-          <div className="brand-mark" aria-hidden="true"><span /><span /><span /><span /><span /></div>
-          <div><p>RELAY / evidence room</p><h1>Analyst Toolbox</h1></div>
-        </div>
-        <div className="toolbox-top-actions">
-          <button
-            type="button"
-            className="city-switch"
-            disabled={busy || !result || draftChanged}
-            title={draftChanged ? 'Run the current draft before opening the city' : undefined}
-            onClick={() => onOpenGame(result)}
-          >
-            <Play size={15} fill="currentColor" />City view
-          </button>
-          <div className={`runtime-strip ${runtimeBlocked ? 'runtime-blocked' : ''}`}>
-            <span className={`status-dot ${runtimeBlocked ? 'status-error' : ''}`} />
-            <span className="runtime-label">{runtimeBlocked ? 'Policy blocked' : 'Local deterministic PPO'}</span>
-            <span className="runtime-mobile-label" aria-hidden="true">{busy ? 'Running' : 'Local'}</span>
-            <b>ONNX / PCG64</b>
-            <span className="synthetic-chip"><Database size={14} />Synthetic model</span>
-          </div>
-        </div>
+        <div className="brand-block"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><div><p>Municipal recovery lab</p><h1>RELAY / Analyst Toolbox</h1></div></div>
+        <BenchmarkRail metadata={metadata} failure={metadataFailure} />
+        <button className="city-switch" type="button" disabled={!result || busy || draftChanged} onClick={() => result && onOpenGame(result)}><Building2 size={15} />Open 3D city<ArrowUpRight size={14} /></button>
       </header>
 
       <main className="workspace">
-        <ScenarioEditor
-          draft={draft}
-          seed={seed}
-          busy={busy}
-          onDraft={setDraft}
-          onSeed={setSeed}
-          onRun={() => void execute(draft, seed)}
-          onReset={reset}
-          savedRuns={savedRuns}
-          onRestore={(resultId) => void restore(resultId)}
-        />
+        <ScenarioEditor draft={draft} seed={seed} busy={busy} runReady={metadata !== null} savedRuns={savedRuns} onDraft={setDraft} onSeed={setSeed} onRun={() => void execute()} onReset={reset} onRestore={(id) => void restore(id)} onRecheck={() => void refreshMetadata()} />
         <section className="results-panel" aria-live="polite" aria-busy={busy}>
-          {error ? (
-            <div ref={errorRef} className={`blocking-error ${error.code === 'INVALID_SCENARIO' ? 'invalid-error' : ''}`} role="alert" tabIndex={-1}>
-              <AlertTriangle size={24} aria-hidden="true" />
-              <div>
-                <h2>{error.code === 'INVALID_SCENARIO' ? 'Scenario invalid' : 'Comparison blocked'}</h2>
-                <p>{error.message}</p>
-                <button type="button" onClick={error.code === 'INVALID_SCENARIO' ? reviewScenarioControls : () => void execute(draft, seed)}>
-                  {error.code === 'INVALID_SCENARIO' ? 'Review scenario controls' : 'Try again'}
-                </button>
-              </div>
-            </div>
-          ) : null}
+          {error ? <div className="blocking-error" ref={errorRef} tabIndex={-1} role="alert"><AlertTriangle size={20} /><div><p>{error.code}</p><h2>Comparison blocked</h2><span>{error.message}</span></div><button type="button" onClick={() => setError(null)}>Dismiss</button></div> : null}
+          {busy ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} />Resolving two planners against one frozen 30-day shock tape…</div> : null}
 
-          {busy && !result ? (
-            <div className="loading-state" role="status" aria-label="Computing both recovery plans">
-              <Activity className="spin" size={28} /><h2>Computing shared shock tape</h2><p>Running both planners through the same daily conditions.</p>
-            </div>
-          ) : null}
-
-          {!busy && !result && !error ? (
-            <div className="empty-state">
-              <Activity size={24} /><h2>No trajectory yet</h2><p>Run a bounded recovery scenario to compare both planners.</p>
-            </div>
-          ) : null}
-
-          {result ? (
+          {!result ? (
+            <section className="empty-state">
+              <div className="empty-grid" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
+              <p className="eyebrow">Technical judge workbench</p>
+              <h2>One scenario. Two planners.<br />Two independent verdicts.</h2>
+              <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs PPO V3 and the reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
+              <div className="empty-protocol"><span><b>30</b> days</span><span><b>73</b> public inputs</span><span><b>22</b> actions</span><span><b>3</b> assessment days</span></div>
+              <small>{metadata ? 'Verified release ready. Run the paired trace from the scenario panel.' : 'Run remains disabled until the sealed V3 model and final benchmark cross-verify.'}</small>
+            </section>
+          ) : (
             <>
-              <div className="results-header">
-                <div>
-                  <p className="section-kicker">Comparison / seed {result.seed}</p>
-                  <h2>{result.scenario.name}</h2>
-                </div>
-                <div className="result-statuses">
-                  {draftChanged ? <div className="draft-status" role="status"><b>Draft changed</b><span>Run to refresh evidence</span></div> : null}
-                  <div
-                    className="proof-badge"
-                    aria-label={`Measured constraint violations: candidate ${candidateViolationTotal}, baseline ${baselineViolationTotal}`}
-                  >
-                    <Scale size={18} />
-                    <span><b>Candidate {candidateViolationTotal} / baseline {baselineViolationTotal}</b>Measured constraint violations</span>
-                  </div>
-                </div>
-              </div>
+              <header className="results-heading">
+                <div><p className="eyebrow">Result {result.result_id.slice(0, 10)} / seed {result.seed}</p><h2>{result.scenario.name}</h2><span>Official outcome definition <code>{shortHash(result.outcome_definition_sha256)}</code></span></div>
+                <div className="result-receipts"><span data-ok={result.candidate.hard_violation_count === 0 && result.baseline.hard_violation_count === 0}><ShieldCheck size={15} />Hard violations {result.candidate.hard_violation_count + result.baseline.hard_violation_count}</span><span><Database size={15} />Tape {shortHash(result.shock_schedule_sha256)}</span>{draftChanged ? <b>Draft changed · run to refresh</b> : null}</div>
+              </header>
 
-              <section className="metric-ribbon" aria-label="Comparison summary">
-                <div className="primary-metric"><span>Candidate resilience AUC</span><strong>{formatPercent(result.candidate.rauc)}</strong><small>SB3 PPO / ONNX</small></div>
-                <div className="metric-divider" aria-hidden="true" />
-                <div className="comparison-metric">
-                  <span>Baseline resilience AUC</span>
-                  <strong>{formatPercent(result.baseline.rauc)}</strong>
-                  <small>Visible OR-Tools GLOP</small>
-                  <em className={`delta-readout ${candidateWins ? 'positive' : 'negative'}`}>Measured delta {result.comparison.candidate_minus_baseline >= 0 ? '+' : ''}{(result.comparison.candidate_minus_baseline * 100).toFixed(2)} pp</em>
-                </div>
-                <dl className="run-facts">
-                  <div><dt>Shocks</dt><dd>{shockCount}</dd></div>
-                  <div>
-                    <dt>Recovery days</dt>
-                    <dd aria-label={`Candidate ${result.candidate.days_to_pre_shock_recovery_after_largest_loss}, baseline ${result.baseline.days_to_pre_shock_recovery_after_largest_loss}`}>
-                      <span className="planner-key candidate-key" aria-hidden="true">C</span> {result.candidate.days_to_pre_shock_recovery_after_largest_loss}
-                      <span aria-hidden="true"> / </span>
-                      <span className="planner-key baseline-key" aria-hidden="true">B</span> {result.baseline.days_to_pre_shock_recovery_after_largest_loss}
-                    </dd>
-                  </div>
-                  <div><dt>Daily budget</dt><dd>{result.scenario.daily_budget}</dd></div>
-                </dl>
-              </section>
+              <VerdictPair result={result} />
 
-              <div className="view-tabs" role="tablist" aria-label="Result view">
-                <button id="tab-trajectory" type="button" role="tab" aria-selected={view === 'trajectory'} aria-controls="panel-trajectory" tabIndex={view === 'trajectory' ? 0 : -1} className={view === 'trajectory' ? 'active' : ''} onClick={() => setView('trajectory')} onKeyDown={handleTabKey}>Trajectory</button>
-                <button id="tab-audit" type="button" role="tab" aria-selected={view === 'audit'} aria-controls="panel-audit" tabIndex={view === 'audit' ? 0 : -1} className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')} onKeyDown={handleTabKey}>Daily audit</button>
-                <button id="tab-recommendations" type="button" role="tab" aria-selected={view === 'recommendations'} aria-controls="panel-recommendations" tabIndex={view === 'recommendations' ? 0 : -1} className={view === 'recommendations' ? 'active' : ''} onClick={() => setView('recommendations')} onKeyDown={handleTabKey}>Recommendations</button>
-              </div>
+              <nav className="view-tabs" role="tablist" aria-label="Result evidence views">
+                {viewModes.map((mode) => <button key={mode} id={`tab-${mode}`} type="button" role="tab" tabIndex={view === mode ? 0 : -1} aria-selected={view === mode} className={view === mode ? 'active' : ''} onClick={() => setView(mode)} onKeyDown={handleTabKey}>{mode === 'audit' ? 'Daily audit' : mode === 'dispatch' ? 'Dispatch manifest' : mode === 'decisions' ? 'Decision log' : 'Trajectory'}</button>)}
+              </nav>
 
-              <div id="panel-trajectory" role="tabpanel" aria-labelledby="tab-trajectory" hidden={view !== 'trajectory'}>
-                <div className="trajectory-layout">
-                  <ResilienceChart result={result} selectedDay={selectedDay} />
-                  <DayInspector result={result} selectedDay={selectedDay} onDay={setSelectedDay} />
-                </div>
+              <div role="tabpanel" aria-labelledby="tab-trajectory" hidden={view !== 'trajectory'}>
+                <PairedTrace result={result} selectedDay={selectedDay} onDay={setSelectedDay} />
+                <DayInspector result={result} selectedDay={selectedDay} planner={planner} onPlanner={setPlanner} />
               </div>
-              <div id="panel-audit" role="tabpanel" aria-labelledby="tab-audit" hidden={view !== 'audit'}>
-                <AuditTable result={result} />
-              </div>
-              <div id="panel-recommendations" role="tabpanel" aria-labelledby="tab-recommendations" hidden={view !== 'recommendations'}>
-                <RecommendationsPanel result={result} />
-              </div>
+              <div role="tabpanel" aria-labelledby="tab-audit" hidden={view !== 'audit'}><AuditView result={result} /></div>
+              <div role="tabpanel" aria-labelledby="tab-dispatch" hidden={view !== 'dispatch'}><DispatchView result={result} selectedDay={selectedDay} planner={planner} onPlanner={setPlanner} /></div>
+              <div role="tabpanel" aria-labelledby="tab-decisions" hidden={view !== 'decisions'}><DecisionView result={result} planner={planner} onPlanner={setPlanner} /></div>
 
-              <footer className="evidence-footer">
-                <div><b>Shock tape</b><code>{result.shock_schedule_sha256.slice(0, 16)}…</code></div>
-                <div><b>ONNX policy</b><code>{result.policy.sha256.slice(0, 16)}…</code></div>
-                <p>{result.policy.disclosure} {result.policy.legacy_candidate.disclosure}</p>
-              </footer>
+              <footer className="evidence-footer"><div><span>Policy</span><code>{shortHash(result.policy.sha256)}</code></div><div><span>Candidate trajectory</span><code>{shortHash(result.candidate.trajectory_sha256)}</code></div><div><span>Heuristic trajectory</span><code>{shortHash(result.baseline.trajectory_sha256)}</code></div></footer>
             </>
-          ) : null}
-          {busy && result ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} /> Recomputing both trajectories</div> : null}
+          )}
+
+          <ArchitecturePanel metadata={metadata} result={result} failure={metadataFailure} />
         </section>
       </main>
     </div>
   )
 }
 
-type AppRoute = 'game' | 'toolbox'
-
 function routeFromHash(): AppRoute {
-  return window.location.hash.toLowerCase().startsWith('#/toolbox') ? 'toolbox' : 'game'
+  return window.location.hash.toLowerCase().startsWith('#/game') ? 'game' : 'toolbox'
 }
 
 function App() {
@@ -733,10 +635,10 @@ function App() {
   const [toolboxLaunchResult, setToolboxLaunchResult] = useState<CompareResponse | null>(null)
 
   useEffect(() => {
-    if (!window.location.hash) window.history.replaceState(null, '', '#/game')
-    const syncRoute = () => setRoute(routeFromHash())
-    window.addEventListener('hashchange', syncRoute)
-    return () => window.removeEventListener('hashchange', syncRoute)
+    if (!window.location.hash) window.history.replaceState(null, '', '#/toolbox')
+    const sync = () => setRoute(routeFromHash())
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
   }, [])
 
   const navigate = (next: AppRoute) => {
@@ -744,34 +646,13 @@ function App() {
     setRoute(next)
   }
 
-  const recordGameResult = useCallback((result: CompareResponse) => {
-    setLatestResult(result)
-    setGameLaunchResult(null)
-  }, [])
-
-  return route === 'toolbox'
-    ? (
-        <AnalystToolbox
-          initialResult={toolboxLaunchResult}
-          onOpenGame={(result) => {
-            if (!result) return
-            setGameLaunchResult(result)
-            setLatestResult(result)
-            setToolboxLaunchResult(null)
-            navigate('game')
-          }}
-        />
-      )
-    : (
-        <CityGame
-          initialResult={gameLaunchResult}
-          onResult={recordGameResult}
-          onOpenToolbox={() => {
-            setToolboxLaunchResult(latestResult ?? gameLaunchResult)
-            navigate('toolbox')
-          }}
-        />
-      )
+  return route === 'toolbox' ? (
+    <AnalystToolbox initialResult={toolboxLaunchResult} onOpenGame={(result) => { setLatestResult(result); setGameLaunchResult(result); setToolboxLaunchResult(null); navigate('game') }} />
+  ) : (
+    <Suspense fallback={<div className="route-loading" role="status"><Activity className="spin" size={22} /><b>Loading the 3D city renderer</b></div>}>
+      <CityGame initialResult={gameLaunchResult} onResult={(result) => { setLatestResult(result); setGameLaunchResult(null) }} onOpenToolbox={() => { setToolboxLaunchResult(latestResult ?? gameLaunchResult); navigate('toolbox') }} />
+    </Suspense>
+  )
 }
 
 export default App

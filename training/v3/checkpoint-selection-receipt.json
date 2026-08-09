@@ -1,0 +1,159 @@
+{
+  "campaign_provenance_sha256": "6d5c347ec8f90e0c9f291831a678959920db92573c2a710344c3317c3e3ceb25",
+  "candidate_reports": [
+    {
+      "candidate_critical_service_days": 211,
+      "candidate_mean_resilience_auc": 0.4941044962,
+      "candidate_solved_count": 29,
+      "completed_transitions": 92160,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-01-transition-000092160.zip",
+      "rows_sha256": "3f4fa52a4e6eabe6193791e164a1dac0f0090980b4ef7d42407946a709f2fb14",
+      "sha256": "f85150ad01487e5a0695b5ef8c4ef32767a8cbf50d3f3d6b83dc0cbe4c27e78b",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 209,
+      "candidate_mean_resilience_auc": 0.4941463855,
+      "candidate_solved_count": 29,
+      "completed_transitions": 184320,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-02-transition-000184320.zip",
+      "rows_sha256": "2927281a538c923c7e35460b1561dcb245ddfe583ce56d16f5cdd3bebb2c2740",
+      "sha256": "9e041b44e780ae54483ea80f7a566fbf72d436c7b831e2b769e94e15fabb262e",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 205,
+      "candidate_mean_resilience_auc": 0.495288547,
+      "candidate_solved_count": 30,
+      "completed_transitions": 276480,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-03-transition-000276480.zip",
+      "rows_sha256": "f9ea87e0da70eb4e7d8e636a6af1b1c45935f83d68db05ad8ad25ccf7334f09a",
+      "sha256": "256d31a482362afcc5e3080c36aedb0c268f6a7c687d3b851cf028401873e600",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 205,
+      "candidate_mean_resilience_auc": 0.4957969655,
+      "candidate_solved_count": 27,
+      "completed_transitions": 368640,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-04-transition-000368640.zip",
+      "rows_sha256": "0789c9d2127d84ac9c6e12c0cb0c900b04791368e6960d6993bca2a239fb3342",
+      "sha256": "ff1192ccf2db2a89457b1a537e8d238848f3cc2ed677bbc83d2b49542baaaf9e",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 204,
+      "candidate_mean_resilience_auc": 0.496072371,
+      "candidate_solved_count": 29,
+      "completed_transitions": 460800,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-05-transition-000460800.zip",
+      "rows_sha256": "9ce94e24aeded8e465c1dbbe2a85404f4670e55d7cab34cf67485a6df9f1d1b6",
+      "sha256": "24ddac94c55a348c91e3ed6f6ee78a284d58644ad67ff598b4e84325eda1f641",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 200,
+      "candidate_mean_resilience_auc": 0.4963570975,
+      "candidate_solved_count": 31,
+      "completed_transitions": 552960,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "internal/training_runs/v3/checkpoints/stage-06-transition-000552960.zip",
+      "rows_sha256": "559c0f13d894233d89ada91466f218fae96e7bbade7fdbc64e7e49369508249e",
+      "sha256": "3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b",
+      "source": "checkpoint_ledger"
+    },
+    {
+      "candidate_critical_service_days": 201,
+      "candidate_mean_resilience_auc": 0.4963402568,
+      "candidate_solved_count": 30,
+      "completed_transitions": 645120,
+      "deterministic_replay_mismatches": 0,
+      "development_case_count": 40,
+      "hard_violation_count": 0,
+      "max_conservation_residual": 0.0,
+      "path": "artifacts/city_recovery_ppo.v3.zip",
+      "rows_sha256": "af6f5e09742038d63acfe77de1357f48902791e707ef489613adae4d2dc5f4e6",
+      "sha256": "93e2f72d898b5739422501256c5c390ae11ea22c94b126e712e9da7374b64308",
+      "source": "terminal_checkpoint"
+    }
+  ],
+  "checkpoint_ledger_sha256": "f9f0e9211762671d01c6fc5b5fba499f8d2df4533af59e7a3fe4f1168e9e4c9e",
+  "development_case_count": 40,
+  "engine_spec_sha256": "34168cdf6a761dfd3be4ab7af8a4ef895561d4af1b3976c232c28502386b731e",
+  "final_split_accessed": false,
+  "outcome_definition_sha256": "d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d798a8f0afc896df82",
+  "protocol_sha256": "d512b74512dc9203bfac7e81d90245176732655d0e3ada54e3a6851fec3e3762",
+  "ranking": [
+    "candidate_solved_count:descending",
+    "candidate_mean_resilience_auc:descending",
+    "completed_transitions:ascending",
+    "checkpoint_sha256:ascending"
+  ],
+  "receipt_semantic_sha256": "df8035668cd20c79bcc7ffdb873b0f04ddcfd33f6f642bb16adb154324e57636",
+  "schema_version": 1,
+  "scientific_source_sha256": "f0fd873a075f86e418eb4841a87f964e090189eca6f04df01255aa5a3b2bb3d9",
+  "selected_checkpoint": {
+    "candidate_critical_service_days": 200,
+    "candidate_mean_resilience_auc": 0.4963570975,
+    "candidate_solved_count": 31,
+    "completed_transitions": 552960,
+    "deterministic_replay_mismatches": 0,
+    "development_case_count": 40,
+    "hard_violation_count": 0,
+    "max_conservation_residual": 0.0,
+    "path": "internal/training_runs/v3/checkpoints/stage-06-transition-000552960.zip",
+    "rows_sha256": "559c0f13d894233d89ada91466f218fae96e7bbade7fdbc64e7e49369508249e",
+    "sha256": "3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b",
+    "source": "checkpoint_ledger"
+  },
+  "selected_deployment": {
+    "checkpoint": {
+      "completed_transitions": 552960,
+      "path": "internal/training_runs/v3/checkpoints/stage-06-transition-000552960.zip",
+      "sha256": "3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b"
+    },
+    "manifest": {
+      "path": "artifacts/model_manifest.v3.selected.json",
+      "sha256": "37894df4a16e4074d456bca206facf0ea14bfed29b6de04d6337a1c7220d8fc7"
+    },
+    "onnx": {
+      "bytes": 654398,
+      "path": "artifacts/city_recovery_ppo.v3.selected.onnx",
+      "sha256": "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b"
+    },
+    "parity": {
+      "path": "training/v3/selected-onnx-parity.json",
+      "sha256": "c1532c26c33cf88a6db773feae71222ebf3d6a972655b1eb1b82ec0c16d2ae17"
+    }
+  },
+  "selection_dataset": "development",
+  "source_seal_sha256": "c21f467a372d25cb4383123fce411afdf6bd36344a29897cc2a8844a7833e1a1",
+  "status": "checkpoint_selected_on_development_only",
+  "training_config_sha256": "c27a32d804c86af2491d1685ce84b2e08a4f350c4893b1102e08c258e6741334",
+  "training_receipt_sha256": "825ab65185753b9087836fc0d940328b08d49b787451e5156d46dd512f4101ce",
+  "training_terminal_sha256": "41b4ac5cf3dbc481436299c92e1ee11572e160cbd26ec50f28eff997188b9c26",
+  "training_use_receipt_sha256": "123c26989ec01c33a2bf8294212ad4a63ea4a8816ca315e3a14d71d937a38755"
+}

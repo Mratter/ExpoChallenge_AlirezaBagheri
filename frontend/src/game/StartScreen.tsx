@@ -109,7 +109,7 @@ export function StartScreen({
             <strong>{isStressTest ? 'Six for this run' : 'Unlimited in Sandbox'}</strong>
             <span>{isStressTest
               ? 'Difficulty changes city conditions, not the six-disaster allowance.'
-              : 'Throw as many disasters as you choose. City-condition collapse rules remain active.'}</span>
+              : 'Inject incidents through day 27. Days 28–30 remain shock-free for the official assessment.'}</span>
           </div>
           {isStressTest ? (
             <span className="session-arsenal-rack" role="img" aria-label="6 disasters available">

@@ -1,3 +1,11 @@
+import {
+  CITY_CAMERA_LAYOUT,
+  CITY_CAMERA_TARGET_Y,
+  CITY_PLATE_CAMERA_BOUNDS,
+} from './worldLayout'
+
+export { CITY_CAMERA_TARGET_Y } from './worldLayout'
+
 export type CityCameraFraming = {
   minDistance: number
   maxDistance: number
@@ -30,15 +38,9 @@ type OrbitContainmentInput = {
   azimuthAngle: number
 }
 
-export const CITY_CAMERA_TARGET_Y = 0.35
-const PLATE_HALF_WIDTH = 12.6
-const PLATE_HALF_DEPTH = 11.6
-const PLATE_MIN_Y = -0.62
-const PLATE_MAX_Y = 0.16
-
-const PLATE_CORNERS = [-PLATE_HALF_WIDTH, PLATE_HALF_WIDTH].flatMap((x) =>
-  [PLATE_MIN_Y, PLATE_MAX_Y].flatMap((y) =>
-    [-PLATE_HALF_DEPTH, PLATE_HALF_DEPTH].map((z) => [x, y - CITY_CAMERA_TARGET_Y, z] as const),
+const PLATE_CORNERS = [-CITY_PLATE_CAMERA_BOUNDS.halfWidth, CITY_PLATE_CAMERA_BOUNDS.halfWidth].flatMap((x) =>
+  [CITY_PLATE_CAMERA_BOUNDS.minY, CITY_PLATE_CAMERA_BOUNDS.maxY].flatMap((y) =>
+    [-CITY_PLATE_CAMERA_BOUNDS.halfDepth, CITY_PLATE_CAMERA_BOUNDS.halfDepth].map((z) => [x, y - CITY_CAMERA_TARGET_Y, z] as const),
   ),
 )
 
@@ -82,7 +84,8 @@ export function cityCameraRequiredDistance({
 }: OrbitContainmentInput): number {
   const aspect = Math.max(width, 1) / Math.max(height, 1)
   const verticalFov = verticalFovDegrees * Math.PI / 180
-  return requiredDistance(verticalFov, aspect, polarAngle, azimuthAngle) * 1.045 + 0.35
+  return requiredDistance(verticalFov, aspect, polarAngle, azimuthAngle) * 1.045
+    + CITY_CAMERA_LAYOUT.containmentPadding
 }
 
 /** Applies the pose-specific containment floor without sacrificing closer safe views. */
@@ -94,9 +97,9 @@ export function cityCameraContainedDistance(
 }
 
 /**
- * Samples the complete orbit deterministically. Portrait uses the fully-contained
- * distance; landscape keeps a closer preferred composition while CityCamera applies
- * the exact pose-specific containment floor during orbit and zoom.
+ * Samples the complete orbit deterministically. Each viewport starts at an intentional
+ * composition distance while CityCamera applies the exact pose-specific containment
+ * floor during orbit and zoom.
  */
 export function cityCameraFraming({
   width,
@@ -126,16 +129,18 @@ export function cityCameraFraming({
   }
 
   const fullyContainedDistance = required
-  const compositionDistance = 40 + Math.max(0, 1 - aspect) * 28
+  const compositionDistance = aspect >= 1
+    ? CITY_CAMERA_LAYOUT.landscapeCompositionDistance
+    : CITY_CAMERA_LAYOUT.portraitCompositionDistance
   const minDistance = Math.min(fullyContainedDistance, compositionDistance)
   const maxDistance = Math.max(
-    minDistance + 14,
+    minDistance + CITY_CAMERA_LAYOUT.minimumZoomSpan,
     minDistance * 1.42,
-    fullyContainedDistance + 8,
+    fullyContainedDistance + CITY_CAMERA_LAYOUT.orbitClearance,
   )
   return {
     minDistance,
     maxDistance,
-    far: maxDistance + 42,
+    far: maxDistance + CITY_CAMERA_LAYOUT.farClearance,
   }
 }

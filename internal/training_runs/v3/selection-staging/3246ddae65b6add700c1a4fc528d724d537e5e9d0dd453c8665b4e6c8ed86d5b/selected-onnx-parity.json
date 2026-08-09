@@ -1,0 +1,36 @@
+{
+  "action_sample_count": 1200,
+  "checkpoint_sha256": "3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b",
+  "deterministic_replay_mismatches": 0,
+  "development_case_count": 40,
+  "hard_violation_count": 0,
+  "interface": {
+    "action_count": 22,
+    "execution_providers": [
+      "CPUExecutionProvider"
+    ],
+    "input_name": "observation",
+    "input_shape": [
+      "batch",
+      73
+    ],
+    "input_type": "tensor(float)",
+    "observation_count": 73,
+    "opset": 17,
+    "output_name": "action",
+    "output_shape": [
+      "batch",
+      22
+    ],
+    "output_type": "tensor(float)"
+  },
+  "maximum_action_absolute_error": 2.086162567138672e-06,
+  "maximum_conservation_residual": 0.0,
+  "maximum_rauc_absolute_error": 1.0000000050247593e-08,
+  "onnx_sha256": "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b",
+  "outcome_mismatches": 0,
+  "passed": true,
+  "rows_sha256": "2b70974100cc6acaf1f4ea859a83ffd4e4e5f7724e6ba5106015c4cb5304e6d0",
+  "schema_version": 1,
+  "status": "passed"
+}

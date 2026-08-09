@@ -1,5 +1,4 @@
-node_modules/
-dist/
+frontend/node_modules/
 .venv/
 __pycache__/
 .pytest_cache/

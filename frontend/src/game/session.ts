@@ -27,12 +27,12 @@ export const MODE_DETAILS: Readonly<Record<GameMode, {
 }>> = {
   sandbox: {
     label: 'Sandbox',
-    summary: 'Unlimited disasters and an unscored run.',
+    summary: 'Explore incidents before the frozen three-day assessment tail.',
     arsenalLimit: null,
   },
   stress: {
     label: 'Stress Test',
-    summary: 'Six disasters, a finite run, and a plain-language debrief.',
+    summary: 'Six incidents, one 30-day run, and an official outcome receipt.',
     arsenalLimit: STRESS_TEST_DISASTER_LIMIT,
   },
 }

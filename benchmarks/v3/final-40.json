@@ -1,0 +1,70 @@
+{
+  "artifact_type": "city_recovery_v3_final_benchmark",
+  "baseline": {
+    "failed_count": 26,
+    "id": "reactive-public-state-heuristic-v3",
+    "mean_resilience_auc": 0.4685284838,
+    "solve_rate": 0.35,
+    "solve_rate_wilson_ci95": [
+      0.22134529,
+      0.50494119
+    ],
+    "solved_count": 14,
+    "version": "3.0.0"
+  },
+  "candidate": {
+    "failed_count": 15,
+    "id": "city-recovery-sb3-ppo-v3-selected",
+    "mean_resilience_auc": 0.4902262923,
+    "solve_rate": 0.625,
+    "solve_rate_wilson_ci95": [
+      0.47032439,
+      0.75777021
+    ],
+    "solved_count": 25
+  },
+  "identity": {
+    "authorization_sha256": "d06238fd2e37bc88e6eceb7f20f038631dfacb06f20c27c879fae1373a58f398",
+    "candidate_runtime": "onnxruntime_cpu_selected_deployment_only",
+    "checkpoint_sha256": "3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b",
+    "completed_transitions": 552960,
+    "engine_spec_sha256": "34168cdf6a761dfd3be4ab7af8a4ef895561d4af1b3976c232c28502386b731e",
+    "manifest_sha256": "37894df4a16e4074d456bca206facf0ea14bfed29b6de04d6337a1c7220d8fc7",
+    "onnx_path": "artifacts/city_recovery_ppo.v3.selected.onnx",
+    "onnx_sha256": "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b",
+    "outcome_definition_sha256": "d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d798a8f0afc896df82",
+    "parity_sha256": "c1532c26c33cf88a6db773feae71222ebf3d6a972655b1eb1b82ec0c16d2ae17",
+    "protocol_sha256": "d512b74512dc9203bfac7e81d90245176732655d0e3ada54e3a6851fec3e3762",
+    "scientific_source_sha256": "f0fd873a075f86e418eb4841a87f964e090189eca6f04df01255aa5a3b2bb3d9",
+    "selected_policy_id": "city-recovery-sb3-ppo-v3-selected",
+    "selection_receipt_sha256": "c0644a2a33fe617de8ea7cfb29288cb273415009c758b1ce05b18038f3cb2a6e",
+    "source_seal_sha256": "c21f467a372d25cb4383123fce411afdf6bd36344a29897cc2a8844a7833e1a1"
+  },
+  "invariants": {
+    "all_rows_present": true,
+    "baseline_hard_violations": 0,
+    "candidate_hard_violations": 0,
+    "deterministic_replay_mismatches": 0,
+    "maximum_conservation_residual": 0.0,
+    "same_tapes": true,
+    "unique_rows": true
+  },
+  "ledger_sha256": "77f888f71ad045d3b99668c9ec6f11b55e9302fbb1a226f592297fb0aebdaf89",
+  "paired_absolute_outcomes": {
+    "both_solved": 14,
+    "heuristic_only": 0,
+    "neither": 15,
+    "ppo_only": 11
+  },
+  "primary_metric": "independent_absolute_disasters_solved",
+  "rows_sha256": "773ee08351caf5cc904a2dfca8e373a3e9792584195e98148db9668612a9444e",
+  "schema_version": 1,
+  "secondary_head_to_head_resilience_auc": {
+    "baseline_wins": 0,
+    "candidate_mean_minus_baseline_mean": 0.0216978085,
+    "candidate_wins": 40,
+    "ties": 0
+  },
+  "status": "complete",
+  "synthetic_case_count": 40
+}

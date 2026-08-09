@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from backend.app.simulator import canonical_hash, canonical_json_bytes
+from backend.app.simulator_core import canonical_hash, canonical_json_bytes
 
 RESULT_ID_PATTERN = re.compile(r"[0-9a-f]{64}")
 _WRITE_LOCK = threading.Lock()
@@ -28,6 +28,24 @@ def default_state_directory() -> Path:
 
 
 def result_identity(result: dict[str, Any]) -> str:
+    if result.get("engine_version") == "city-recovery-env-v3":
+        return canonical_hash(
+            {
+                "schema_version": result["schema_version"],
+                "engine_version": result["engine_version"],
+                "engine_spec_sha256": result["engine_spec_sha256"],
+                "outcome_definition_sha256": result[
+                    "outcome_definition_sha256"
+                ],
+                "seed": result["seed"],
+                "scenario": result["scenario"],
+                "policy_sha256": result["policy"]["sha256"],
+                "baseline_id": result["baseline_spec"]["id"],
+                "baseline_version": result["baseline_spec"]["version"],
+            }
+        )
+    # Preserve the shipped V2 identity formula byte-for-byte so old canonical
+    # results remain independently readable after V3 becomes primary.
     return canonical_hash(
         {
             "schema_version": result["schema_version"],
@@ -91,7 +109,9 @@ class RunStore:
             raise PersistenceError("persisted result is not canonical JSON")
         return result
 
-    def list_summaries(self) -> list[dict[str, Any]]:
+    def list_summaries(
+        self, *, engine_version: str | None = None
+    ) -> list[dict[str, Any]]:
         if not self.runs.exists():
             return []
         try:
@@ -101,15 +121,57 @@ class RunStore:
         summaries = []
         for path in paths:
             result = self.load(path.stem)
+            stored_engine = result.get("engine_version")
+            if not isinstance(stored_engine, str):
+                environment = result.get("environment")
+                environment_id = (
+                    environment.get("id") if isinstance(environment, dict) else None
+                )
+                stored_engine = (
+                    "city-recovery-env-v3"
+                    if environment_id == "CityRecoveryEnv-v3"
+                    else "city-recovery-env-v2"
+                )
+            if engine_version is not None and stored_engine != engine_version:
+                continue
+            comparison = result.get("comparison")
+            candidate = result.get("candidate")
+            baseline = result.get("baseline")
+            if (
+                not isinstance(comparison, dict)
+                or not isinstance(candidate, dict)
+                or not isinstance(baseline, dict)
+            ):
+                raise PersistenceError("persisted result summary contract is invalid")
+            outcome = comparison.get("absolute_outcome_pair", comparison.get("outcome"))
+            if not isinstance(outcome, str):
+                raise PersistenceError("persisted result outcome is invalid")
+            candidate_solved = comparison.get("candidate_solved")
+            baseline_solved = comparison.get("baseline_solved")
+            if candidate_solved is None:
+                absolute = candidate.get("absolute_outcome")
+                candidate_solved = (
+                    absolute.get("solved") if isinstance(absolute, dict) else None
+                )
+            if baseline_solved is None:
+                absolute = baseline.get("absolute_outcome")
+                baseline_solved = (
+                    absolute.get("solved") if isinstance(absolute, dict) else None
+                )
             summaries.append(
                 {
                     "result_id": result["result_id"],
+                    "schema_version": result["schema_version"],
+                    "engine_version": stored_engine,
                     "seed": result["seed"],
                     "scenario_name": result["scenario"]["name"],
                     "horizon_days": result["scenario"]["horizon_days"],
-                    "candidate_rauc": result["candidate"]["rauc"],
-                    "baseline_rauc": result["baseline"]["rauc"],
-                    "outcome": result["comparison"]["outcome"],
+                    "primary_metric": comparison.get("primary_metric"),
+                    "candidate_solved": candidate_solved,
+                    "baseline_solved": baseline_solved,
+                    "candidate_rauc": candidate["rauc"],
+                    "baseline_rauc": baseline["rauc"],
+                    "outcome": outcome,
                     "policy_sha256": result["policy"]["sha256"],
                 }
             )

@@ -1,4 +1,11 @@
 import { services as defaultServices, type CompareResponse, type DayResult, type Service } from '../types'
+import {
+  afterActionReports,
+  recoveryMilestones,
+  shockTaxedArrivalShortfall,
+  type DisasterAfterAction,
+  type RecoveryMilestone,
+} from './realism'
 
 export const CRITICAL_FLOOR = 0.12
 
@@ -78,6 +85,10 @@ export type RunDebrief = {
   baseline: CityOutcome
   disasters: DisasterTally
   conventionalCounterfactual: string
+  milestones: RecoveryMilestone[]
+  afterActions: DisasterAfterAction[]
+  shockTaxedArrivalShortfall: number
+  calmArrivalBaseline: number
 }
 
 const SERVICE_LABELS: Record<Service, string> = {
@@ -267,10 +278,10 @@ export function describeConventionalPlanner(outcome: CityOutcome): string {
   }
 
   if (outcome.fall) {
-    return `A conventional rule-based planner falls on day ${outcome.fall.day} in this same run at ${formatPercent(outcome.finalWellbeing)} weighted wellbeing${darkClause}.`
+    return `The reactive public heuristic crosses the view-only critical threshold on day ${outcome.fall.day} in this same run at ${formatPercent(outcome.finalWellbeing)} weighted wellbeing${darkClause}.`
   }
 
-  return `A conventional rule-based planner ends this same run at ${formatPercent(outcome.finalWellbeing)} weighted wellbeing${darkClause}.`
+  return `The reactive public heuristic ends this same run at ${formatPercent(outcome.finalWellbeing)} weighted wellbeing${darkClause}.`
 }
 
 export function deriveRunDebrief(result: CompareResponse): RunDebrief {
@@ -280,7 +291,7 @@ export function deriveRunDebrief(result: CompareResponse): RunDebrief {
   const endured = result.shock_schedule.filter(
     (shock) => shock.type !== null && shock.day <= terminalDay,
   )
-  // `forced` also covers the scenario's legacy authored singular shock. Only days present
+  // `forced` also covers the scenario's optional singular shock. Only days present
   // in the additive kick list are player disasters. A day is counted once even if several
   // appended entries target it, because the returned shock schedule is the event endured.
   const playerShockDays = new Set((result.scenario.forced_shocks ?? []).map((shock) => shock.day))
@@ -296,5 +307,9 @@ export function deriveRunDebrief(result: CompareResponse): RunDebrief {
     baseline,
     disasters,
     conventionalCounterfactual: describeConventionalPlanner(baseline),
+    milestones: recoveryMilestones(result, candidate.conditions.length),
+    afterActions: afterActionReports(result, candidate.conditions.length),
+    shockTaxedArrivalShortfall: shockTaxedArrivalShortfall(result, candidate.conditions.length),
+    calmArrivalBaseline: result.scenario.daily_budget * candidate.conditions.length,
   }
 }

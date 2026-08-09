@@ -1,0 +1,8 @@
+fastapi==0.116.1
+gymnasium==1.2.1
+numpy==2.3.2
+onnx==1.19.0
+onnxruntime==1.23.0
+ortools==9.14.6206
+pydantic==2.11.7
+uvicorn[standard]==0.35.0

@@ -1,0 +1,30 @@
+{
+  "files": [
+    {
+      "bytes": 654414,
+      "id": "onnx",
+      "path": "artifacts/city_recovery_ppo.v3.onnx",
+      "sha256": "830dae7c6e0a758671019b8c30a29f24e24b085538c21ae3da8f3363a8fb9f38"
+    },
+    {
+      "bytes": 3914129,
+      "id": "sb3_checkpoint",
+      "path": "artifacts/city_recovery_ppo.v3.zip",
+      "sha256": "93e2f72d898b5739422501256c5c390ae11ea22c94b126e712e9da7374b64308"
+    }
+  ],
+  "model": {
+    "action_count": 22,
+    "algorithm": "PPO",
+    "completed_training_transitions": 645120,
+    "engine_spec_sha256": "34168cdf6a761dfd3be4ab7af8a4ef895561d4af1b3976c232c28502386b731e",
+    "environment": "CityRecoveryEnv-v3",
+    "id": "city-recovery-sb3-ppo-v3",
+    "observation_count": 73,
+    "solved_definition_sha256": "d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d798a8f0afc896df82",
+    "trainable_parameters": 322733,
+    "training_seed": 37017,
+    "version": "3.0.0"
+  },
+  "schema_version": 1
+}

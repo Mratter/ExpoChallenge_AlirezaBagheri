@@ -1,0 +1,22 @@
+{
+  "actual_completed_transitions": 645120,
+  "campaign_identity": "6d5c347ec8f90e0c9f291831a678959920db92573c2a710344c3317c3e3ceb25",
+  "campaign_provenance_sha256": "6d5c347ec8f90e0c9f291831a678959920db92573c2a710344c3317c3e3ceb25",
+  "checkpoint_ledger_sha256": "f9f0e9211762671d01c6fc5b5fba499f8d2df4533af59e7a3fe4f1168e9e4c9e",
+  "checkpoint_ledger_terminal_record_sha256": "8a6f603b44771c160c3ebbbe0cb1419b2c03346fbc11ee31baa3f3d96c0b10e3",
+  "completed_stage_count": 7,
+  "configured_transitions": 645120,
+  "release_files": {
+    "artifacts/city_recovery_ppo.v3.metadata.json": "a7a5a8a549f05febee0906dc45cc9d73109ab25d9f768167bf7f050c0494c895",
+    "artifacts/city_recovery_ppo.v3.onnx": "830dae7c6e0a758671019b8c30a29f24e24b085538c21ae3da8f3363a8fb9f38",
+    "artifacts/city_recovery_ppo.v3.zip": "93e2f72d898b5739422501256c5c390ae11ea22c94b126e712e9da7374b64308",
+    "artifacts/model_manifest.v3.json": "140b0177ab6abc2a5fc2ee6901a9577c33a0b5a3ab98e944b91cc0e9f0ed84cd",
+    "training/v3/onnx-parity.json": "a30fdafa6b975267749cb9659067575f506cc7d62937ce2ad2269dfa4efbd8ac",
+    "training/v3/training-receipt.json": "825ab65185753b9087836fc0d940328b08d49b787451e5156d46dd512f4101ce"
+  },
+  "schema_version": 1,
+  "status": "sealed_training_release_complete",
+  "terminal_semantic_sha256": "2cbf0075270d414c35f0162449a1a48c8e3cb36f1df95c8d3da3288322109b07",
+  "training_receipt_sha256": "825ab65185753b9087836fc0d940328b08d49b787451e5156d46dd512f4101ce",
+  "training_use_receipt_sha256": "123c26989ec01c33a2bf8294212ad4a63ea4a8816ca315e3a14d71d937a38755"
+}
