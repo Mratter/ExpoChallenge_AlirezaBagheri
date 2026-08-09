@@ -1,83 +1,124 @@
-param([ValidateSet('cpu','gpu')][string]$Profile = 'cpu')
+param(
+    [ValidateSet('cpu')][string]$Profile = 'cpu',
+    [switch]$SkipToolBootstrap
+)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
 $Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'project_environment.ps1')
 
-if ($Profile -ne 'cpu') { throw 'The frozen Feature Complete policy supports the CPU profile only.' }
-foreach ($Command in @('uv', 'node', 'npm')) {
-    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
-        throw "Required setup command is missing: $Command"
+function Install-CityRecoveryTool {
+    param(
+        [Parameter(Mandatory = $true)][string]$Id,
+        [Parameter(Mandatory = $true)][string]$DisplayName
+    )
+
+    if ($SkipToolBootstrap) {
+        throw "$DisplayName is missing. Install it manually, or rerun setup.ps1 without -SkipToolBootstrap."
     }
-}
-$UvVersionText = [string](& uv --version)
-if ($LASTEXITCODE -ne 0 -or $UvVersionText -notmatch '^uv\s+(\d+\.\d+\.\d+)') {
-    throw "Unable to determine the uv version from: $UvVersionText"
-}
-$UvVersion = [version]$Matches[1]
-$MinimumUvVersion = [version]'0.7.21'
-if ($UvVersion -lt $MinimumUvVersion) {
-    throw "uv $MinimumUvVersion or newer is required; found $UvVersion."
+    $Winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($null -eq $Winget) {
+        throw "$DisplayName is missing and Windows Package Manager (winget) is unavailable. Install App Installer from Microsoft Store, then rerun setup.ps1."
+    }
+    Write-Host "[setup] Installing $DisplayName with Windows Package Manager"
+    & $Winget.Source install `
+        --id $Id `
+        --exact `
+        --source winget `
+        --accept-package-agreements `
+        --accept-source-agreements `
+        --disable-interactivity `
+        --silent | Out-Host
+    $InstallerExitCode = $LASTEXITCODE
+    Update-CityRecoveryProcessPath
+    return $InstallerExitCode
 }
 
-# Large pinned wheels can otherwise saturate constrained Windows/CDN paths. Keep
-# hash verification and the frozen lock unchanged while using conservative,
-# process-scoped defaults. Explicit caller settings still take precedence.
-$UvTransportDefaults = [ordered]@{
-    UV_CONCURRENT_DOWNLOADS = '4'
-    UV_CONCURRENT_INSTALLS = '2'
-    UV_HTTP_RETRIES = '6'
-    UV_HTTP_TIMEOUT = '120'
-}
-$UvTransportOriginal = @{}
-foreach ($Entry in $UvTransportDefaults.GetEnumerator()) {
-    $CurrentValue = [Environment]::GetEnvironmentVariable($Entry.Key, 'Process')
-    $UseDefault = [string]::IsNullOrWhiteSpace($CurrentValue)
-    $UvTransportOriginal[$Entry.Key] = @{
-        WasPresent = $null -ne $CurrentValue
-        WasDefaulted = $UseDefault
-        Value = $CurrentValue
-    }
-    if ($UseDefault) {
-        [Environment]::SetEnvironmentVariable($Entry.Key, $Entry.Value, 'Process')
-    }
-}
+Update-CityRecoveryProcessPath
 
-$ProjectEnvironment = $null
-$LocationPushed = $false
 try {
-    $ProjectEnvironment = Enter-Ai17ProjectEnvironment -Root $Root
-    Push-Location $Root
-    $LocationPushed = $true
-    $UvTransportSummary = ($UvTransportDefaults.Keys | ForEach-Object {
-        "$_=$([Environment]::GetEnvironmentVariable($_, 'Process'))"
-    }) -join ', '
-    Write-Host "[setup] uv transport: $UvTransportSummary"
-    Write-Host '[setup] Syncing pinned Python 3.12 environment'
-    & uv sync --frozen --python 3.12 --no-group training
-    if ($LASTEXITCODE -ne 0) { throw 'uv sync failed' }
-    Assert-Ai17NativePathBudget -Context $ProjectEnvironment
-    & $ProjectEnvironment.PythonPath -c 'from onnx import onnx_cpp2py_export; import onnxruntime, ortools, gymnasium'
-    if ($LASTEXITCODE -ne 0) { throw 'native runtime dependency smoke failed' }
-    Write-Host '[setup] Installing pinned frontend dependencies'
-    & npm ci --prefix frontend
-    if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
-    Write-Host '[setup] Building the production frontend'
-    & npm run build --prefix frontend
-    if ($LASTEXITCODE -ne 0) { throw 'frontend build failed' }
-    Write-Host '[setup] Complete'
+    $Launcher = Get-CityRecoveryPython312Launcher
+}
+catch {
+    $PythonInstallerExitCode = Install-CityRecoveryTool -Id 'Python.Python.3.12' -DisplayName '64-bit Python 3.12'
+    $Launcher = Wait-CityRecoveryPython312Launcher -InstallerExitCode $PythonInstallerExitCode
+}
+
+$NodeCommand = Get-CityRecoveryNodeCommand
+if ($null -eq $NodeCommand) {
+    $NodeInstallerExitCode = Install-CityRecoveryTool -Id 'OpenJS.NodeJS.LTS' -DisplayName 'Node.js LTS and npm'
+    $NodeCommand = Wait-CityRecoveryNodeCommand -InstallerExitCode $NodeInstallerExitCode
+}
+$Npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if ($null -eq $Npm) { $Npm = Get-Command npm -ErrorAction SilentlyContinue }
+if ($null -eq $Npm) {
+    throw 'npm is missing from the Node.js installation. Reinstall a current Node.js LTS release.'
+}
+$NpmCommand = $Npm.Source
+
+$NodeVersionText = [string](& $NodeCommand --version)
+if ($LASTEXITCODE -ne 0 -or -not (Test-CityRecoveryNodeVersion -VersionText $NodeVersionText)) {
+    throw "A supported Node.js LTS is required (^20.19, ^22.12, or a newer even-numbered LTS); found $NodeVersionText."
+}
+& $NpmCommand --version | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'npm is installed but could not start.' }
+
+$Context = Get-CityRecoveryEnvironmentContext -Root $Root
+$LauncherArguments = @($Launcher.Prefix) + @('-m', 'venv')
+if (Test-Path -LiteralPath $Context.PythonPath -PathType Leaf) {
+    & $Context.PythonPath -c 'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) and sys.maxsize > 2**32 else 1)'
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '[setup] Replacing an incompatible Python environment'
+        $LauncherArguments += '--clear'
+        $LauncherArguments += $Context.EnvironmentPath
+        & $Launcher.Command @LauncherArguments
+        if ($LASTEXITCODE -ne 0) { throw 'Python environment creation failed.' }
+    }
+}
+else {
+    Write-Host '[setup] Creating the Python 3.12 environment'
+    $LauncherArguments += $Context.EnvironmentPath
+    & $Launcher.Command @LauncherArguments
+    if ($LASTEXITCODE -ne 0) { throw 'Python environment creation failed.' }
+}
+
+Assert-CityRecoveryPython312 -PythonPath $Context.PythonPath
+Push-Location $Root
+try {
+    Write-Host '[setup] Updating pip'
+    & $Context.PythonPath -m pip install --upgrade pip
+    if ($LASTEXITCODE -ne 0) {
+        throw 'pip could not update itself. Check the internet connection and rerun setup.ps1.'
+    }
+
+    Write-Host '[setup] Installing the pinned Python 3.12 runtime'
+    & $Context.PythonPath -m pip install --requirement requirements.txt
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Python package installation failed. Check the internet connection and rerun setup.ps1.'
+    }
+    & $Context.PythonPath -c 'import fastapi, gymnasium, numpy, onnx, onnxruntime, ortools, pydantic, uvicorn'
+    if ($LASTEXITCODE -ne 0) { throw 'The installed Python runtime failed its import check.' }
+    Assert-CityRecoveryNativePathBudget -Context $Context
+
+    Write-Host '[setup] Installing locked frontend packages with npm ci'
+    & $NpmCommand ci --prefix frontend
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Frontend package installation failed. Check the internet connection and rerun setup.ps1.'
+    }
+
+    Write-Host '[setup] Building the browser Toolbox'
+    & $NpmCommand run build --prefix frontend
+    if ($LASTEXITCODE -ne 0) { throw 'The frontend production build failed.' }
+
+    Write-Host '[setup] Verifying the signed V3-only PPO release'
+    & (Join-Path $PSScriptRoot 'preflight.ps1') -Profile $Profile -SkipPortCheck
+    if ($LASTEXITCODE -ne 0) { throw 'PPO-v3 release preflight failed.' }
+
+    Write-Host ''
+    Write-Host '[setup] COMPLETE'
+    Write-Host '[setup] Start the Toolbox with: powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1'
 }
 finally {
-    if ($LocationPushed) { Pop-Location }
-    if ($null -ne $ProjectEnvironment) { Exit-Ai17ProjectEnvironment -Context $ProjectEnvironment }
-    foreach ($Entry in $UvTransportDefaults.GetEnumerator()) {
-        $Original = $UvTransportOriginal[$Entry.Key]
-        if (-not $Original.WasDefaulted) { continue }
-        if ($Original.WasPresent) {
-            [Environment]::SetEnvironmentVariable($Entry.Key, $Original.Value, 'Process')
-        }
-        else {
-            Remove-Item -LiteralPath "Env:$($Entry.Key)" -ErrorAction SilentlyContinue
-        }
-    }
+    Pop-Location
 }

@@ -1,189 +1,112 @@
+"""Fail-closed portable-runtime check for the selected PPO-v3 release.
+
+This launcher check never trains, selects, or evaluates reserved final cases. It
+loads the already authorized deployment and frozen aggregate evidence, performs
+one ONNX smoke inference, and runs one ordinary operator scenario.
+"""
+
 from __future__ import annotations
 
-import hashlib
 import json
+import re
 import sys
-import tempfile
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backend.app.artifact import (  # noqa: E402
-    ARTIFACT_LICENSE,
-    MANIFEST_SCHEMA_VERSION,
-    POLICY_FEATURE_ORDER,
-    POLICY_SCHEMA_VERSION,
-    POLICY_VERSION,
-    PolicyBundle,
-    load_policy_bundle,
+from backend.app.models import ScenarioV3  # noqa: E402
+from backend.app.simulator_v3 import (  # noqa: E402
+    ACTION_ORDER_V3,
+    OBSERVATION_ORDER_V3,
+    compare_v3,
 )
-from backend.app.main import (  # noqa: E402
-    API_SCHEMA_VERSION,
-    DATASET_SCHEMA_VERSION,
-    DATASET_VERSION,
-    metadata_payload,
-)
-from backend.app.models import ForcedShock, Scenario  # noqa: E402
-from backend.app.persistence import RunStore  # noqa: E402
-from backend.app.simulator import (  # noqa: E402
-    SERVICES,
-    canonical_json_bytes,
-    compare,
-    generate_shock_schedule,
-)
+from model.ppo_v3 import load_policy_v3  # noqa: E402
 
-EVALUATION_PATH = ROOT / "evaluation" / "feature_complete_report.v1.json"
-PROTOCOL_PATH = ROOT / "evaluation" / "protocol.v1.json"
+SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
-def validate_exposed_metadata(metadata: dict[str, Any], bundle: PolicyBundle) -> None:
-    expected_model = {
-        "version": POLICY_VERSION,
-        "schema_version": POLICY_SCHEMA_VERSION,
-        "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
-        "observation_order": list(POLICY_FEATURE_ORDER),
-        "license": ARTIFACT_LICENSE,
-        "source": "scripts/train_policy.py",
-        "onnx_sha256": bundle.onnx_sha256,
-        "sb3_checkpoint_sha256": bundle.sb3_sha256,
-        "parity_report_sha256": bundle.parity_sha256,
-    }
-    expected_dataset = {
-        "version": DATASET_VERSION,
-        "schema_version": DATASET_SCHEMA_VERSION,
-        "license": "CC0-1.0",
-        "source": "backend/app/simulator.py and backend/app/scenarios.py",
-        "service_order": list(SERVICES),
-        "empirical": False,
-    }
-    if metadata.get("schema_version") != API_SCHEMA_VERSION:
-        raise RuntimeError("exposed API schema version is invalid")
-    model = metadata.get("model")
-    dataset = metadata.get("dataset")
-    if not isinstance(model, dict) or not isinstance(dataset, dict):
-        raise RuntimeError("exposed model or dataset metadata is missing")
-    for field, expected in expected_model.items():
-        if model.get(field) != expected:
-            raise RuntimeError(f"exposed model metadata {field} is invalid")
-    for field, expected in expected_dataset.items():
-        if dataset.get(field) != expected:
-            raise RuntimeError(f"exposed dataset metadata {field} is invalid")
+def _smoke_action(bundle: object, observation_count: int, action_count: int) -> None:
+    session = bundle.session  # type: ignore[attr-defined]
+    output = session.run(
+        ["action"],
+        {"observation": np.zeros((1, observation_count), dtype=np.float32)},
+    )[0]
+    action = np.asarray(output)
+    if action.shape != (1, action_count) or not np.all(np.isfinite(action)):
+        raise RuntimeError("ONNX smoke inference returned an invalid action tensor.")
 
 
-def validate_result(result: dict[str, Any]) -> None:
-    if result.get("schema_version") != API_SCHEMA_VERSION:
-        raise RuntimeError("comparison response schema version is invalid")
-    schedule = result["shock_schedule"]
-    for planner_name in ("baseline", "candidate"):
-        planner = result[planner_name]
-        if len(planner["trajectory"]) != 14 or planner["constraint_violations"] != 0:
-            raise RuntimeError(f"{planner_name} smoke trajectory failed")
-        measured_total = sum(
-            day["projection"]["constraint_violations"] for day in planner["trajectory"]
-        )
-        if measured_total != planner["constraint_violations"]:
-            raise RuntimeError(f"{planner_name} violation total is inconsistent")
-        for day, shock in zip(planner["trajectory"], schedule, strict=True):
-            if day["shock"] != shock:
-                raise RuntimeError(f"{planner_name} did not receive the shared shock tape")
-            allocation = np.asarray(day["allocation"])
-            lower = np.asarray(day["lower_bounds"])
-            upper = np.asarray(day["upper_bounds"])
-            budget = day["available_budget"]
-            if abs(float(allocation.sum()) - budget) > 1e-7:
-                raise RuntimeError(f"{planner_name} allocation sum failed on day {day['day']}")
-            if np.any(allocation < lower - 1e-7) or np.any(allocation > upper + 1e-7):
-                raise RuntimeError(f"{planner_name} allocation bounds failed on day {day['day']}")
-            if float(allocation.sum()) > budget + 1e-7:
-                raise RuntimeError(f"{planner_name} allocation budget failed on day {day['day']}")
-            if any(day["projection"]["violation_breakdown"].values()):
-                raise RuntimeError(f"{planner_name} violation evidence is inconsistent")
-
-
-def validate_evaluation(bundle: PolicyBundle) -> dict[str, Any]:
-    report_payload = EVALUATION_PATH.read_bytes()
-    report = json.loads(report_payload.decode("utf-8"))
-    protocol_sha256 = hashlib.sha256(PROTOCOL_PATH.read_bytes()).hexdigest()
-    if report.get("protocol_sha256") != protocol_sha256:
-        raise RuntimeError("evaluation protocol checksum is inconsistent")
-    if report.get("onnx_sha256") != bundle.onnx_sha256:
-        raise RuntimeError("evaluation ONNX checksum is inconsistent")
-    if report.get("sb3_checkpoint_sha256") != bundle.sb3_sha256:
-        raise RuntimeError("evaluation SB3 checkpoint checksum is inconsistent")
-    if report.get("evaluation_case_count") != 40 or report.get("held_out_family_count") != 5:
-        raise RuntimeError("evaluation case coverage is incomplete")
-    if report.get("determinism", {}).get("mismatches") != 0:
-        raise RuntimeError("evaluation determinism evidence failed")
-    if report.get("synthetic_only") is not True:
-        raise RuntimeError("evaluation synthetic disclosure is missing")
-    for planner in ("candidate", "baseline"):
-        totals = report.get("violation_totals", {}).get(planner, {})
-        if set(totals.values()) != {0}:
-            raise RuntimeError(f"evaluation {planner} hard constraints failed")
-    return report
+def _validate_v3_comparison(result: dict[str, object]) -> None:
+    if result.get("engine_version") != "city-recovery-env-v3":
+        raise RuntimeError("The V3 smoke comparison returned the wrong engine.")
+    scenario = result.get("scenario")
+    if not isinstance(scenario, dict) or scenario.get("horizon_days") != 30:
+        raise RuntimeError("The V3 smoke comparison returned an invalid scenario.")
+    for planner_name in ("candidate", "baseline"):
+        planner = result.get(planner_name)
+        if not isinstance(planner, dict):
+            raise RuntimeError(f"{planner_name} summary is missing.")
+        trajectory = planner.get("trajectory")
+        residual = planner.get("max_logistics_conservation_residual")
+        if not isinstance(trajectory, list) or len(trajectory) != 30:
+            raise RuntimeError(f"{planner_name} produced an incomplete trajectory.")
+        if planner.get("hard_violation_count") != 0:
+            raise RuntimeError(f"{planner_name} violated the V3 hard contract.")
+        if (
+            not isinstance(residual, (int, float))
+            or isinstance(residual, bool)
+            or not 0.0 <= float(residual) <= 1e-6
+        ):
+            raise RuntimeError(f"{planner_name} failed conservation verification.")
+        trajectory_hash = planner.get("trajectory_sha256")
+        if (
+            not isinstance(trajectory_hash, str)
+            or SHA256.fullmatch(trajectory_hash) is None
+        ):
+            raise RuntimeError(f"{planner_name} trajectory hash is invalid.")
 
 
 def main() -> None:
     if sys.version_info[:2] != (3, 12):
-        raise RuntimeError(f"Python 3.12 required, found {sys.version.split()[0]}")
+        raise RuntimeError(f"Python 3.12 is required; found {sys.version.split()[0]}.")
+    if len(OBSERVATION_ORDER_V3) != 73 or len(ACTION_ORDER_V3) != 22:
+        raise RuntimeError("The PPO-v3 observation or action contract has changed.")
 
-    bundle = load_policy_bundle()
-    metadata = metadata_payload(bundle)
-    validate_exposed_metadata(metadata, bundle)
-    result = compare(Scenario(), 424242, bundle)
-    validate_result(result)
-    with tempfile.TemporaryDirectory(prefix="ai17-preflight-") as directory:
-        store = RunStore(Path(directory))
-        saved = store.save(result)
-        restored = RunStore(Path(directory)).load(saved["result_id"])
-        if canonical_json_bytes(saved) != canonical_json_bytes(restored):
-            raise RuntimeError("persisted result did not restore byte-identically")
-        if store.list_summaries()[0]["result_id"] != saved["result_id"]:
-            raise RuntimeError("persisted result index is inconsistent")
-    evaluation = validate_evaluation(bundle)
-    if result["shock_schedule"][4]["type"] != "utility":
-        raise RuntimeError("forced fixture shock is missing")
-    ordered_forced_schedule = generate_shock_schedule(
-        Scenario(
-            forced_shocks=[
-                ForcedShock(day=5, type="supply", severity=0.21),
-                ForcedShock(day=5, type="weather", severity=0.24),
-            ]
-        ),
-        424242,
-    )
+    bundle_v3 = load_policy_v3()
+    _smoke_action(bundle_v3, len(OBSERVATION_ORDER_V3), len(ACTION_ORDER_V3))
+    benchmark = bundle_v3.benchmark
     if (
-        ordered_forced_schedule[4].type != "weather"
-        or ordered_forced_schedule[4].severity != 0.24
-        or ordered_forced_schedule[4].forced is not True
+        benchmark.get("status") != "complete"
+        or benchmark.get("synthetic_case_count") != 40
+        or benchmark.get("invariants", {}).get("candidate_hard_violations") != 0
+        or benchmark.get("invariants", {}).get("baseline_hard_violations") != 0
     ):
-        raise RuntimeError("ordered forced shock list precedence failed")
+        raise RuntimeError("The frozen V3 benchmark is incomplete or unsafe.")
+
+    result = compare_v3(
+        ScenarioV3(name="Portable runtime preflight"),
+        424242,
+        bundle_v3,
+    )
+    _validate_v3_comparison(result)
+
     print(
         json.dumps(
             {
-                "api_schema_version": metadata["schema_version"],
-                "baseline_rauc": result["baseline"]["rauc"],
-                "candidate_rauc": result["candidate"]["rauc"],
-                "dataset_schema_version": metadata["dataset"]["schema_version"],
-                "evaluation_baseline_rauc": evaluation["aggregate"]["rauc"][
-                    "baseline_mean"
-                ],
-                "evaluation_candidate_rauc": evaluation["aggregate"]["rauc"][
-                    "candidate_mean"
-                ],
-                "evaluation_cases": evaluation["evaluation_case_count"],
-                "manifest_schema_version": bundle.manifest_schema_version,
-                "onnx_sha256": bundle.onnx_sha256,
-                "parity_report_sha256": bundle.parity_sha256,
-                "policy_schema_version": metadata["model"]["schema_version"],
-                "policy_version": metadata["model"]["version"],
-                "sb3_checkpoint_sha256": bundle.sb3_sha256,
-                "schedule_sha256": result["shock_schedule_sha256"],
-                "status": "preflight-smoke-passed",
+                "benchmark_sha256": bundle_v3.benchmark_sha256,
+                "manifest_schema_version": bundle_v3.manifest_schema_version,
+                "manifest_sha256": bundle_v3.manifest_sha256,
+                "model_id": bundle_v3.metadata["id"],
+                "observation_count": len(OBSERVATION_ORDER_V3),
+                "action_count": len(ACTION_ORDER_V3),
+                "onnx_sha256": bundle_v3.onnx_sha256,
+                "selected_checkpoint_sha256": bundle_v3.sb3_sha256,
+                "scientific_source_sha256": bundle_v3.scientific_source_sha256,
+                "smoke_outcome_pair": result["comparison"]["absolute_outcome_pair"],
+                "status": "ppo-v3-portable-preflight-passed",
             },
             sort_keys=True,
         )

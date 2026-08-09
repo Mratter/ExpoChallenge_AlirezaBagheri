@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
@@ -8,9 +8,5 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     proxy: { '/api': 'http://127.0.0.1:4117', '/health': 'http://127.0.0.1:4117' },
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: './tests/setup.ts',
   },
 })

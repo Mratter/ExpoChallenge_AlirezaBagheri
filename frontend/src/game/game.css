@@ -204,7 +204,7 @@
   z-index: 14;
   top: 76px;
   right: 18px;
-  width: 246px;
+  width: 276px;
   padding: 10px;
   border: 1px solid rgba(48, 55, 51, 0.2);
   border-radius: 5px;
@@ -277,7 +277,7 @@
 .aim-vignette { position: absolute; inset: 8px; z-index: 9; display: grid; place-items: end center; padding-bottom: 88px; border: 1px solid rgba(141, 86, 61, 0.55); border-radius: 7px; background: radial-gradient(circle, transparent 48%, rgba(87, 63, 50, 0.08)); pointer-events: none; }
 .aim-vignette span { padding: 6px 9px; border-radius: 3px; background: rgba(34, 39, 36, 0.82); color: #f4efe4; font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
 .city-stage.aiming-disaster .city-canvas { cursor: crosshair; }
-.kick-error { position: absolute; z-index: 25; right: 18px; top: 230px; max-width: 246px; padding: 9px 11px; border-left: 3px solid #9f5542; border-radius: 3px; background: rgba(247, 234, 226, 0.96); color: #763e30; box-shadow: 0 8px 20px rgba(55, 38, 32, 0.14); font-size: 10px; }
+.kick-error { position: absolute; z-index: 25; right: 18px; top: 230px; max-width: 276px; padding: 9px 11px; border-left: 3px solid #9f5542; border-radius: 3px; background: rgba(247, 234, 226, 0.96); color: #763e30; box-shadow: 0 8px 20px rgba(55, 38, 32, 0.14); font-size: 10px; }
 
 .service-strip {
   position: absolute;
@@ -346,6 +346,66 @@
 .shock-ribbon b { font-size: 11px; text-transform: capitalize; }
 .shock-ribbon em { color: var(--game-muted); font-size: 10px; font-style: normal; }
 
+.incident-phase-banner {
+  position: absolute;
+  z-index: 13;
+  top: 18px;
+  left: 50%;
+  width: min(390px, calc(100vw - 570px));
+  min-width: 290px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  padding: 8px 11px 9px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(53, 62, 57, 0.2);
+  border-left: 3px solid #8d6f55;
+  border-radius: 4px;
+  background: rgba(247, 243, 233, 0.92);
+  box-shadow: 0 8px 24px rgba(38, 53, 44, 0.13);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.incident-phase-banner > span { color: #786554; font-size: 8px; font-weight: 820; letter-spacing: 0.1em; text-transform: uppercase; }
+.incident-phase-banner > b { justify-self: end; color: #3d4942; font: 750 9px/1 Bahnschrift, "Arial Narrow", sans-serif; letter-spacing: 0.08em; }
+.incident-phase-banner > em { grid-column: 1 / -1; color: #28312d; font-size: 10px; font-style: normal; font-weight: 720; text-transform: capitalize; }
+.incident-phase-banner > small { grid-column: 1 / -1; color: #66716a; font-size: 9px; line-height: 1.3; }
+.incident-phase-banner[data-phase="impact"] { border-left-color: #985b48; }
+.incident-phase-banner[data-phase="assessment"] { border-left-color: #7b7d62; }
+.incident-phase-banner[data-phase="response"] { border-left-color: #5a7b75; }
+.incident-phase-banner[data-phase="recovery"] { border-left-color: #64805f; }
+
+.district-inspector {
+  position: absolute;
+  z-index: 14;
+  top: 246px;
+  left: 18px;
+  width: 248px;
+  overflow: hidden;
+  border: 1px solid rgba(48, 57, 51, 0.2);
+  border-radius: 5px;
+  background: rgba(247, 243, 233, 0.95);
+  box-shadow: 0 10px 30px rgba(38, 53, 44, 0.16);
+  backdrop-filter: blur(12px);
+}
+.district-inspector header { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 10px 11px; border-bottom: 1px solid var(--game-rule); }
+.district-inspector header > div { display: grid; gap: 2px; }
+.district-inspector header span { color: #68736c; font-size: 8px; font-weight: 820; letter-spacing: 0.1em; text-transform: uppercase; }
+.district-inspector header b { font: 690 13px/1.1 Bahnschrift, "Arial Narrow", sans-serif; }
+.district-inspector header button { width: 29px; height: 29px; display: grid; place-items: center; border: 1px solid rgba(51, 61, 55, 0.18); border-radius: 3px; background: transparent; color: #525d56; cursor: pointer; }
+.district-inspector-grid { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--game-rule); }
+.district-inspector-grid > div { min-width: 0; display: grid; gap: 3px; padding: 9px 7px; border-right: 1px solid var(--game-rule); }
+.district-inspector-grid > div:last-child { border-right: 0; }
+.district-inspector-grid span { color: #6c756f; font-size: 7px; font-weight: 780; letter-spacing: 0.06em; text-transform: uppercase; }
+.district-inspector-grid strong { font: 700 15px/1 Bahnschrift, "Arial Narrow", sans-serif; }
+.district-inspector-grid strong small { color: #707a74; font-size: 7px; font-weight: 680; }
+.district-inspector dl { display: grid; margin: 0; padding: 8px 11px; }
+.district-inspector dl > div { display: grid; grid-template-columns: 86px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(50, 58, 53, 0.08); font-size: 8.5px; }
+.district-inspector dl > div:last-child { border-bottom: 0; }
+.district-inspector dt { color: #6b756f; }
+.district-inspector dd { margin: 0; color: #303934; font-weight: 680; text-align: right; }
+.district-inspector > p { margin: 0; padding: 8px 11px 10px; border-top: 1px solid var(--game-rule); color: #6b746e; font-size: 8px; line-height: 1.38; }
+
 .critical-ribbon {
   position: absolute;
   z-index: 12;
@@ -393,6 +453,49 @@
 }
 .relay-bubble span { color: #56655d; font-size: 9px; font-weight: 800; letter-spacing: 0.1em; }
 .relay-bubble p { margin: 4px 0 0; font: 680 11px/1.35 Bahnschrift, "Arial Narrow", sans-serif; letter-spacing: 0.015em; }
+
+.scene-inspector-anchor,
+.world-label-anchor { pointer-events: none !important; }
+.scene-entity-card {
+  width: 210px;
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(38, 47, 42, 0.34);
+  border-left: 3px solid #6a7f71;
+  border-radius: 4px;
+  background: rgba(248, 246, 238, 0.96);
+  color: #222925;
+  box-shadow: 0 8px 22px rgba(33, 43, 37, 0.2);
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  text-align: left;
+}
+.scene-entity-card[data-placard="yellow"] { border-left-color: #bd9747; }
+.scene-entity-card[data-placard="red"] { border-left-color: #965c52; }
+.scene-entity-card b { font: 700 10px/1.2 Bahnschrift, "Arial Narrow", sans-serif; text-transform: capitalize; }
+.scene-entity-card span { color: #4f5d55; font-size: 8px; text-transform: capitalize; }
+.scene-entity-card small { color: #59645d; font-size: 8px; }
+.scene-entity-card em { color: #776650; font-size: 7.5px; font-style: normal; }
+.scene-entity-card strong { color: #865443; font-size: 8px; }
+.vehicle-card { width: 240px; }
+.world-label {
+  display: grid;
+  gap: 1px;
+  min-width: 118px;
+  padding: 5px 7px;
+  border: 1px solid rgba(44, 54, 48, 0.23);
+  border-radius: 3px;
+  background: rgba(246, 243, 235, 0.87);
+  color: #343e38;
+  box-shadow: 0 4px 12px rgba(39, 48, 43, 0.1);
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  text-align: center;
+  white-space: nowrap;
+}
+.world-label b { font: 730 8px/1 Bahnschrift, "Arial Narrow", sans-serif; letter-spacing: 0.06em; }
+.world-label span { color: #69736d; font-size: 6.5px; }
+.world-label.compact { min-width: 92px; padding: 4px 6px; opacity: 0.9; }
+.incident-world-label .world-label { border-left: 3px solid #8e6251; }
 
 .game-loading,
 .game-error,
@@ -448,6 +551,8 @@
   .playback-controls label { display: none; }
   .service-strip { width: calc(100vw - 24px); bottom: 12px; }
   .camera-hint, .shock-ribbon { bottom: 68px; }
+  .incident-phase-banner { top: 66px; width: min(360px, calc(100vw - 320px)); min-width: 250px; }
+  .district-inspector { top: 148px; left: 12px; }
 }
 
 @media (max-width: 590px) {
@@ -464,8 +569,15 @@
   .camera-hint span { display: none; }
   .shock-ribbon { right: 12px; }
   .relay-bubble { width: 220px; }
+  .incident-phase-banner { top: 90px; width: calc(100vw - 24px); min-width: 0; }
+  .district-inspector { top: 154px; left: 12px; width: calc(100vw - 24px); max-height: 250px; overflow: auto; }
+  .district-inspector dl { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
+  .district-inspector dl > div { grid-template-columns: 1fr; gap: 2px; }
+  .district-inspector dd { text-align: left; }
+  .world-label { transform: scale(0.86); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .loading-plate i { animation: none; }
+  .incident-phase-banner { transition: none; }
 }

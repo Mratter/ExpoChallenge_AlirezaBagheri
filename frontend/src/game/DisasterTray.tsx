@@ -1,16 +1,9 @@
 import { Activity, CloudRain, Package, Waves, Zap } from 'lucide-react'
 import type { DragEvent, ReactNode } from 'react'
+import { shockDisplayName } from '../shockPresentation'
 import { shockTypes, type ShockType } from '../types'
 import { DISTRICTS, shockImpactFor, type DistrictDefinition } from './model'
 import type { GameMode } from './session'
-
-const labels: Record<ShockType, string> = {
-  aftershock: 'Aftershock',
-  supply: 'Supply',
-  epidemic: 'Epidemic',
-  utility: 'Utility',
-  weather: 'Weather',
-}
 
 function ShockIcon({ type }: { type: ShockType }): ReactNode {
   if (type === 'aftershock') return <Waves size={17} />
@@ -97,7 +90,7 @@ export function DisasterTray({
             onDragEnd={onAimEnd}
           >
             <ShockIcon type={type} />
-            <span>{labels[type]}</span>
+            <span>{shockDisplayName(type)}</span>
           </button>
         ))}
       </div>
@@ -120,8 +113,8 @@ export function DisasterTray({
           </div>
           {aimedDistrict && hardestType ? (
             <p className="footprint-readout" aria-live="polite">
-              <span>{aimedDistrict.shortLabel} is hit hardest by {labels[hardestType]} · {Math.round(shockImpactFor(hardestType, aimedDistrict.service) * 100)}% footprint.</span>
-              <small>Selected {labels[aimingType]} footprint · {Math.round(shockImpactFor(aimingType, aimedDistrict.service) * 100)}%.</small>
+              <span>{aimedDistrict.shortLabel} is hit hardest by {shockDisplayName(hardestType)} · {Math.round(shockImpactFor(hardestType, aimedDistrict.service) * 100)}% footprint.</span>
+              <small>Selected {shockDisplayName(aimingType)} footprint · {Math.round(shockImpactFor(aimingType, aimedDistrict.service) * 100)}%.</small>
             </p>
           ) : (
             <p className="footprint-readout">Select one of the five engine districts.</p>

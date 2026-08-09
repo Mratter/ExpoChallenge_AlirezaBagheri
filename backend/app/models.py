@@ -52,3 +52,31 @@ class Scenario(StrictModel):
 class CompareRequest(StrictModel):
     seed: int = Field(default=424242, ge=0, le=4_294_967_295)
     scenario: Scenario = Field(default_factory=Scenario)
+
+
+class ScenarioV3(Scenario):
+    """Public v3 scenario contract with material, crew, and recovery targets."""
+
+    horizon_days: Literal[30] = 30
+    daily_crew_pool: float = Field(default=150.0, ge=50.0, le=300.0)
+    recovery_targets: list[float] = Field(
+        default_factory=lambda: [0.55] * 5,
+        min_length=5,
+        max_length=5,
+    )
+    assessment_tail_days: Literal[3] = 3
+
+    @model_validator(mode="after")
+    def validate_v3_scenario(self) -> "ScenarioV3":
+        if any(not 0.45 <= value <= 0.75 for value in self.recovery_targets):
+            raise ValueError("each recovery target must be between 0.45 and 0.75")
+        tail_start = self.horizon_days - self.assessment_tail_days + 1
+        forced = ([self.forced_shock] if self.forced_shock else []) + self.forced_shocks
+        if any(shock.day >= tail_start for shock in forced):
+            raise ValueError("forced shocks cannot occur in the v3 assessment tail")
+        return self
+
+
+class CompareRequestV3(StrictModel):
+    seed: int = Field(default=424242, ge=0, le=4_294_967_295)
+    scenario: ScenarioV3 = Field(default_factory=ScenarioV3)

@@ -1,79 +1,56 @@
-import { ArrowRight, BarChart3, RefreshCw } from 'lucide-react'
+import { BarChart3, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { shockDisplayName } from '../shockPresentation'
+import type { CompareResponse, OfficialOutcome } from '../types'
+import { outcomeReasonLabel, serviceLabel } from '../v3ViewModel'
 import type { Difficulty, GameMode } from './session'
 import { DIFFICULTY_DETAILS, MODE_DETAILS } from './session'
-import type { CityOutcome, FallCause, RunDebrief } from './stakes'
-import { SERVICE_LABELS } from './model'
 import './run-outcome.css'
 
-function percent(value: number | null): string {
-  return value === null ? '—' : `${Math.round(value * 100)}%`
+function percent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`
 }
 
-function fallCauseLine(cause: FallCause): string {
-  const names = cause.services.map((service) => SERVICE_LABELS[service])
-  if (cause.kind === 'essential') {
-    return `${names.join(' and ')} remained below the critical floor for four consecutive days.`
-  }
-  return 'At least two services were below the critical floor on two consecutive days.'
-}
-
-export function CollapseScreen({
-  outcome,
-  onDebrief,
-}: {
-  outcome: CityOutcome
-  onDebrief: () => void
-}) {
-  const fall = outcome.fall
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    if (fall) headingRef.current?.focus()
-  }, [fall])
-  if (!fall) return null
+function OutcomeReceipt({ outcome }: { outcome: OfficialOutcome }) {
   return (
-    <section className="collapse-screen" role="dialog" aria-modal="true" aria-labelledby="collapse-heading">
-      <div className="collapse-haze" aria-hidden="true"><i /><i /><i /></div>
-      <div className="collapse-card">
-        <p>RELAY / RUN TERMINATED</p>
-        <h1 id="collapse-heading" ref={headingRef} tabIndex={-1}>The city fell on day {fall.day}.</h1>
-        <div className="collapse-rule" aria-hidden="true" />
-        {fall.causes.map((cause) => <span key={cause.kind}>{fallCauseLine(cause)}</span>)}
-        <small>The trajectory stops here. The collapse is measured from city condition only.</small>
-        <button type="button" onClick={onDebrief}>
-          Review what happened <ArrowRight size={17} aria-hidden="true" />
-        </button>
-      </div>
-    </section>
+    <ul className="official-outcome-checks">
+      {Object.entries(outcome.checks).map(([name, passed]) => (
+        <li key={name} data-pass={passed}>
+          {passed ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+          <span>{outcomeReasonLabel(name)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
-function OutcomeStatement({ outcome }: { outcome: CityOutcome }) {
-  if (outcome.fall) return <>{`Fell on day ${outcome.fall.day}`}</>
-  return <>Held through day {outcome.terminalDay}</>
-}
-
 export function RunDebriefScreen({
-  debrief,
+  result,
   mode,
   difficulty,
   playerKicks,
   onOpenToolbox,
   onRestart,
 }: {
-  debrief: RunDebrief
+  result: CompareResponse
   mode: GameMode
   difficulty: Difficulty | null
   playerKicks: number
   onOpenToolbox: () => void
   onRestart: () => void
 }) {
-  const outcome = debrief.candidate
   const headingRef = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-  const worst = outcome.worstMoment
+  useEffect(() => { headingRef.current?.focus() }, [])
+  const candidate = result.candidate.absolute_outcome
+  const baseline = result.baseline.absolute_outcome
+  const shocks = result.shock_schedule.filter((shock) => shock.type)
+  const lastDay = result.candidate.trajectory.at(-1)!
+  const totalMaterial = result.candidate.trajectory.reduce((sum, day) => sum + day.material_used, 0)
+  const totalCrew = result.candidate.trajectory.reduce((sum, day) => sum + day.crew_used, 0)
+  const totalPreparedness = result.candidate.trajectory.reduce(
+    (sum, day) => sum + day.preparedness_investment.reduce((daySum, value) => daySum + value, 0),
+    0,
+  )
   const modeLabel = MODE_DETAILS[mode].label
   const difficultyLabel = difficulty ? DIFFICULTY_DETAILS[difficulty].label : 'Custom conditions'
   return (
@@ -81,36 +58,60 @@ export function RunDebriefScreen({
       <div className="debrief-sheet">
         <header className="debrief-heading">
           <div>
-            <p>End-of-run debrief</p>
-            <h1 id="debrief-heading" ref={headingRef} tabIndex={-1}><OutcomeStatement outcome={outcome} /></h1>
-            <span>{modeLabel} · {difficultyLabel}</span>
+            <p>Official end-of-run receipt</p>
+            <h1 id="debrief-heading" ref={headingRef} tabIndex={-1}>PPO V3 {candidate.solved ? 'solved' : 'failed'} the scenario.</h1>
+            <span>{modeLabel} · {difficultyLabel} · 30-day protocol</span>
           </div>
-          <span className="debrief-condition"><i data-survived={outcome.survived} />{outcome.survived ? 'City standing' : 'City fallen'}</span>
+          <span className="debrief-condition"><i data-survived={candidate.solved} />{candidate.solved ? 'SOLVED' : 'FAILED'}</span>
         </header>
 
-        <div className="debrief-summary" aria-label="Run summary">
-          <article><span>Disasters endured</span><strong>{debrief.disasters.total}</strong><small>{debrief.disasters.ambient} world · {debrief.disasters.player} player</small></article>
-          <article><span>Worst moment</span><strong>{worst ? `Day ${worst.day}` : '—'}</strong><small>{worst ? `${percent(worst.wellbeing)} wellbeing · ${SERVICE_LABELS[worst.weakestService]} weakest` : 'No trajectory days'}</small></article>
-          <article><span>Recoveries</span><strong>{outcome.recoveryCount}</strong><small>critical-floor crossings back to safety</small></article>
-          <article><span>Final wellbeing</span><strong>{percent(outcome.finalWellbeing)}</strong><small>weighted city condition</small></article>
-          <article><span>Resilience AUC</span><strong>{percent(outcome.resilienceAuc)}</strong><small>through the terminal day</small></article>
+        <div className="debrief-summary" aria-label="Official run summary">
+          <article><span>Shared shocks</span><strong>{shocks.length}</strong><small>{playerKicks} operator-injected before the tail</small></article>
+          <article><span>Resilience AUC</span><strong>{percent(candidate.resilience_auc)}</strong><small>official floor {percent(candidate.resilience_auc_floor)}</small></article>
+          <article><span>Final resilience</span><strong>{percent(result.candidate.final_resilience)}</strong><small>day 30 weighted service state</small></article>
+          <article><span>Critical service-days</span><strong>{candidate.critical_service_days}</strong><small>cap {candidate.critical_service_day_cap}</small></article>
+          <article><span>Hard violations</span><strong>{candidate.hard_violation_count}</strong><small>conservation residual {candidate.max_conservation_residual.toExponential(2)}</small></article>
         </div>
 
-        <article className="counterfactual-card">
-          <p>Same kicks · same shock tape</p>
-          <h2>conventional rule-based planner</h2>
-          <span>{debrief.conventionalCounterfactual}</span>
-        </article>
+        <section className="official-verdict-grid" aria-label="Independent planner verdicts">
+          <article data-solved={candidate.solved}>
+            <p>PPO V3 / ONNX</p><h2>{candidate.solved ? 'SOLVED' : 'FAILED'}</h2><span>Independent absolute outcome</span><OutcomeReceipt outcome={candidate} />
+          </article>
+          <article data-solved={baseline.solved}>
+            <p>Same tape / same public contract</p><h2>Reactive public heuristic: {baseline.solved ? 'SOLVED' : 'FAILED'}</h2><span>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</span><OutcomeReceipt outcome={baseline} />
+          </article>
+        </section>
 
-        {outcome.survived && playerKicks >= 4 ? <p className="debrief-closing">The city stands.</p> : null}
+        <section className="debrief-logistics" aria-labelledby="debrief-logistics-heading">
+          <div className="debrief-section-heading"><p>Physical ledger</p><h2 id="debrief-logistics-heading">What the PPO recovery operation used</h2></div>
+          <div className="debrief-arrival-cost"><span>Thirty-day totals</span><strong>{totalMaterial.toFixed(1)} material · {totalCrew.toFixed(1)} crew</strong><small>{totalPreparedness.toFixed(1)} effective preparedness investment. These values come from the returned engine ledger.</small></div>
+          <div className="tail-target-grid">
+            {result.services.map((service, index) => (
+              <div key={service} data-pass={candidate.target_met_by_service[index]}><span>{serviceLabel(service)}</span><b>{percent(candidate.tail_minimum_services[index])}</b><small>target {percent(candidate.recovery_targets[index])}</small></div>
+            ))}
+          </div>
+          <p className="terminal-stock-line">Terminal depot stock {lastDay.logistics.depot_stock_end.reduce((sum, value) => sum + value, 0).toFixed(1)} · pending arrivals {lastDay.logistics.pending_next_day.reduce((sum, value) => sum + value, 0).toFixed(1)}</p>
+        </section>
+
+        <section className="debrief-aar" aria-labelledby="debrief-aar-heading">
+          <div className="debrief-section-heading"><p>Shared hazard record</p><h2 id="debrief-aar-heading">Every incident on the tape</h2></div>
+          <div className="debrief-aar-list">
+            {shocks.length ? shocks.map((shock) => {
+              const candidateDay = result.candidate.trajectory[shock.day - 1]
+              const baselineDay = result.baseline.trajectory[shock.day - 1]
+              return (
+                <article key={`${shock.day}-${shock.type}`}>
+                  <header><b>Day {shock.day} · {shock.type ? shockDisplayName(shock.type) : 'Clear'}</b><span>{shock.forced ? 'operator-injected' : 'ambient'} · {percent(shock.severity)}</span></header>
+                  <p>Same recorded footprint for both planners. End-of-day resilience: PPO {percent(candidateDay.resilience)} · heuristic {percent(baselineDay.resilience)}.</p>
+                </article>
+              )
+            }) : <p>No shocks were recorded on this scenario tape.</p>}
+          </div>
+        </section>
 
         <footer className="debrief-actions">
-          <button className="debrief-toolbox" type="button" onClick={onOpenToolbox}>
-            <BarChart3 size={16} aria-hidden="true" />Inspect this run in the Analyst Toolbox
-          </button>
-          <button className="debrief-restart" type="button" onClick={onRestart}>
-            <RefreshCw size={15} aria-hidden="true" />Start a new run
-          </button>
+          <button className="debrief-toolbox" type="button" onClick={onOpenToolbox}><BarChart3 size={16} />Inspect all 73 inputs and 22 actions</button>
+          <button className="debrief-restart" type="button" onClick={onRestart}><RefreshCw size={15} />Start a new run</button>
         </footer>
       </div>
     </section>

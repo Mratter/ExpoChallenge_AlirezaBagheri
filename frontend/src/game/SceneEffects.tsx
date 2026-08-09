@@ -1,10 +1,13 @@
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import type { RefObject } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import * as THREE from 'three'
 import type { Group, InstancedMesh, Mesh, MeshBasicMaterial } from 'three'
 import type { CompareResponse, DayResult, Service, ShockType } from '../types'
 import { DISTRICT_BUILDING_OFFSETS, DISTRICTS, isBuildingRebuilding } from './model'
+import { ARCHETYPE_SPECS } from './DenseCityBuildings'
+import { CITY_BUILDING_PLACEMENTS } from './worldLayout'
+import { CONTINUOUS_MOTION_BASE_RATE } from './pacing'
 
 export type WorldPosition = readonly [number, number, number]
 
@@ -27,6 +30,7 @@ export type RepairPlan = {
   color: string
   position: WorldPosition
   buildingIndex: number
+  tall: boolean
 }
 
 /** A unique `id` restarts the transient even if type and position are unchanged. */
@@ -37,9 +41,25 @@ export type SceneImpact = {
   position: WorldPosition
 }
 
-/** One shared gate keeps all continuous city motion still under reduced motion. */
-export function sceneMotionStep(delta: number, reducedMotion: boolean): number {
-  return reducedMotion ? 0 : Math.min(delta, 0.075)
+const SceneMotionContext = createContext(CONTINUOUS_MOTION_BASE_RATE)
+
+export function SceneMotionProvider({
+  motionRate,
+  children,
+}: {
+  motionRate: number
+  children: ReactNode
+}) {
+  return (
+    <SceneMotionContext.Provider value={Math.max(0, motionRate)}>
+      {children}
+    </SceneMotionContext.Provider>
+  )
+}
+
+/** One shared gate keeps continuous city motion proportional to playback and pause state. */
+export function sceneMotionStep(delta: number, reducedMotion: boolean, motionRate = 1): number {
+  return reducedMotion ? 0 : Math.min(delta, 0.075) * Math.max(0, motionRate)
 }
 
 const CANONICAL_SERVICES: readonly Service[] = [
@@ -68,8 +88,9 @@ function serviceOffset(services: readonly Service[], service: Service): number {
 }
 
 /**
- * Converts the exact daily allocation into a monotonic vehicle plan. Both convoy count
- * and route speed grow with that service's fraction of the day's available budget.
+ * Converts the exact daily allocation into a monotonic vehicle plan. The denser fleet
+ * keeps exact allocation share legible while the shared motion rate makes each trip a
+ * sustained journey across the expanded plate.
  */
 export function convoyPlansForDay(
   day: DayResult,
@@ -84,7 +105,7 @@ export function convoyPlansForDay(
     if (allocation <= 0.001) return []
 
     const share = clamp(allocation / budget, 0, 1)
-    const vehicleCount = clamp(Math.ceil(share * 10), 1, 5)
+    const vehicleCount = clamp(Math.ceil(share * 20), 2, 10)
     const speed = 0.105 + share * 0.48
     const target = new THREE.Vector2(district.center[0], district.center[2])
     const direction = target.clone().normalize()
@@ -126,27 +147,37 @@ export function repairPlansForDay(
     if (realizedGain <= 0.002) return []
 
     const allocation = Math.max(0, day.allocation[index] ?? 0)
-    const vehicleCount = clamp(Math.ceil(realizedGain / 0.018), 1, 3)
+    const totalVehicleCount = clamp(Math.ceil(realizedGain / 0.01), 2, 8)
     const rebuildingIndices = DISTRICT_BUILDING_OFFSETS
       .map((_, buildingIndex) => buildingIndex)
       .filter((buildingIndex) => isBuildingRebuilding(day, previous, district.service, buildingIndex))
     if (rebuildingIndices.length === 0) return []
-    const buildingIndex = rebuildingIndices[(day.day + districtIndex) % rebuildingIndices.length]
-    const [offsetX, offsetZ] = DISTRICT_BUILDING_OFFSETS[buildingIndex]
-
-    return [{
-      service: district.service,
-      allocation,
-      realizedGain,
-      vehicleCount,
-      color: district.accent,
-      position: [
-        district.center[0] + offsetX,
-        0.3,
-        district.center[2] + offsetZ,
-      ],
-      buildingIndex,
-    }]
+    return rebuildingIndices.map((buildingIndex, cohortIndex) => {
+      const [offsetX, offsetZ] = DISTRICT_BUILDING_OFFSETS[buildingIndex]
+      const vehicleCount = Math.max(
+        1,
+        Math.floor(totalVehicleCount / rebuildingIndices.length)
+          + (cohortIndex < totalVehicleCount % rebuildingIndices.length ? 1 : 0),
+      )
+      return {
+        service: district.service,
+        allocation,
+        realizedGain,
+        vehicleCount,
+        color: district.accent,
+        position: [
+          district.center[0] + offsetX,
+          0.3,
+          district.center[2] + offsetZ,
+        ],
+        buildingIndex,
+        tall: ARCHETYPE_SPECS[
+          CITY_BUILDING_PLACEMENTS.find((building) => (
+            building.service === district.service && building.buildingIndex === buildingIndex
+          ))?.archetype ?? 'rowhouse'
+        ].size[1] >= 3,
+      }
+    })
   })
 }
 
@@ -208,11 +239,12 @@ function TruckModel({ color, repair = false }: { color: string; repair?: boolean
   )
 }
 
-function ConvoyVehicle({ route, index, day, reducedMotion }: {
+function ConvoyVehicle({ route, index, day, reducedMotion, motionRate }: {
   route: ConvoyPlan
   index: number
   day: number
   reducedMotion: boolean
+  motionRate: number
 }) {
   const vehicle = useRef<Group>(null)
   const progress = useRef((index / route.vehicleCount + (day * 0.173 + index * 0.071)) % 1)
@@ -221,7 +253,7 @@ function ConvoyVehicle({ route, index, day, reducedMotion }: {
 
   useFrame((_, delta) => {
     if (!vehicle.current) return
-    progress.current = (progress.current + sceneMotionStep(delta, reducedMotion) * route.speed) % 1
+    progress.current = (progress.current + sceneMotionStep(delta, reducedMotion, motionRate) * route.speed) % 1
     quadraticPoint(route.start, route.control, route.end, progress.current, point)
     quadraticTangent(route.start, route.control, route.end, progress.current, tangent)
     point.y += Math.sin(progress.current * Math.PI) * 0.025
@@ -243,14 +275,16 @@ export type AllocationConvoysProps = {
   services?: readonly Service[]
   inactiveServices?: readonly Service[]
   reducedMotion?: boolean
+  motionRate?: number
 }
 
-/** Deterministic outbound traffic from the silo, proportional to exact daily allocations. */
+/** Deterministic outbound traffic from the intake hub, proportional to exact daily allocations. */
 export function AllocationConvoys({
   day,
   services = CANONICAL_SERVICES,
   inactiveServices = [],
   reducedMotion = false,
+  motionRate = 1,
 }: AllocationConvoysProps) {
   const routes = useMemo(
     () => convoyPlansForDay(day, services, inactiveServices),
@@ -260,53 +294,48 @@ export function AllocationConvoys({
     <group name="allocation-convoys">
       {routes.flatMap((route) => Array.from({ length: route.vehicleCount }, (_, index) => (
         <ConvoyVehicle
-          key={`${day.day}-${route.service}-${index}`}
+          key={`${route.service}-${index}`}
           route={route}
           index={index}
           day={day.day}
           reducedMotion={reducedMotion}
+          motionRate={motionRate}
         />
       )))}
     </group>
   )
 }
 
-function RepairTruck({ plan, index, day, reducedMotion }: {
+function RepairTruck({ plan, index }: {
   plan: RepairPlan
   index: number
-  day: number
-  reducedMotion: boolean
 }) {
-  const truck = useRef<Group>(null)
-  const elapsed = useRef((index + 1) * 0.47 + day * 0.11)
-  useFrame((_, delta) => {
-    if (!truck.current) return
-    elapsed.current += sceneMotionStep(delta, reducedMotion)
-    const phase = elapsed.current * (0.8 + Math.min(plan.realizedGain * 7, 0.5)) + index * 1.8
-    truck.current.position.set(
-      plan.position[0] + Math.cos(phase) * (0.72 + index * 0.16),
-      plan.position[1] + 0.1,
-      plan.position[2] + Math.sin(phase) * (0.48 + index * 0.12),
-    )
-    truck.current.rotation.y = -phase
-  })
+  const side = index % 2 ? -1 : 1
   return (
-    <group ref={truck}>
+    <group
+      position={[
+        plan.position[0] + side * (0.85 + index * 0.18),
+        plan.position[1] + 0.1,
+        plan.position[2] + 0.72 + Math.floor(index / 2) * 0.42,
+      ]}
+      rotation={[0, side > 0 ? -0.42 : 0.42, 0]}
+    >
       <TruckModel color={plan.color} repair />
     </group>
   )
 }
 
-function RepairCrane({ plan, day, reducedMotion }: {
+function RepairCrane({ plan, day, reducedMotion, motionRate }: {
   plan: RepairPlan
   day: number
   reducedMotion: boolean
+  motionRate: number
 }) {
   const boom = useRef<Group>(null)
   const hook = useRef<Mesh>(null)
   const elapsed = useRef(day * 0.23)
   useFrame((_, delta) => {
-    elapsed.current += sceneMotionStep(delta, reducedMotion)
+    elapsed.current += sceneMotionStep(delta, reducedMotion, motionRate)
     if (boom.current) boom.current.rotation.y = Math.sin(elapsed.current * 0.42) * 0.28
     if (hook.current) hook.current.position.y = -0.78 + Math.sin(elapsed.current * 0.74) * 0.22
   })
@@ -339,6 +368,29 @@ function RepairCrane({ plan, day, reducedMotion }: {
   )
 }
 
+function RepairLift({ plan, day, reducedMotion, motionRate }: {
+  plan: RepairPlan
+  day: number
+  reducedMotion: boolean
+  motionRate: number
+}) {
+  const basket = useRef<Group>(null)
+  useFrame(({ clock }) => {
+    if (!basket.current) return
+    const pulse = reducedMotion ? 0.5 : (Math.sin(clock.elapsedTime * 0.34 * motionRate + day) + 1) / 2
+    basket.current.position.y = 0.95 + pulse * 0.72
+  })
+  return (
+    <group position={plan.position} scale={0.72}>
+      <mesh position={[0, 0.26, 0]} castShadow><boxGeometry args={[0.92, 0.5, 1.18]} /><meshStandardMaterial color="#656b65" roughness={0.88} /></mesh>
+      <mesh position={[0.18, 0.94, 0]} rotation={[0.18, 0, -0.28]} castShadow><boxGeometry args={[0.12, 1.55, 0.12]} /><meshStandardMaterial color={plan.color} roughness={0.78} /></mesh>
+      <group ref={basket} position={[-0.06, 1.3, 0]}>
+        <mesh><boxGeometry args={[0.62, 0.16, 0.5]} /><meshStandardMaterial color={plan.color} roughness={0.8} /></mesh>
+      </group>
+    </group>
+  )
+}
+
 export type RepairActivityProps = {
   /** The current candidate day and optional immediately preceding candidate day. */
   day: DayResult
@@ -347,6 +399,7 @@ export type RepairActivityProps = {
   services?: readonly Service[]
   inactiveServices?: readonly Service[]
   reducedMotion?: boolean
+  motionRate?: number
 }
 
 /** Repair trucks and cranes appear only where the real candidate trajectory improved. */
@@ -356,6 +409,7 @@ export function RepairActivity({
   services = CANONICAL_SERVICES,
   inactiveServices = [],
   reducedMotion = false,
+  motionRate = 1,
 }: RepairActivityProps) {
   const plans = useMemo(
     () => repairPlansForDay(day, previous, services, inactiveServices),
@@ -364,10 +418,16 @@ export function RepairActivity({
   return (
     <group name="trajectory-derived-repairs">
       {plans.map((plan) => (
-        <group key={`${day.day}-${plan.service}`}>
-          <RepairCrane plan={plan} day={day.day} reducedMotion={reducedMotion} />
+        <group key={`${plan.service}-${plan.buildingIndex}`}>
+          {plan.tall
+            ? <RepairCrane plan={plan} day={day.day} reducedMotion={reducedMotion} motionRate={motionRate} />
+            : <RepairLift plan={plan} day={day.day} reducedMotion={reducedMotion} motionRate={motionRate} />}
           {Array.from({ length: plan.vehicleCount }, (_, index) => (
-            <RepairTruck key={index} plan={plan} index={index} day={day.day} reducedMotion={reducedMotion} />
+            <RepairTruck
+              key={index}
+              plan={plan}
+              index={index}
+            />
           ))}
         </group>
       ))}
@@ -589,39 +649,32 @@ export type SceneEffectsProps = {
   onImpactComplete?: (impact: SceneImpact) => void
   inactiveServices?: readonly Service[]
   reducedMotion?: boolean
+  motionRateOverride?: number
 }
 
 /** Concise CityScene integration: all persistent activity is derived from candidate data. */
 export function SceneEffects({
   result,
   dayIndex,
-  impact = null,
-  tremorTarget,
-  onImpactComplete,
   inactiveServices = [],
   reducedMotion = false,
+  motionRateOverride,
 }: SceneEffectsProps) {
+  const contextMotionRate = useContext(SceneMotionContext)
+  const motionRate = motionRateOverride ?? contextMotionRate
   const day = result.candidate.trajectory[dayIndex]
   const previous = result.candidate.trajectory[dayIndex - 1]
-  if (!day) {
-    return <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} reducedMotion={reducedMotion} />
-  }
+  if (!day) return null
   return (
     <>
-      <AllocationConvoys
-        day={day}
-        services={result.services}
-        inactiveServices={inactiveServices}
-        reducedMotion={reducedMotion}
-      />
       <RepairActivity
         day={day}
         previous={previous}
         services={result.services}
         inactiveServices={inactiveServices}
         reducedMotion={reducedMotion}
+        motionRate={motionRate}
       />
-      <ImpactVisualization impact={impact} tremorTarget={tremorTarget} onComplete={onImpactComplete} reducedMotion={reducedMotion} />
     </>
   )
 }
