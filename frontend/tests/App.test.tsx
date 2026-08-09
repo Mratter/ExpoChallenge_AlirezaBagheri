@@ -110,6 +110,32 @@ function responseFixture(): CompareResponse {
       trajectory: candidateDays,
     },
     comparison: { primary_metric: 'weighted_daily_resilience_auc', candidate_minus_baseline: 0.0165, outcome: 'candidate_higher_rauc' },
+    recommendations: {
+      winner: 'candidate',
+      winner_label: 'SB3 PPO / ONNX',
+      winner_margin_pp: 1.65,
+      winner_rationale: 'The learned policy outperformed the conventional planner by 1.65 resilience AUC percentage points.',
+      critical_moment: { day: 5, resilience: 0.4, description: 'Day 5 recorded the lowest resilience (0.40) following a utility failure shock at 0.26 severity.' },
+      most_fragile_service: 'healthcare',
+      most_fragile_days_below_threshold: 3,
+      worst_shock_type: 'utility',
+      strategy_summary: 'Across 14 days with 180 daily units, the SB3 PPO / ONNX strategy is recommended. Resilience AUC: candidate 0.4650 vs baseline 0.4485. Most fragile service: healthcare. Critical moment: day 5.',
+      actionable_recommendations: [
+        'Adopt the SB3 PPO / ONNX allocation strategy for this scenario family; it yields the higher resilience trajectory.',
+        'Reinforce healthcare capacity early: it spent 3 day(s) below the 0.30 stability band.',
+        'Maintain reserve units for utility failure events: they caused the largest single-day service losses.',
+      ],
+      daily: candidateDays.map((entry) => ({
+        day: entry.day,
+        priority_service: 'healthcare',
+        priority_rationale: `Prioritize healthcare: lowest condition relative to weight (${entry.services_end[3].toFixed(2)} state, 1.4 weight).`,
+        risk_alerts: entry.services_end[3] < 0.12
+          ? [{ service: 'healthcare', level: 'critical', detail: 'healthcare below 0.12 recovery floor' }]
+          : [],
+        allocation_focus: 'healthcare',
+        allocation_focus_share: 0.25,
+      })),
+    },
     limitations: ['Synthetic only.'],
   }
 }

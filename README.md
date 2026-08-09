@@ -112,6 +112,17 @@ Open the complete Analyst Toolbox at `http://127.0.0.1:4173/#/toolbox` or use th
 
 If WebGL is unavailable, the game displays a clear fallback and the Analyst Toolbox remains usable.
 
+## Recommendations
+
+The Analyst Toolbox exposes a **Recommendations** tab alongside the Trajectory and Daily audit tabs. It turns the deterministic comparison into explicit decision guidance for a city planner:
+
+- **Strategy summary** — which planner is recommended for the scenario family and the measured resilience AUC margin.
+- **Actionable recommendations** — a deterministic list of concrete next steps (which service to reinforce, which shock type to keep reserves for, constraint-feasibility confirmation, and a synthetic-evidence disclosure).
+- **Critical moment** — the lowest-resilience day, the shock that caused it, and the most fragile service across the run.
+- **Daily recommendations** — a per-day table of the priority service, allocation focus, rationale, and risk alerts (critical, strained, or district-dark streaks).
+
+Every recommendation is a deterministic function of the returned trajectory and shock tape. No recommendation is generated from a model call, random source, or external service; repeating the same scenario and seed reproduces the same recommendations byte-for-byte.
+
 ## Tests
 
 ```powershell
@@ -130,9 +141,9 @@ Backend tests cover health/meta endpoints, canonical determinism, constraint inv
 - `GET /api/v1/simulations/{result_id}`
 - `POST /api/v1/simulations/compare`
 
-Comparison schema `2.1.0` adds the ordered `Scenario.forced_shocks` list while retaining strict unknown-field rejection and the legacy singular field. Previously persisted `2.0.0` results remain self-verifying and restore with their original canonical bytes; they are not migrated.
+Comparison schema `2.2.0` adds a deterministic `recommendations` block (strategy summary, actionable recommendations, critical moment, and per-day priority/risk assessment) on top of the `2.1.0` ordered `Scenario.forced_shocks` list. Strict unknown-field rejection and the legacy singular shock field are retained. Previously persisted `2.0.0` and `2.1.0` results remain self-verifying and restore with their original canonical bytes; they are not migrated.
 
-The canonical compare response contains the shared shock schedule, both daily trajectories, action proposals, exact projected allocations, bounds and violation evidence, resilience and recovery metrics, artifact provenance, deterministic result identity, and limitations. See `ARCHITECTURE.md` for runtime and identity contracts and `EVALUATION.md` for the preregistered synthetic holdout.
+The canonical compare response contains the shared shock schedule, both daily trajectories, action proposals, exact projected allocations, bounds and violation evidence, resilience and recovery metrics, deterministic recommendations, artifact provenance, deterministic result identity, and limitations. See `ARCHITECTURE.md` for runtime and identity contracts and `EVALUATION.md` for the preregistered synthetic holdout.
 
 ## Repository layout
 

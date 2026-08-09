@@ -118,7 +118,31 @@ export type CompareResponse = {
     candidate_minus_baseline: number
     outcome: string
   }
+  recommendations: RunRecommendations
   limitations: string[]
+}
+
+export type DailyRecommendation = {
+  day: number
+  priority_service: Service
+  priority_rationale: string
+  risk_alerts: { service: Service; level: 'critical' | 'strained' | 'district_dark'; detail: string }[]
+  allocation_focus: Service
+  allocation_focus_share: number
+}
+
+export type RunRecommendations = {
+  winner: 'candidate' | 'baseline' | 'tie'
+  winner_label: string
+  winner_margin_pp: number
+  winner_rationale: string
+  critical_moment: { day: number; resilience: number; description: string }
+  most_fragile_service: Service
+  most_fragile_days_below_threshold: number
+  worst_shock_type: string
+  strategy_summary: string
+  actionable_recommendations: string[]
+  daily: DailyRecommendation[]
 }
 
 export type SavedResultSummary = {

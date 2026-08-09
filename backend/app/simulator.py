@@ -13,6 +13,7 @@ from gymnasium import spaces
 from ortools.linear_solver import pywraplp
 
 from backend.app.models import Scenario
+from backend.app.recommendations import run_recommendations
 
 SERVICES = ("transport", "housing", "food", "healthcare", "public_services")
 SHOCKS = ("aftershock", "supply", "epidemic", "utility", "weather")
@@ -581,7 +582,7 @@ def compare(scenario: Scenario, seed: int, policy_bundle: Any) -> dict[str, Any]
     else:
         outcome = "rauc_tie"
     return {
-        "schema_version": "2.1.0",
+        "schema_version": "2.2.0",
         "seed": seed,
         "generator": "numpy.PCG64",
         "scenario": scenario.model_dump(mode="json"),
@@ -626,6 +627,16 @@ def compare(scenario: Scenario, seed: int, policy_bundle: Any) -> dict[str, Any]
             ),
             "outcome": outcome,
         },
+        "recommendations": run_recommendations({
+            "candidate": candidate,
+            "baseline": baseline,
+            "comparison": {
+                "outcome": outcome,
+                "candidate_minus_baseline": round(delta, 8),
+            },
+            "scenario": scenario.model_dump(mode="json"),
+            "shock_schedule": schedule_payload,
+        }, SERVICES),
         "limitations": [
             (
                 "All dynamics, authored scenario families, and training inputs are "

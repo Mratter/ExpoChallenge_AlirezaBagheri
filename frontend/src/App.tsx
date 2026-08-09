@@ -36,10 +36,10 @@ const serviceCodes: Record<Service, string> = {
   public_services: 'PS',
 }
 
-type ViewMode = 'trajectory' | 'audit'
+type ViewMode = 'trajectory' | 'audit' | 'recommendations'
 type ComparisonFailure = { code: string; message: string }
 
-const viewModes: ViewMode[] = ['trajectory', 'audit']
+const viewModes: ViewMode[] = ['trajectory', 'audit', 'recommendations']
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`
@@ -357,6 +357,78 @@ function DayInspector({ result, selectedDay, onDay }: { result: CompareResponse;
   )
 }
 
+function RecommendationsPanel({ result }: { result: CompareResponse }) {
+  const rec = result.recommendations
+  return (
+    <div className="recommendations-view">
+      <section className="recommendation-summary" aria-labelledby="rec-summary-title">
+        <p className="section-kicker">Decision optimization recommendations</p>
+        <h3 id="rec-summary-title">Strategy summary</h3>
+        <p className="strategy-summary">{rec.strategy_summary}</p>
+        <div className="winner-banner" data-winner={rec.winner}>
+          <strong>{rec.winner_label}</strong>
+          <span>{rec.winner_rationale}</span>
+        </div>
+      </section>
+
+      <section className="recommendation-block" aria-labelledby="rec-action-title">
+        <h3 id="rec-action-title">Actionable recommendations</h3>
+        <ul className="actionable-list">
+          {rec.actionable_recommendations.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="recommendation-block" aria-labelledby="rec-critical-title">
+        <h3 id="rec-critical-title">Critical moment</h3>
+        <p>{rec.critical_moment.description}</p>
+        <dl className="critical-facts">
+          <div><dt>Day</dt><dd>{rec.critical_moment.day}</dd></div>
+          <div><dt>Resilience</dt><dd>{formatPercent(rec.critical_moment.resilience)}</dd></div>
+          <div><dt>Most fragile service</dt><dd>{rec.most_fragile_service}</dd></div>
+          <div><dt>Days below threshold</dt><dd>{rec.most_fragile_days_below_threshold}</dd></div>
+        </dl>
+      </section>
+
+      <section className="recommendation-block" aria-labelledby="rec-daily-title">
+        <h3 id="rec-daily-title">Daily recommendations</h3>
+        <div className="audit-scroll" role="region" aria-label="Daily recommendations table" tabIndex={0}>
+          <table>
+            <caption>Deterministic per-day priority and risk assessment</caption>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Priority service</th>
+                <th>Allocation focus</th>
+                <th>Rationale</th>
+                <th>Risk alerts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rec.daily.map((day) => (
+                <tr key={day.day}>
+                  <td>{day.day}</td>
+                  <td><b>{day.priority_service}</b></td>
+                  <td>{day.allocation_focus} <small>({formatPercent(day.allocation_focus_share)})</small></td>
+                  <td>{day.priority_rationale}</td>
+                  <td>
+                    {day.risk_alerts.length === 0
+                      ? <span className="risk-none">None</span>
+                      : day.risk_alerts.map((alert, index) => (
+                        <span key={index} className={`risk-chip risk-${alert.level}`}>{alert.service}: {alert.detail}</span>
+                      ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function AuditTable({ result }: { result: CompareResponse }) {
   return (
     <div className="audit-view">
@@ -618,6 +690,7 @@ function AnalystToolbox({
               <div className="view-tabs" role="tablist" aria-label="Result view">
                 <button id="tab-trajectory" type="button" role="tab" aria-selected={view === 'trajectory'} aria-controls="panel-trajectory" tabIndex={view === 'trajectory' ? 0 : -1} className={view === 'trajectory' ? 'active' : ''} onClick={() => setView('trajectory')} onKeyDown={handleTabKey}>Trajectory</button>
                 <button id="tab-audit" type="button" role="tab" aria-selected={view === 'audit'} aria-controls="panel-audit" tabIndex={view === 'audit' ? 0 : -1} className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')} onKeyDown={handleTabKey}>Daily audit</button>
+                <button id="tab-recommendations" type="button" role="tab" aria-selected={view === 'recommendations'} aria-controls="panel-recommendations" tabIndex={view === 'recommendations' ? 0 : -1} className={view === 'recommendations' ? 'active' : ''} onClick={() => setView('recommendations')} onKeyDown={handleTabKey}>Recommendations</button>
               </div>
 
               <div id="panel-trajectory" role="tabpanel" aria-labelledby="tab-trajectory" hidden={view !== 'trajectory'}>
@@ -628,6 +701,9 @@ function AnalystToolbox({
               </div>
               <div id="panel-audit" role="tabpanel" aria-labelledby="tab-audit" hidden={view !== 'audit'}>
                 <AuditTable result={result} />
+              </div>
+              <div id="panel-recommendations" role="tabpanel" aria-labelledby="tab-recommendations" hidden={view !== 'recommendations'}>
+                <RecommendationsPanel result={result} />
               </div>
 
               <footer className="evidence-footer">
