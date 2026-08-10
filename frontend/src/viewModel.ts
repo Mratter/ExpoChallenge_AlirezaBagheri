@@ -6,22 +6,22 @@ import type {
   Service,
 } from './types'
 import {
-  actionSlicesV3,
-  environmentContractV3,
-  observationOrderV3,
-  requestLimitsV3,
+  actionSlices,
+  environmentContract,
+  observationOrder,
+  requestLimits,
 } from './types'
 
 export type PlannerKey = 'candidate' | 'baseline'
 
-export const MATERIAL_GROUP = actionSlicesV3.materialShares
-export const MATERIAL_UTILIZATION = actionSlicesV3.materialUtilization
-export const CREW_GROUP = actionSlicesV3.crewShares
-export const CREW_UTILIZATION = actionSlicesV3.crewUtilization
-export const STOCK_RELEASE_GROUP = actionSlicesV3.stockRelease
-export const PREPAREDNESS_GROUP = actionSlicesV3.preparednessInvestment
+export const MATERIAL_GROUP = actionSlices.materialShares
+export const MATERIAL_UTILIZATION = actionSlices.materialUtilization
+export const CREW_GROUP = actionSlices.crewShares
+export const CREW_UTILIZATION = actionSlices.crewUtilization
+export const STOCK_RELEASE_GROUP = actionSlices.stockRelease
+export const PREPAREDNESS_GROUP = actionSlices.preparednessInvestment
 
-const CRITICAL_SERVICE_FLOOR = environmentContractV3.criticalServiceFloor
+const CRITICAL_SERVICE_FLOOR = environmentContract.criticalServiceFloor
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -36,20 +36,20 @@ export function canScheduleForcedShock(scenario: Scenario, day: number): boolean
 }
 
 export function scenarioIssue(scenario: Scenario, seed: number): string | null {
-  if (!Number.isInteger(seed) || seed < requestLimitsV3.seed.minimum || seed > requestLimitsV3.seed.maximum) return 'Seed must be a uint32 integer.'
-  if (!scenario.name.trim() || scenario.name.length > requestLimitsV3.name.maximumLength) return 'Scenario name must be 1–64 characters.'
-  if (scenario.horizon_days !== requestLimitsV3.horizonDays.constant || scenario.assessment_tail_days !== requestLimitsV3.assessmentTailDays.constant) {
-    return 'V3 scenarios use exactly 30 days with a three-day assessment tail.'
+  if (!Number.isInteger(seed) || seed < requestLimits.seed.minimum || seed > requestLimits.seed.maximum) return 'Seed must be a uint32 integer.'
+  if (!scenario.name.trim() || scenario.name.length > requestLimits.name.maximumLength) return 'Scenario name must be 1–64 characters.'
+  if (scenario.horizon_days !== requestLimits.horizonDays.constant || scenario.assessment_tail_days !== requestLimits.assessmentTailDays.constant) {
+    return 'Scenarios use exactly 30 days with a three-day assessment tail.'
   }
-  if (scenario.daily_budget < requestLimitsV3.dailyBudget.minimum || scenario.daily_budget > requestLimitsV3.dailyBudget.maximum) return 'Daily material budget must be 50–500.'
-  if (scenario.daily_crew_pool < requestLimitsV3.dailyCrewPool.minimum || scenario.daily_crew_pool > requestLimitsV3.dailyCrewPool.maximum) return 'Daily crew pool must be 50–300.'
-  if (scenario.shock_probability < requestLimitsV3.shockProbability.minimum || scenario.shock_probability > requestLimitsV3.shockProbability.maximum) return 'Shock probability must be 0–35%.'
-  if (scenario.severity_min < requestLimitsV3.severityMin.minimum || scenario.severity_min > requestLimitsV3.severityMin.maximum) return 'Minimum severity must be 5–25%.'
-  if (scenario.severity_max < requestLimitsV3.severityMax.minimum || scenario.severity_max > requestLimitsV3.severityMax.maximum) return 'Maximum severity must be 10–40%.'
+  if (scenario.daily_budget < requestLimits.dailyBudget.minimum || scenario.daily_budget > requestLimits.dailyBudget.maximum) return 'Daily material budget must be 50–500.'
+  if (scenario.daily_crew_pool < requestLimits.dailyCrewPool.minimum || scenario.daily_crew_pool > requestLimits.dailyCrewPool.maximum) return 'Daily crew pool must be 50–300.'
+  if (scenario.shock_probability < requestLimits.shockProbability.minimum || scenario.shock_probability > requestLimits.shockProbability.maximum) return 'Shock probability must be 0–35%.'
+  if (scenario.severity_min < requestLimits.severityMin.minimum || scenario.severity_min > requestLimits.severityMin.maximum) return 'Minimum severity must be 5–25%.'
+  if (scenario.severity_max < requestLimits.severityMax.minimum || scenario.severity_max > requestLimits.severityMax.maximum) return 'Maximum severity must be 10–40%.'
   if (scenario.severity_min >= scenario.severity_max) return 'Minimum severity must be lower than maximum severity.'
-  if (scenario.initial_services.some((value) => value < requestLimitsV3.initialServices.minimum || value > requestLimitsV3.initialServices.maximum)) return 'Each initial service must be 5–95%.'
-  if (scenario.priorities.some((value) => value < requestLimitsV3.priorities.minimum || value > requestLimitsV3.priorities.maximum)) return 'Each service priority must be 0.5–2.0.'
-  if (scenario.recovery_targets.some((value) => value < requestLimitsV3.recoveryTargets.minimum || value > requestLimitsV3.recoveryTargets.maximum)) return 'Each recovery target must be 45–75%.'
+  if (scenario.initial_services.some((value) => value < requestLimits.initialServices.minimum || value > requestLimits.initialServices.maximum)) return 'Each initial service must be 5–95%.'
+  if (scenario.priorities.some((value) => value < requestLimits.priorities.minimum || value > requestLimits.priorities.maximum)) return 'Each service priority must be 0.5–2.0.'
+  if (scenario.recovery_targets.some((value) => value < requestLimits.recoveryTargets.minimum || value > requestLimits.recoveryTargets.maximum)) return 'Each recovery target must be 45–75%.'
   const forced = [...(scenario.forced_shock ? [scenario.forced_shock] : []), ...scenario.forced_shocks]
   if (forced.some((shock) => !canScheduleForcedShock(scenario, shock.day))) {
     return `Forced shocks must occur before the assessment tail (days ${tailStartDay(scenario)}–30).`
@@ -130,7 +130,7 @@ export function observationVectorForDay(
     previousResilience,
     ...day.public_next_day_risk,
   ].map(clamp01)
-  if (vector.length !== observationOrderV3.length) throw new Error(`Observation reconstruction produced ${vector.length}, expected ${observationOrderV3.length}.`)
+  if (vector.length !== observationOrder.length) throw new Error(`Observation reconstruction produced ${vector.length}, expected ${observationOrder.length}.`)
   return vector
 }
 

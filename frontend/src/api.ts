@@ -1,12 +1,12 @@
 import {
-  actionGroupsV3,
-  actionOrderV3,
-  defaultScenarioV3,
-  environmentContractV3,
-  observationOrderV3,
+  actionGroups,
+  actionOrder,
+  defaultScenario,
+  environmentContract,
+  observationOrder,
   services,
   type CompareResponse,
-  type MetadataV3,
+  type Metadata,
   type SavedResultSummary,
   type Scenario,
 } from './types'
@@ -104,18 +104,6 @@ function requireHash(value: unknown, path: string): string {
   return hash
 }
 
-function requireExactKeys(
-  value: Record<string, unknown>,
-  expected: readonly string[],
-  path: string,
-): void {
-  const actual = Object.keys(value).sort()
-  const required = [...expected].sort()
-  if (actual.length !== required.length || actual.some((key, index) => key !== required[index])) {
-    throw contractError(`${path} fields do not match the sealed contract.`)
-  }
-}
-
 function requireExactStringArray(
   value: unknown,
   expected: readonly string[],
@@ -124,29 +112,29 @@ function requireExactStringArray(
   if (
     !isStringArray(value, expected.length)
     || value.some((entry, index) => entry !== expected[index])
-  ) throw contractError(`${path} does not match the canonical V3 order.`)
+  ) throw contractError(`${path} does not match the canonical order.`)
 }
 
-function rounded(value: number, digits: number): number {
-  return Number(value.toFixed(digits))
-}
-
-function wilsonInterval(successes: number, total: number): [number, number] {
-  const z = 1.959963984540054
-  const proportion = successes / total
-  const denominator = 1 + z * z / total
-  const center = (proportion + z * z / (2 * total)) / denominator
-  const margin = z * Math.sqrt(
-    proportion * (1 - proportion) / total + z * z / (4 * total * total),
-  ) / denominator
-  return [
-    rounded(Math.max(0, center - margin), 8),
-    rounded(Math.min(1, center + margin), 8),
-  ]
-}
-
-function nearlyEqual(left: number, right: number, tolerance = 1e-12): boolean {
-  return Math.abs(left - right) <= tolerance
+function validatePolicyIdentity(value: unknown, path: string): Record<string, unknown> {
+  const policy = requireObject(value, path)
+  requireString(policy.id, `${path}.id`)
+  requireString(policy.path_stem, `${path}.path_stem`)
+  requireString(policy.artifact_type, `${path}.artifact_type`)
+  requireString(policy.runtime, `${path}.runtime`)
+  requireHash(policy.sha256, `${path}.sha256`)
+  const observation = requireObject(
+    policy.observation_contract,
+    `${path}.observation_contract`,
+  )
+  if (
+    observation.source !== 'raw_environment_observation'
+    || observation.input_name !== 'observation'
+    || observation.dtype !== 'float32'
+    || observation.normalization !== 'embedded_in_onnx'
+    || !isNumberArray(observation.shape, 1)
+    || observation.shape[0] !== environmentContract.observationCount
+  ) throw contractError(`${path}.observation_contract is incompatible with the environment.`)
+  return policy
 }
 
 function validateOutcome(value: unknown, path: string): boolean {
@@ -161,8 +149,8 @@ function validateOutcome(value: unknown, path: string): boolean {
   if (!isBooleanArray(outcome.target_met_by_service, services.length)) {
     throw contractError(`${path}.target_met_by_service must contain five booleans.`)
   }
-  if (outcome.assessment_tail_days !== environmentContractV3.assessmentTailDays) {
-    throw contractError(`${path}.assessment_tail_days must be ${environmentContractV3.assessmentTailDays}.`)
+  if (outcome.assessment_tail_days !== environmentContract.assessmentTailDays) {
+    throw contractError(`${path}.assessment_tail_days must be ${environmentContract.assessmentTailDays}.`)
   }
   const checks = requireObject(outcome.checks, `${path}.checks`)
   for (const name of [
@@ -188,7 +176,7 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
     'lower_bounds', 'upper_bounds', 'crew_lower_bounds', 'crew_upper_bounds',
     'support', 'throughput', 'public_next_day_risk', 'gain', 'strain', 'services_end',
   ]) requireVector(day[field], services.length, `${path}.${field}`)
-  requireVector(day.raw_action, actionOrderV3.length, `${path}.raw_action`)
+  requireVector(day.raw_action, actionOrder.length, `${path}.raw_action`)
   for (const field of [
     'available_budget', 'available_crew', 'material_used', 'material_unspent',
     'crew_used', 'crew_idle', 'preparedness_alignment_reward', 'backlog_pressure',
@@ -234,8 +222,8 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
 function validatePlanner(value: unknown, path: string): boolean {
   const planner = requireObject(value, path)
   const trajectory = planner.trajectory
-  if (!Array.isArray(trajectory) || trajectory.length !== defaultScenarioV3.horizon_days) {
-    throw contractError(`${path}.trajectory must contain exactly ${defaultScenarioV3.horizon_days} days.`)
+  if (!Array.isArray(trajectory) || trajectory.length !== defaultScenario.horizon_days) {
+    throw contractError(`${path}.trajectory must contain exactly ${defaultScenario.horizon_days} days.`)
   }
   trajectory.forEach((day, index) => validateDay(day, index, path))
   for (const field of [
@@ -248,7 +236,7 @@ function validatePlanner(value: unknown, path: string): boolean {
   requireVector(planner.final_pending_arrivals, services.length, `${path}.final_pending_arrivals`)
   requireHash(planner.trajectory_sha256, `${path}.trajectory_sha256`)
   const solved = validateOutcome(planner.absolute_outcome, `${path}.absolute_outcome`)
-  const terminalIndex = defaultScenarioV3.horizon_days - 1
+  const terminalIndex = defaultScenario.horizon_days - 1
   const terminal = requireObject(trajectory[terminalIndex], `${path}.trajectory[${terminalIndex}]`)
   const terminalSolved = validateOutcome(
     terminal.absolute_outcome,
@@ -260,32 +248,31 @@ function validatePlanner(value: unknown, path: string): boolean {
   return solved
 }
 
-/** Runtime validation prevents incompatible or partial evidence from being rendered as V3. */
+/** Runtime validation prevents incompatible or partial evidence from being rendered. */
 export function parseComparison(value: unknown): CompareResponse {
   const root = requireObject(value, 'comparison response')
-  if (root.schema_version !== environmentContractV3.schemaVersion || root.engine_version !== 'city-recovery-env-v3') {
-    throw contractError('The response is not a CityRecoveryEnv-v3 schema 4 result.')
+  if (root.schema_version !== environmentContract.schemaVersion || root.engine_version !== 'city-recovery-env-v3') {
+    throw contractError('The response does not match the configured environment schema.')
   }
   const environment = requireObject(root.environment, 'environment')
   if (
-    environment.id !== environmentContractV3.id
-    || environment.observation_count !== environmentContractV3.observationCount
-    || environment.action_count !== environmentContractV3.actionCount
-  ) throw contractError('The environment interface is not the frozen 73-input / 22-action V3 contract.')
+    environment.id !== environmentContract.id
+    || environment.observation_count !== environmentContract.observationCount
+    || environment.action_count !== environmentContract.actionCount
+  ) throw contractError('The environment interface is not the canonical 73-input / 22-action contract.')
   const scenario = requireObject(root.scenario, 'scenario')
-  if (scenario.horizon_days !== defaultScenarioV3.horizon_days || scenario.assessment_tail_days !== environmentContractV3.assessmentTailDays) {
-    throw contractError('The scenario is not the frozen 30-day / 3-day-tail V3 protocol.')
+  if (scenario.horizon_days !== defaultScenario.horizon_days || scenario.assessment_tail_days !== environmentContract.assessmentTailDays) {
+    throw contractError('The scenario is not the canonical 30-day / 3-day-tail protocol.')
   }
   requireVector(scenario.initial_services, services.length, 'scenario.initial_services')
   requireVector(scenario.priorities, services.length, 'scenario.priorities')
   requireVector(scenario.recovery_targets, services.length, 'scenario.recovery_targets')
-  if (!isStringArray(root.observation_order, observationOrderV3.length) || !isStringArray(root.action_order, actionOrderV3.length)) {
-    throw contractError('The returned policy channel order is incomplete.')
-  }
+  requireExactStringArray(root.observation_order, observationOrder, 'observation_order')
+  requireExactStringArray(root.action_order, actionOrder, 'action_order')
   if (!Array.isArray(root.services) || root.services.join('|') !== services.join('|')) {
-    throw contractError('The returned service order does not match the V3 contract.')
+    throw contractError('The returned service order does not match the canonical contract.')
   }
-  if (!Array.isArray(root.shock_schedule) || root.shock_schedule.length !== defaultScenarioV3.horizon_days) {
+  if (!Array.isArray(root.shock_schedule) || root.shock_schedule.length !== defaultScenario.horizon_days) {
     throw contractError('The shared shock schedule must contain 30 days.')
   }
   const candidateSolved = validatePlanner(root.candidate, 'candidate')
@@ -298,11 +285,7 @@ export function parseComparison(value: unknown): CompareResponse {
     throw contractError('The comparison verdict disagrees with a planner outcome receipt.')
   }
   requireNumber(comparison.secondary_rauc_candidate_minus_baseline, 'comparison.secondary_rauc_candidate_minus_baseline')
-  const policy = requireObject(root.policy, 'policy')
-  requireString(policy.id, 'policy.id')
-  requireHash(policy.sha256, 'policy.sha256')
-  requireHash(policy.sb3_checkpoint_sha256, 'policy.sb3_checkpoint_sha256')
-  requireHash(policy.manifest_sha256, 'policy.manifest_sha256')
+  validatePolicyIdentity(root.policy, 'policy')
   const baselineSpec = requireObject(root.baseline_spec, 'baseline_spec')
   requireString(baselineSpec.id, 'baseline_spec.id')
   requireString(baselineSpec.version, 'baseline_spec.version')
@@ -313,184 +296,33 @@ export function parseComparison(value: unknown): CompareResponse {
   return value as CompareResponse
 }
 
-function validateBenchmarkPlanner(
-  value: unknown,
-  path: string,
-  expectedId: string,
-  expectedVersion?: string,
-): {
-    solved: number
-    meanRauc: number
-  } {
-  const planner = requireObject(value, path)
-  requireExactKeys(
-    planner,
-    expectedVersion === undefined
-      ? ['id', 'solved_count', 'failed_count', 'solve_rate', 'solve_rate_wilson_ci95', 'mean_resilience_auc']
-      : ['id', 'version', 'solved_count', 'failed_count', 'solve_rate', 'solve_rate_wilson_ci95', 'mean_resilience_auc'],
-    path,
-  )
-  if (planner.id !== expectedId || (expectedVersion !== undefined && planner.version !== expectedVersion)) {
-    throw contractError(`${path} identity does not match the sealed V3 contract.`)
-  }
-  const solved = requireInteger(planner.solved_count, `${path}.solved_count`, 0, 40)
-  const failed = requireInteger(planner.failed_count, `${path}.failed_count`, 0, 40)
-  const rate = requireNumber(planner.solve_rate, `${path}.solve_rate`)
-  if (failed !== 40 - solved || !nearlyEqual(rate, solved / 40)) {
-    throw contractError(`${path} solve count, failure count, and rate disagree.`)
-  }
-  const interval = requireVector(planner.solve_rate_wilson_ci95, 2, `${path}.solve_rate_wilson_ci95`)
-  const expectedInterval = wilsonInterval(solved, 40)
-  if (
-    interval[0] < 0
-    || interval[1] > 1
-    || interval[0] > interval[1]
-    || !nearlyEqual(interval[0], expectedInterval[0])
-    || !nearlyEqual(interval[1], expectedInterval[1])
-  ) throw contractError(`${path}.solve_rate_wilson_ci95 does not match the solved count.`)
-  const meanRauc = requireNumber(planner.mean_resilience_auc, `${path}.mean_resilience_auc`)
-  if (meanRauc < 0 || meanRauc > 1) {
-    throw contractError(`${path}.mean_resilience_auc must be in [0,1].`)
-  }
-  return { solved, meanRauc }
-}
-
-function parseBenchmark(value: unknown): MetadataV3['benchmark'] {
-  const benchmark = requireObject(value, 'benchmark')
-  requireExactKeys(benchmark, [
-    'artifact_sha256', 'artifact_type', 'status', 'primary_metric', 'synthetic_case_count',
-    'candidate', 'baseline', 'paired_absolute_outcomes',
-    'secondary_head_to_head_resilience_auc', 'invariants', 'rows_sha256', 'ledger_sha256',
-  ], 'benchmark')
-  if (
-    benchmark.artifact_type !== 'city_recovery_v3_final_benchmark'
-    || benchmark.status !== 'complete'
-    || benchmark.primary_metric !== 'independent_absolute_disasters_solved'
-    || benchmark.synthetic_case_count !== 40
-  ) throw contractError('The final benchmark identity, status, metric, or 40-case scope is invalid.')
-  const candidate = validateBenchmarkPlanner(
-    benchmark.candidate,
-    'benchmark.candidate',
-    'city-recovery-sb3-ppo-v3-selected',
-  )
-  const baseline = validateBenchmarkPlanner(
-    benchmark.baseline,
-    'benchmark.baseline',
-    'reactive-public-state-heuristic-v3',
-    '3.0.0',
-  )
-  const pairs = requireObject(benchmark.paired_absolute_outcomes, 'benchmark.paired_absolute_outcomes')
-  const pairKeys = ['both_solved', 'ppo_only', 'heuristic_only', 'neither'] as const
-  requireExactKeys(pairs, pairKeys, 'benchmark.paired_absolute_outcomes')
-  const pairCounts = pairKeys.map((key) => (
-    requireInteger(pairs[key], `benchmark.paired_absolute_outcomes.${key}`, 0, 40)
-  ))
-  if (pairCounts.reduce((sum, count) => sum + count, 0) !== 40) {
-    throw contractError('The paired benchmark counts do not cover exactly 40 cases.')
-  }
-  if (
-    candidate.solved !== Number(pairs.both_solved) + Number(pairs.ppo_only)
-    || baseline.solved !== Number(pairs.both_solved) + Number(pairs.heuristic_only)
-  ) throw contractError('The independent solved counts disagree with the paired outcome cells.')
-
-  const headToHead = requireObject(
-    benchmark.secondary_head_to_head_resilience_auc,
-    'benchmark.secondary_head_to_head_resilience_auc',
-  )
-  const headKeys = ['candidate_wins', 'baseline_wins', 'ties'] as const
-  requireExactKeys(
-    headToHead,
-    [...headKeys, 'candidate_mean_minus_baseline_mean'],
-    'benchmark.secondary_head_to_head_resilience_auc',
-  )
-  const headCounts = headKeys.map((key) => requireInteger(
-    headToHead[key],
-    `benchmark.secondary_head_to_head_resilience_auc.${key}`,
-    0,
-    40,
-  ))
-  if (headCounts.reduce((sum, count) => sum + count, 0) !== 40) {
-    throw contractError('The secondary head-to-head counts do not cover exactly 40 cases.')
-  }
-  const delta = requireNumber(
-    headToHead.candidate_mean_minus_baseline_mean,
-    'benchmark.secondary_head_to_head_resilience_auc.candidate_mean_minus_baseline_mean',
-  )
-  if (!nearlyEqual(delta, rounded(candidate.meanRauc - baseline.meanRauc, 10), 1.1e-10)) {
-    throw contractError('The secondary mean resilience-AUC delta disagrees with the planner means.')
-  }
-
-  const invariants = requireObject(benchmark.invariants, 'benchmark.invariants')
-  requireExactKeys(invariants, [
-    'all_rows_present', 'unique_rows', 'same_tapes', 'deterministic_replay_mismatches',
-    'candidate_hard_violations', 'baseline_hard_violations', 'maximum_conservation_residual',
-  ], 'benchmark.invariants')
-  const residual = requireNumber(
-    invariants.maximum_conservation_residual,
-    'benchmark.invariants.maximum_conservation_residual',
-  )
-  if (
-    invariants.all_rows_present !== true
-    || invariants.unique_rows !== true
-    || invariants.same_tapes !== true
-    || invariants.deterministic_replay_mismatches !== 0
-    || invariants.candidate_hard_violations !== 0
-    || invariants.baseline_hard_violations !== 0
-    || residual < 0
-    || residual > environmentContractV3.conservationTolerance
-  ) throw contractError('The final benchmark invariants did not pass.')
-  requireHash(benchmark.artifact_sha256, 'benchmark.artifact_sha256')
-  requireHash(benchmark.rows_sha256, 'benchmark.rows_sha256')
-  requireHash(benchmark.ledger_sha256, 'benchmark.ledger_sha256')
-  return value as MetadataV3['benchmark']
-}
-
-export function parseMetadata(value: unknown): MetadataV3 {
+export function parseMetadata(value: unknown): Metadata {
   const root = requireObject(value, 'metadata')
-  const model = requireObject(root.model, 'metadata.model')
+  const model = validatePolicyIdentity(root.model, 'metadata.model')
   const environment = requireObject(root.environment, 'metadata.environment')
   if (
-    root.schema_version !== environmentContractV3.schemaVersion
-    || model.id !== 'city-recovery-sb3-ppo-v3-selected'
-    || model.version !== environmentContractV3.version
-    || model.schema_version !== environmentContractV3.schemaVersion
-    || model.manifest_schema_version !== 1
-    || model.artifact_type !== 'stable_baselines3_ppo'
-    || model.algorithm !== 'PPO'
-    || model.training_library !== 'stable-baselines3'
-    || environment.id !== environmentContractV3.id
-    || environment.version !== environmentContractV3.version
-    || environment.observation_count !== environmentContractV3.observationCount
-    || environment.action_count !== environmentContractV3.actionCount
+    root.schema_version !== environmentContract.schemaVersion
+    || environment.id !== environmentContract.id
+    || environment.version !== environmentContract.version
+    || environment.observation_count !== environmentContract.observationCount
+    || environment.action_count !== environmentContract.actionCount
     || environment.policy_neutral_transition !== true
     || environment.future_tape_visible !== false
-    || model.observation_count !== environmentContractV3.observationCount
-    || model.action_count !== environmentContractV3.actionCount
-  ) throw contractError('Metadata does not describe the canonical selected V3 release.')
-  requireExactStringArray(model.observation_order, observationOrderV3, 'metadata.model.observation_order')
-  requireExactStringArray(model.action_order, actionOrderV3, 'metadata.model.action_order')
+    || model.observation_count !== environmentContract.observationCount
+    || model.action_count !== environmentContract.actionCount
+  ) throw contractError('Metadata does not describe the canonical runtime contract.')
+  requireString(root.app, 'metadata.app')
+  requireString(root.version, 'metadata.version')
+  requireInteger(root.default_seed, 'metadata.default_seed', 0, 4_294_967_295)
+  requireExactStringArray(model.observation_order, observationOrder, 'metadata.model.observation_order')
+  requireExactStringArray(model.action_order, actionOrder, 'metadata.model.action_order')
   if (!isStringArray(root.services, services.length) || root.services.join('|') !== services.join('|')) {
-    throw contractError('Metadata service order does not match the V3 contract.')
+    throw contractError('Metadata service order does not match the canonical contract.')
   }
-  requireExactStringArray(model.action_groups, actionGroupsV3, 'metadata.model.action_groups')
-  const completedTransitions = requireInteger(
-    model.completed_training_transitions,
-    'metadata.model.completed_training_transitions',
-    92_160,
-    645_120,
-  )
-  if (
-    model.trainable_parameters !== 322_733
-    || model.requested_training_transitions !== 645_120
-    || ![92_160, 184_320, 276_480, 368_640, 460_800, 552_960, 645_120]
-      .includes(completedTransitions)
-  ) throw contractError('Metadata model parameter or transition counts drifted from the sealed V3 protocol.')
-  for (const field of [
-    'onnx_sha256', 'selected_checkpoint_sha256', 'manifest_sha256',
-    'parity_sha256', 'scientific_source_sha256',
-  ]) requireHash(model[field], `metadata.model.${field}`)
+  requireExactStringArray(model.action_groups, actionGroups, 'metadata.model.action_groups')
   requireHash(environment.spec_sha256, 'metadata.environment.spec_sha256')
-  requireHash(environment.outcome_definition_sha256, 'metadata.environment.outcome_definition_sha256')
+  requireHash(root.outcome_definition_sha256, 'metadata.outcome_definition_sha256')
+  requireObject(root.outcome_definition, 'metadata.outcome_definition')
   const baseline = requireObject(root.baseline, 'metadata.baseline')
   if (
     baseline.id !== 'reactive-public-state-heuristic-v3'
@@ -500,8 +332,9 @@ export function parseMetadata(value: unknown): MetadataV3 {
     || baseline.uses_public_risk_signal !== true
     || baseline.future_tape_visible !== false
   ) throw contractError('Metadata baseline identity or public-causal contract drifted.')
-  parseBenchmark(root.benchmark)
-  return value as MetadataV3
+  requireObject(root.persistence, 'metadata.persistence')
+  requireString(root.determinism, 'metadata.determinism')
+  return value as Metadata
 }
 
 function parseSavedSummaries(value: unknown): SavedResultSummary[] {
@@ -510,7 +343,7 @@ function parseSavedSummaries(value: unknown): SavedResultSummary[] {
   return root.results.map((entry, index) => {
     const row = requireObject(entry, `saved simulations[${index}]`)
     if (row.engine_version !== 'city-recovery-env-v3' || row.horizon_days !== 30) {
-      throw contractError(`saved simulations[${index}] is not a V3 run.`)
+      throw contractError(`saved simulations[${index}] uses an incompatible runtime contract.`)
     }
     requireHash(row.result_id, `saved simulations[${index}].result_id`)
     requireBoolean(row.candidate_solved, `saved simulations[${index}].candidate_solved`)
@@ -529,7 +362,7 @@ async function responseError(response: Response): Promise<ComparisonError> {
   )
 }
 
-export async function fetchMetadata(signal?: AbortSignal): Promise<MetadataV3> {
+export async function fetchMetadata(signal?: AbortSignal): Promise<Metadata> {
   const response = await fetch('/api/v1/meta', { signal })
   if (!response.ok) throw await responseError(response)
   return parseMetadata(await response.json())

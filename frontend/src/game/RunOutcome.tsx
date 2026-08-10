@@ -2,7 +2,7 @@ import { BarChart3, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { shockDisplayName } from '../shockPresentation'
 import type { CompareResponse, OfficialOutcome } from '../types'
-import { outcomeReasonLabel, serviceLabel } from '../v3ViewModel'
+import { outcomeReasonLabel, serviceLabel } from '../viewModel'
 import type { Difficulty, GameMode } from './session'
 import { DIFFICULTY_DETAILS, MODE_DETAILS } from './session'
 import './run-outcome.css'
@@ -59,7 +59,7 @@ export function RunDebriefScreen({
         <header className="debrief-heading">
           <div>
             <p>Official end-of-run receipt</p>
-            <h1 id="debrief-heading" ref={headingRef} tabIndex={-1}>PPO V3 {candidate.solved ? 'solved' : 'failed'} the scenario.</h1>
+            <h1 id="debrief-heading" ref={headingRef} tabIndex={-1}>PPO {candidate.solved ? 'solved' : 'failed'} the scenario.</h1>
             <span>{modeLabel} · {difficultyLabel} · 30-day protocol</span>
           </div>
           <span className="debrief-condition"><i data-survived={candidate.solved} />{candidate.solved ? 'SOLVED' : 'FAILED'}</span>
@@ -75,7 +75,7 @@ export function RunDebriefScreen({
 
         <section className="official-verdict-grid" aria-label="Independent planner verdicts">
           <article data-solved={candidate.solved}>
-            <p>PPO V3 / ONNX</p><h2>{candidate.solved ? 'SOLVED' : 'FAILED'}</h2><span>Independent absolute outcome</span><OutcomeReceipt outcome={candidate} />
+            <p>PPO / ONNX</p><h2>{candidate.solved ? 'SOLVED' : 'FAILED'}</h2><span>Independent absolute outcome</span><OutcomeReceipt outcome={candidate} />
           </article>
           <article data-solved={baseline.solved}>
             <p>Same tape / same public contract</p><h2>Reactive public heuristic: {baseline.solved ? 'SOLVED' : 'FAILED'}</h2><span>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</span><OutcomeReceipt outcome={baseline} />

@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 
 import scripts.generate_frontend_contract as generator
-from backend.app.models import CompareRequestV3, ForcedShock, ScenarioV3
-from backend.app.simulator_core import SERVICES, SHOCK_IMPACTS, SHOCKS
-from backend.app.simulator_v3 import (
-    ACTION_GROUPS_V3,
-    ACTION_ORDER_V3,
-    OBSERVATION_ORDER_V3,
+from backend.app.city.environment import (
+    ACTION_GROUPS,
+    ACTION_ORDER,
+    OBSERVATION_ORDER,
 )
+from backend.app.city.physics import SERVICES, SHOCK_IMPACTS, SHOCKS
+from backend.app.models import CompareRequest, ForcedShock, Scenario
 
 
 def _constant(source: str, name: str) -> object:
@@ -41,15 +41,15 @@ def test_generated_contract_preserves_backend_order_orientation_and_limits() -> 
         shock: SHOCK_IMPACTS[index].tolist()
         for index, shock in enumerate(SHOCKS)
     }
-    assert _constant(source, "observationOrderV3") == list(OBSERVATION_ORDER_V3)
-    assert _constant(source, "actionOrderV3") == list(ACTION_ORDER_V3)
-    assert _constant(source, "actionGroupsV3") == list(ACTION_GROUPS_V3)
-    assert _constant(source, "scenarioV3FieldOrder") == list(ScenarioV3.model_fields)
+    assert _constant(source, "observationOrder") == list(OBSERVATION_ORDER)
+    assert _constant(source, "actionOrder") == list(ACTION_ORDER)
+    assert _constant(source, "actionGroups") == list(ACTION_GROUPS)
+    assert _constant(source, "scenarioFieldOrder") == list(Scenario.model_fields)
     assert _constant(source, "forcedShockFieldOrder") == list(ForcedShock.model_fields)
-    assert _constant(source, "compareRequestV3FieldOrder") == list(
-        CompareRequestV3.model_fields
+    assert _constant(source, "compareRequestFieldOrder") == list(
+        CompareRequest.model_fields
     )
-    assert _constant(source, "requestLimitsV3") == {
+    assert _constant(source, "requestLimits") == {
         "seed": {"minimum": 0, "maximum": 4_294_967_295},
         "name": {"minimumLength": 1, "maximumLength": 64},
         "horizonDays": {"constant": 30},
@@ -65,8 +65,8 @@ def test_generated_contract_preserves_backend_order_orientation_and_limits() -> 
         "priorities": {"length": 5, "minimum": 0.5, "maximum": 2.0},
         "recoveryTargets": {"length": 5, "minimum": 0.45, "maximum": 0.75},
     }
-    assert _constant(source, "defaultScenarioV3") == ScenarioV3().model_dump(mode="json")
-    assert _constant(source, "defaultCompareRequestV3") == CompareRequestV3().model_dump(
+    assert _constant(source, "defaultScenario") == Scenario().model_dump(mode="json")
+    assert _constant(source, "defaultCompareRequest") == CompareRequest().model_dump(
         mode="json"
     )
 

@@ -65,7 +65,7 @@ export const SHOCK_IMPACTS: Record<ShockType, Vector5> = {
   ]
 }
 
-export const observationOrderV3 = [
+export const observationOrder = [
   "service_transport",
   "service_housing",
   "service_food",
@@ -140,7 +140,7 @@ export const observationOrderV3 = [
   "public_next_day_risk_utility",
   "public_next_day_risk_weather"
 ] as const
-export const actionOrderV3 = [
+export const actionOrder = [
   "material_share_transport",
   "material_share_housing",
   "material_share_food",
@@ -164,7 +164,7 @@ export const actionOrderV3 = [
   "preparedness_investment_healthcare",
   "preparedness_investment_public_services"
 ] as const
-export const actionGroupsV3 = [
+export const actionGroups = [
   "material_share",
   "material_utilization",
   "crew_share",
@@ -172,7 +172,7 @@ export const actionGroupsV3 = [
   "stock_release",
   "preparedness_investment"
 ] as const
-export const actionSlicesV3 = {
+export const actionSlices = {
   "materialShares": {
     "start": 0,
     "end": 5
@@ -199,7 +199,7 @@ export const actionSlicesV3 = {
   }
 } as const
 
-export const environmentContractV3 = {
+export const environmentContract = {
   "id": "CityRecoveryEnv-v3",
   "version": "3.0.0",
   "schemaVersion": "4.0.0",
@@ -213,7 +213,7 @@ export const environmentContractV3 = {
   "terminalPendingCapacityMultiplier": 1.0
 } as const
 
-export const scenarioV3FieldOrder = [
+export const scenarioFieldOrder = [
   "name",
   "horizon_days",
   "daily_budget",
@@ -233,11 +233,11 @@ export const forcedShockFieldOrder = [
   "type",
   "severity"
 ] as const
-export const compareRequestV3FieldOrder = [
+export const compareRequestFieldOrder = [
   "seed",
   "scenario"
 ] as const
-export const requestLimitsV3 = {
+export const requestLimits = {
   "seed": {
     "minimum": 0,
     "maximum": 4294967295
@@ -303,7 +303,7 @@ export type ForcedShock = {
   severity: number
 }
 
-/** Fully materialized ScenarioV3 returned to and maintained by the client. */
+/** Fully materialized Scenario returned to and maintained by the client. */
 export type Scenario = {
   name: string
   horizon_days: 30
@@ -320,9 +320,9 @@ export type Scenario = {
   assessment_tail_days: 3
 }
 
-export type CompareRequestV3 = { seed: number; scenario: Scenario }
+export type CompareRequest = { seed: number; scenario: Scenario }
 
-export const defaultScenarioV3: Scenario = {
+export const defaultScenario: Scenario = {
   "name": "Operator scenario",
   "horizon_days": 30,
   "daily_budget": 180.0,
@@ -359,7 +359,7 @@ export const defaultScenarioV3: Scenario = {
   ],
   "assessment_tail_days": 3
 }
-export const defaultCompareRequestV3: CompareRequestV3 = {
+export const defaultCompareRequest: CompareRequest = {
   "seed": 424242,
   "scenario": {
     "name": "Operator scenario",

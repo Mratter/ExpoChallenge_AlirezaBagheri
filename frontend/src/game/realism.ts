@@ -133,8 +133,8 @@ export function depotDamageState(serviceLevel: number): DamageState {
 }
 
 export function depotDamageStateFromFactor(damageFactor: number): DamageState {
-  // The source-sealed depot function retains a deliberate 0.30 floor.
-  // These four bands cover the entire engine-v3 retained-function range.
+  // The canonical depot function retains a deliberate 0.30 floor.
+  // These four bands cover the full runtime throughput range.
   if (damageFactor >= 0.85) return 'intact'
   if (damageFactor >= 0.68) return 'slight'
   if (damageFactor >= 0.48) return 'moderate'
@@ -241,8 +241,8 @@ export function depotStatusesForDay(
           : 'no next-day freight queued'
         : rank <= 0 ? 'first recovery wave' : rank === 1 ? 'early recovery wave' : 'later recovery wave',
       source: ledger
-        ? 'candidate.trajectory[day].logistics — recorded engine-v3 stock, throughput, queue, and transfer state'
-        : 'engine-v3 logistics unavailable',
+        ? 'candidate.trajectory[day].logistics — recorded runtime stock, throughput, queue, and transfer state'
+        : 'runtime logistics unavailable',
       engineTruth: Boolean(ledger),
       recorded: ledger ? {
         stockBeforeUnits: Math.max(0, ledger.depot_stock_before[index] ?? 0),

@@ -1,6 +1,6 @@
 import {
-  defaultCompareRequestV3,
-  defaultScenarioV3,
+  defaultCompareRequest,
+  defaultScenario as backendDefaultScenario,
   type Scenario,
 } from './types'
 
@@ -37,8 +37,8 @@ export function scenariosMatch(left: Scenario, right: Scenario): boolean {
 }
 
 export const defaultScenario: Scenario = {
-  ...defaultScenarioV3,
+  ...backendDefaultScenario,
   name: 'Central district recovery exercise',
 }
 
-export const defaultSeed = defaultCompareRequestV3.seed
+export const defaultSeed = defaultCompareRequest.seed

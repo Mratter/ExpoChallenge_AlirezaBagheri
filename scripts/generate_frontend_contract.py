@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the frontend's v3 simulator contract from frozen Python values.
+"""Generate the frontend's simulator contract from canonical Python values.
 
-The Python release remains the source of truth. This development utility emits
-TypeScript only; it never edits or seals the immutable v3 modules it imports.
+The backend is the source of truth. This development utility emits deterministic
+TypeScript so browser consumers cannot drift from the runtime physics contract.
 """
 
 from __future__ import annotations
@@ -21,32 +21,34 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.app.models import (  # noqa: E402
-    CompareRequestV3,
+    CompareRequest,
     ForcedShock,
-    ScenarioV3,
+    Scenario,
     ServiceName,
     ShockName,
 )
-from backend.app.simulator_core import SERVICES, SHOCK_IMPACTS, SHOCKS  # noqa: E402
-from backend.app.simulator_v3 import (  # noqa: E402
-    ACTION_GROUPS_V3,
-    ACTION_ORDER_V3,
-    ACTION_SIZE_V3,
-    CONSERVATION_TOLERANCE_V3,
+from backend.app.city.environment import (  # noqa: E402
+    ACTION_GROUPS,
+    ACTION_ORDER,
+    ACTION_SIZE,
+    ENGINE_ID,
+    ENGINE_VERSION,
+    OBSERVATION_ORDER,
+    OBSERVATION_SIZE,
+    RESULT_SCHEMA,
+)
+from backend.app.city.outcome import (  # noqa: E402
+    CONSERVATION_TOLERANCE,
     CRITICAL_SERVICE_FLOOR,
     CRITICAL_SERVICE_RATE_CAP,
-    ENGINE_V3_ID,
-    ENGINE_V3_VERSION,
-    OBSERVATION_ORDER_V3,
-    OBSERVATION_SIZE_V3,
-    RESULT_SCHEMA_V3,
     SOLVED_RAUC_FLOOR,
     TERMINAL_PENDING_CAPACITY_MULTIPLIER,
 )
+from backend.app.city.physics import SERVICES, SHOCK_IMPACTS, SHOCKS  # noqa: E402
 
 OUTPUT = ROOT / "frontend" / "src" / "generated" / "backendContract.ts"
 
-SCENARIO_V3_FIELDS = (
+SCENARIO_FIELDS = (
     "name",
     "horizon_days",
     "daily_budget",
@@ -62,10 +64,10 @@ SCENARIO_V3_FIELDS = (
     "assessment_tail_days",
 )
 FORCED_SHOCK_FIELDS = ("day", "type", "severity")
-COMPARE_REQUEST_V3_FIELDS = ("seed", "scenario")
+COMPARE_REQUEST_FIELDS = ("seed", "scenario")
 
 # Pydantic's JSON schema does not expose bounds enforced by model validators.
-# These values are accepted/rejected against ScenarioV3 at generation time below.
+# These values are accepted/rejected against Scenario at generation time below.
 RUNTIME_VECTOR_LIMITS = {
     "initialServices": ("initial_services", 0.05, 0.95),
     "priorities": ("priorities", 0.5, 2.0),
@@ -81,14 +83,14 @@ def _validate_runtime_vector_limits(defaults: dict[str, Any]) -> None:
     epsilon = 1e-9
     for label, (field, minimum, maximum) in RUNTIME_VECTOR_LIMITS.items():
         for value in (minimum, maximum):
-            ScenarioV3.model_validate({**defaults, field: [value] * 5})
+            Scenario.model_validate({**defaults, field: [value] * 5})
         for value in (minimum - epsilon, maximum + epsilon):
             try:
-                ScenarioV3.model_validate({**defaults, field: [value] * 5})
+                Scenario.model_validate({**defaults, field: [value] * 5})
             except ValueError:
                 continue
             raise ContractGenerationError(
-                f"{label} runtime bounds no longer match ScenarioV3 validators"
+                f"{label} runtime bounds no longer match Scenario validators"
             )
 
 
@@ -116,7 +118,7 @@ def _action_slices() -> dict[str, tuple[int, int]]:
     for label, prefix in prefixes:
         indexes = [
             index
-            for index, name in enumerate(ACTION_ORDER_V3)
+            for index, name in enumerate(ACTION_ORDER)
             if name == prefix or name.startswith(prefix)
         ]
         if not indexes or indexes != list(range(indexes[0], indexes[-1] + 1)):
@@ -139,20 +141,20 @@ def render_contract() -> str:
         raise ContractGenerationError("SHOCK_IMPACTS must be shock-by-service 5x5")
     if any(not math.isfinite(float(value)) for row in impacts for value in row):
         raise ContractGenerationError("SHOCK_IMPACTS must contain only finite values")
-    if len(OBSERVATION_ORDER_V3) != 73 or OBSERVATION_SIZE_V3 != 73:
-        raise ContractGenerationError("v3 observation contract drifted")
-    if len(ACTION_ORDER_V3) != 22 or ACTION_SIZE_V3 != 22:
-        raise ContractGenerationError("v3 action contract drifted")
+    if len(OBSERVATION_ORDER) != 73 or OBSERVATION_SIZE != 73:
+        raise ContractGenerationError("observation contract drifted")
+    if len(ACTION_ORDER) != 22 or ACTION_SIZE != 22:
+        raise ContractGenerationError("action contract drifted")
 
     field_orders = {
-        "ScenarioV3": tuple(ScenarioV3.model_fields),
+        "Scenario": tuple(Scenario.model_fields),
         "ForcedShock": tuple(ForcedShock.model_fields),
-        "CompareRequestV3": tuple(CompareRequestV3.model_fields),
+        "CompareRequest": tuple(CompareRequest.model_fields),
     }
     expected_field_orders = {
-        "ScenarioV3": SCENARIO_V3_FIELDS,
+        "Scenario": SCENARIO_FIELDS,
         "ForcedShock": FORCED_SHOCK_FIELDS,
-        "CompareRequestV3": COMPARE_REQUEST_V3_FIELDS,
+        "CompareRequest": COMPARE_REQUEST_FIELDS,
     }
     for model_name, expected in expected_field_orders.items():
         if field_orders[model_name] != expected:
@@ -161,12 +163,12 @@ def render_contract() -> str:
             )
 
     impact_map = {shock: impacts[index] for index, shock in enumerate(shocks)}
-    scenario_defaults = ScenarioV3().model_dump(mode="json")
-    request_defaults = CompareRequestV3().model_dump(mode="json")
+    scenario_defaults = Scenario().model_dump(mode="json")
+    request_defaults = CompareRequest().model_dump(mode="json")
     _validate_runtime_vector_limits(scenario_defaults)
-    scenario_schema = ScenarioV3.model_json_schema()
+    scenario_schema = Scenario.model_json_schema()
     forced_schema = ForcedShock.model_json_schema()
-    request_schema = CompareRequestV3.model_json_schema()
+    request_schema = CompareRequest.model_json_schema()
     action_slices = {
         key: {"start": start, "end": end}
         for key, (start, end) in _action_slices().items()
@@ -243,29 +245,29 @@ export type Vector22 = [
 
 export const SHOCK_IMPACTS: Record<ShockType, Vector5> = {_json(impact_map)}
 
-export const observationOrderV3 = {_json(list(OBSERVATION_ORDER_V3))} as const
-export const actionOrderV3 = {_json(list(ACTION_ORDER_V3))} as const
-export const actionGroupsV3 = {_json(list(ACTION_GROUPS_V3))} as const
-export const actionSlicesV3 = {_json(action_slices)} as const
+export const observationOrder = {_json(list(OBSERVATION_ORDER))} as const
+export const actionOrder = {_json(list(ACTION_ORDER))} as const
+export const actionGroups = {_json(list(ACTION_GROUPS))} as const
+export const actionSlices = {_json(action_slices)} as const
 
-export const environmentContractV3 = {_json({
-        "id": ENGINE_V3_ID,
-        "version": ENGINE_V3_VERSION,
-        "schemaVersion": RESULT_SCHEMA_V3,
-        "observationCount": OBSERVATION_SIZE_V3,
-        "actionCount": ACTION_SIZE_V3,
+export const environmentContract = {_json({
+        "id": ENGINE_ID,
+        "version": ENGINE_VERSION,
+        "schemaVersion": RESULT_SCHEMA,
+        "observationCount": OBSERVATION_SIZE,
+        "actionCount": ACTION_SIZE,
         "assessmentTailDays": scenario_defaults["assessment_tail_days"],
         "resilienceAucFloor": SOLVED_RAUC_FLOOR,
         "criticalServiceFloor": CRITICAL_SERVICE_FLOOR,
         "criticalServiceDayRateCap": CRITICAL_SERVICE_RATE_CAP,
-        "conservationTolerance": CONSERVATION_TOLERANCE_V3,
+        "conservationTolerance": CONSERVATION_TOLERANCE,
         "terminalPendingCapacityMultiplier": TERMINAL_PENDING_CAPACITY_MULTIPLIER,
     })} as const
 
-export const scenarioV3FieldOrder = {_json(list(field_orders["ScenarioV3"]))} as const
+export const scenarioFieldOrder = {_json(list(field_orders["Scenario"]))} as const
 export const forcedShockFieldOrder = {_json(list(field_orders["ForcedShock"]))} as const
-export const compareRequestV3FieldOrder = {_json(list(field_orders["CompareRequestV3"]))} as const
-export const requestLimitsV3 = {_json(limits)} as const
+export const compareRequestFieldOrder = {_json(list(field_orders["CompareRequest"]))} as const
+export const requestLimits = {_json(limits)} as const
 
 export type ForcedShock = {{
   day: number
@@ -273,7 +275,7 @@ export type ForcedShock = {{
   severity: number
 }}
 
-/** Fully materialized ScenarioV3 returned to and maintained by the client. */
+/** Fully materialized Scenario returned to and maintained by the client. */
 export type Scenario = {{
   name: string
   horizon_days: {scenario_defaults["horizon_days"]}
@@ -290,10 +292,10 @@ export type Scenario = {{
   assessment_tail_days: {scenario_defaults["assessment_tail_days"]}
 }}
 
-export type CompareRequestV3 = {{ seed: number; scenario: Scenario }}
+export type CompareRequest = {{ seed: number; scenario: Scenario }}
 
-export const defaultScenarioV3: Scenario = {_json(scenario_defaults)}
-export const defaultCompareRequestV3: CompareRequestV3 = {_json(request_defaults)}
+export const defaultScenario: Scenario = {_json(scenario_defaults)}
+export const defaultCompareRequest: CompareRequest = {_json(request_defaults)}
 """
     return source.replace("\r\n", "\n").rstrip() + "\n"
 

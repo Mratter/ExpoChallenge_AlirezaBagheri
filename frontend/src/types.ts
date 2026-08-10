@@ -7,23 +7,23 @@ import type {
 } from './generated/backendContract'
 
 export {
-  actionGroupsV3,
-  actionOrderV3,
-  actionSlicesV3,
-  compareRequestV3FieldOrder,
-  defaultCompareRequestV3,
-  defaultScenarioV3,
-  environmentContractV3,
+  actionGroups,
+  actionOrder,
+  actionSlices,
+  compareRequestFieldOrder,
+  defaultCompareRequest,
+  defaultScenario,
+  environmentContract,
   forcedShockFieldOrder,
-  observationOrderV3,
-  requestLimitsV3,
-  scenarioV3FieldOrder,
+  observationOrder,
+  requestLimits,
+  scenarioFieldOrder,
   services,
   SHOCK_IMPACTS,
   shockTypes,
 } from './generated/backendContract'
 export type {
-  CompareRequestV3,
+  CompareRequest,
   ForcedShock,
   Scenario,
   Service,
@@ -215,6 +215,23 @@ export type PlannerResult = {
   trajectory: DayResult[]
 }
 
+export type ObservationContract = {
+  source: string
+  input_name: string
+  dtype: string
+  shape: [number]
+  normalization: string
+}
+
+export type PolicyIdentity = {
+  id: string
+  path_stem: string
+  artifact_type: string
+  runtime: string
+  sha256: string
+  observation_contract: ObservationContract
+}
+
 export type CompareResponse = {
   schema_version: '4.0.0'
   engine_version: 'city-recovery-env-v3'
@@ -239,15 +256,7 @@ export type CompareResponse = {
   action_order: string[]
   shock_schedule: Shock[]
   shock_schedule_sha256: string
-  policy: {
-    id: string
-    artifact_type: string
-    algorithm: string
-    runtime: string
-    sha256: string
-    sb3_checkpoint_sha256: string
-    manifest_sha256: string
-  }
+  policy: PolicyIdentity
   baseline_spec: {
     id: string
     version: string
@@ -267,89 +276,18 @@ export type CompareResponse = {
   }
 }
 
-export type BenchmarkCandidateSummary = {
-  id: 'city-recovery-sb3-ppo-v3-selected'
-  solved_count: number
-  failed_count: number
-  solve_rate: number
-  solve_rate_wilson_ci95: [number, number]
-  mean_resilience_auc: number
-}
-
-export type BenchmarkBaselineSummary = {
-  id: 'reactive-public-state-heuristic-v3'
-  version: '3.0.0'
-  solved_count: number
-  failed_count: number
-  solve_rate: number
-  solve_rate_wilson_ci95: [number, number]
-  mean_resilience_auc: number
-}
-
-export type VerifiedBenchmark = {
-  artifact_sha256: string
-  artifact_type: 'city_recovery_v3_final_benchmark'
-  status: 'complete'
-  primary_metric: 'independent_absolute_disasters_solved'
-  synthetic_case_count: 40
-  candidate: BenchmarkCandidateSummary
-  baseline: BenchmarkBaselineSummary
-  paired_absolute_outcomes: {
-    both_solved: number
-    ppo_only: number
-    heuristic_only: number
-    neither: number
-  }
-  secondary_head_to_head_resilience_auc: {
-    candidate_wins: number
-    baseline_wins: number
-    ties: number
-    candidate_mean_minus_baseline_mean: number
-  }
-  invariants: {
-    all_rows_present: boolean
-    unique_rows: boolean
-    same_tapes: boolean
-    deterministic_replay_mismatches: number
-    candidate_hard_violations: number
-    baseline_hard_violations: number
-    maximum_conservation_residual: number
-  }
-  rows_sha256: string
-  ledger_sha256: string
-}
-
-export type MetadataV3 = {
+export type Metadata = {
   app: string
   version: string
   schema_version: '4.0.0'
-  commit: string
-  profile: string
   default_seed: number
   services: Service[]
-  model: {
-    id: 'city-recovery-sb3-ppo-v3-selected'
-    version: '3.0.0'
-    schema_version: '4.0.0'
-    manifest_schema_version: 1
-    artifact_type: 'stable_baselines3_ppo'
-    algorithm: 'PPO'
-    training_library: 'stable-baselines3'
-    trainable_parameters: number
-    requested_training_transitions: number
-    completed_training_transitions: number
+  model: PolicyIdentity & {
     observation_count: 73
     action_count: 22
     observation_order: string[]
     action_order: string[]
     action_groups: string[]
-    license: string
-    source: string
-    onnx_sha256: string
-    selected_checkpoint_sha256: string
-    manifest_sha256: string
-    parity_sha256: string
-    scientific_source_sha256: string
   }
   environment: {
     id: 'CityRecoveryEnv-v3'
@@ -357,11 +295,11 @@ export type MetadataV3 = {
     observation_count: 73
     action_count: 22
     spec_sha256: string
-    outcome_definition_sha256: string
     policy_neutral_transition: true
     future_tape_visible: false
   }
   outcome_definition: Record<string, unknown>
+  outcome_definition_sha256: string
   baseline: {
     id: 'reactive-public-state-heuristic-v3'
     version: '3.0.0'
@@ -370,9 +308,8 @@ export type MetadataV3 = {
     uses_public_risk_signal: true
     future_tape_visible: false
   }
-  benchmark: VerifiedBenchmark
-  dataset: Record<string, unknown>
   persistence: Record<string, unknown>
+  determinism: string
 }
 
 export type SavedResultSummary = {

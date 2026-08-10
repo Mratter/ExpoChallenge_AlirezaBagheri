@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  actionOrderV3,
-  actionSlicesV3,
-  requestLimitsV3,
+  actionOrder,
+  actionSlices,
+  requestLimits,
   services,
   SHOCK_IMPACTS,
 } from './backendContract'
@@ -25,16 +25,16 @@ describe('generated backend contract', () => {
   })
 
   it('keeps action slices and custom validator limits available to consumers', () => {
-    expect(actionOrderV3.slice(
-      actionSlicesV3.preparednessInvestment.start,
-      actionSlicesV3.preparednessInvestment.end,
+    expect(actionOrder.slice(
+      actionSlices.preparednessInvestment.start,
+      actionSlices.preparednessInvestment.end,
     )).toEqual(services.map((service) => `preparedness_investment_${service}`))
-    expect(requestLimitsV3.initialServices).toEqual({
+    expect(requestLimits.initialServices).toEqual({
       length: 5,
       minimum: 0.05,
       maximum: 0.95,
     })
-    expect(requestLimitsV3.recoveryTargets).toEqual({
+    expect(requestLimits.recoveryTargets).toEqual({
       length: 5,
       minimum: 0.45,
       maximum: 0.75,

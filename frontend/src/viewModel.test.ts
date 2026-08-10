@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defaultScenario, scenariosMatch } from './scenarios'
 import type { CompareResponse, DayResult, Vector5, Vector22 } from './types'
-import { actionEntriesForDay, canScheduleForcedShock, observationVectorForDay, scenarioIssue, tailStartDay } from './v3ViewModel'
+import { actionEntriesForDay, canScheduleForcedShock, observationVectorForDay, scenarioIssue, tailStartDay } from './viewModel'
 
 const five = (value: number): Vector5 => [value, value, value, value, value]
 
@@ -37,7 +37,7 @@ function observationFixture(): CompareResponse {
   } as unknown as CompareResponse
 }
 
-describe('V3 scenario protocol guards', () => {
+describe('scenario protocol guards', () => {
   it('reserves days 28–30 as the assessment tail', () => {
     expect(tailStartDay(defaultScenario)).toBe(28)
     expect(canScheduleForcedShock(defaultScenario, 27)).toBe(true)

@@ -39,14 +39,14 @@ import {
 import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
 import { shockDisplayName } from './shockPresentation'
 import {
-  environmentContractV3,
-  observationOrderV3,
-  actionOrderV3,
-  requestLimitsV3,
+  environmentContract,
+  observationOrder,
+  actionOrder,
+  requestLimits,
   services,
   shockTypes,
   type CompareResponse,
-  type MetadataV3,
+  type Metadata,
   type OfficialOutcome,
   type SavedResultSummary,
   type Scenario,
@@ -62,7 +62,7 @@ import {
   serviceLabel,
   tailStartDay,
   type PlannerKey,
-} from './v3ViewModel'
+} from './viewModel'
 
 type ViewMode = 'trajectory' | 'audit' | 'dispatch' | 'decisions'
 type LoadFailure = { code: string; message: string }
@@ -84,10 +84,6 @@ function percent(value: number, digits = 1): string {
   return `${(value * 100).toFixed(digits)}%`
 }
 
-function compactNumber(value: number): string {
-  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-}
-
 function units(value: number): string {
   return value.toFixed(1)
 }
@@ -103,27 +99,26 @@ function updateVector(vector: Vector5, index: number, value: number): Vector5 {
 }
 
 function plannerTitle(planner: PlannerKey): string {
-  return planner === 'candidate' ? 'PPO V3 policy' : 'Reactive public heuristic'
+  return planner === 'candidate' ? 'PPO policy' : 'Reactive public heuristic'
 }
 
-function BenchmarkRail({ metadata, failure }: { metadata: MetadataV3 | null; failure: LoadFailure | null }) {
+function RuntimeRail({ metadata, failure }: { metadata: Metadata | null; failure: LoadFailure | null }) {
   if (!metadata) {
     return (
       <div className="benchmark-rail benchmark-pending" role="status">
-        <span><CircleDot size={14} />Official benchmark</span>
-        <b>Withheld until release verification</b>
-        <small>{failure?.code === 'DEPENDENCY_NOT_READY' ? 'Artifacts, parity, and final evidence are not all sealed.' : 'Verified metadata is unavailable.'}</small>
+        <span><CircleDot size={14} />Runtime policy</span>
+        <b>Waiting for configured model</b>
+        <small>{failure?.code === 'DEPENDENCY_NOT_READY' ? 'Configure a valid ONNX policy to enable comparisons.' : 'Runtime metadata is unavailable.'}</small>
       </div>
     )
   }
-  const benchmark = metadata.benchmark
   return (
-    <div className="benchmark-rail benchmark-ready" aria-label="Verified independent disaster outcomes">
-      <span><ShieldCheck size={14} />Verified final benchmark · {benchmark.synthetic_case_count} synthetic cases</span>
-      <b>PPO solved {benchmark.candidate.solved_count}/{benchmark.synthetic_case_count}</b>
+    <div className="benchmark-rail benchmark-ready" aria-label="Configured runtime contract">
+      <span><ShieldCheck size={14} />Runtime contract ready</span>
+      <b>{metadata.model.id}</b>
       <i aria-hidden="true" />
-      <b>Heuristic solved {benchmark.baseline.solved_count}/{benchmark.synthetic_case_count}</b>
-      <small>Independent outcomes—not head-to-head wins</small>
+      <b>{metadata.environment.observation_count} inputs · {metadata.environment.action_count} actions</b>
+      <small>Explicit ONNX artifact · deterministic CPU inference</small>
     </div>
   )
 }
@@ -168,7 +163,7 @@ function ScenarioEditor({
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Scenario control</p>
-              <h2 id="scenario-heading">{requestLimitsV3.horizonDays.constant}-day exercise</h2>
+              <h2 id="scenario-heading">{requestLimits.horizonDays.constant}-day exercise</h2>
             </div>
             <button className="icon-button" type="button" onClick={onReset} disabled={busy} aria-label="Reset scenario">
               <RotateCcw size={16} />
@@ -181,9 +176,9 @@ function ScenarioEditor({
           </label>
 
           <label className="field full-field saved-field">
-            <span><ArchiveRestore size={13} />V3 saved evidence</span>
+            <span><ArchiveRestore size={13} />Saved comparisons</span>
             <select value="" disabled={busy || savedRuns.length === 0} onChange={(event) => event.target.value && onRestore(event.target.value)}>
-              <option value="">{savedRuns.length ? `Restore one of ${savedRuns.length}` : 'No saved V3 runs'}</option>
+              <option value="">{savedRuns.length ? `Restore one of ${savedRuns.length}` : 'No saved runs'}</option>
               {savedRuns.map((saved) => (
                 <option key={saved.result_id} value={saved.result_id}>
                   {saved.scenario_name} · {saved.candidate_solved ? 'PPO solved' : 'PPO failed'} · {saved.result_id.slice(0, 8)}
@@ -192,19 +187,19 @@ function ScenarioEditor({
             </select>
           </label>
 
-          <div className="protocol-locks" aria-label="Frozen protocol">
-            <div><span>Horizon</span><b>{requestLimitsV3.horizonDays.constant} days</b></div>
-            <div><span>Assessment</span><b>Days {tailStart}–{requestLimitsV3.horizonDays.constant}</b></div>
+          <div className="protocol-locks" aria-label="Scenario protocol">
+            <div><span>Horizon</span><b>{requestLimits.horizonDays.constant} days</b></div>
+            <div><span>Assessment</span><b>Days {tailStart}–{requestLimits.horizonDays.constant}</b></div>
             <div><span>Tail shocks</span><b>Blocked</b></div>
           </div>
 
           <div className="field-grid">
-            <label className="field"><span>Seed</span><input type="number" min={requestLimitsV3.seed.minimum} max={requestLimitsV3.seed.maximum} step="1" value={seed} onChange={(event) => onSeed(Number(event.target.value))} /></label>
-            <label className="field"><span>Material / day</span><input type="number" min={requestLimitsV3.dailyBudget.minimum} max={requestLimitsV3.dailyBudget.maximum} step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} /></label>
-            <label className="field"><span>Crew / day</span><input type="number" min={requestLimitsV3.dailyCrewPool.minimum} max={requestLimitsV3.dailyCrewPool.maximum} step="1" value={draft.daily_crew_pool} onChange={(event) => onDraft({ ...draft, daily_crew_pool: Number(event.target.value) })} /></label>
-            <label className="field"><span>Shock chance</span><div className="input-suffix"><input type="number" min={requestLimitsV3.shockProbability.minimum * 100} max={requestLimitsV3.shockProbability.maximum * 100} step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} /><b>%</b></div></label>
-            <label className="field"><span>Severity min</span><div className="input-suffix"><input type="number" min={requestLimitsV3.severityMin.minimum * 100} max={requestLimitsV3.severityMin.maximum * 100} value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} /><b>%</b></div></label>
-            <label className="field"><span>Severity max</span><div className="input-suffix"><input type="number" min={requestLimitsV3.severityMax.minimum * 100} max={requestLimitsV3.severityMax.maximum * 100} value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Seed</span><input type="number" min={requestLimits.seed.minimum} max={requestLimits.seed.maximum} step="1" value={seed} onChange={(event) => onSeed(Number(event.target.value))} /></label>
+            <label className="field"><span>Material / day</span><input type="number" min={requestLimits.dailyBudget.minimum} max={requestLimits.dailyBudget.maximum} step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} /></label>
+            <label className="field"><span>Crew / day</span><input type="number" min={requestLimits.dailyCrewPool.minimum} max={requestLimits.dailyCrewPool.maximum} step="1" value={draft.daily_crew_pool} onChange={(event) => onDraft({ ...draft, daily_crew_pool: Number(event.target.value) })} /></label>
+            <label className="field"><span>Shock chance</span><div className="input-suffix"><input type="number" min={requestLimits.shockProbability.minimum * 100} max={requestLimits.shockProbability.maximum * 100} step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity min</span><div className="input-suffix"><input type="number" min={requestLimits.severityMin.minimum * 100} max={requestLimits.severityMin.maximum * 100} value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity max</span><div className="input-suffix"><input type="number" min={requestLimits.severityMax.minimum * 100} max={requestLimits.severityMax.maximum * 100} value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} /><b>%</b></div></label>
           </div>
 
           <fieldset className="service-editor">
@@ -213,9 +208,9 @@ function ScenarioEditor({
             {services.map((service, index) => (
               <div className="service-input-row" key={service}>
                 <span><b>{serviceCodes[service]}</b>{serviceLabel(service)}</span>
-                <input aria-label={`${serviceLabel(service)} starting state`} type="number" min={requestLimitsV3.initialServices.minimum * 100} max={requestLimitsV3.initialServices.maximum * 100} value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => onDraft({ ...draft, initial_services: updateVector(draft.initial_services, index, Number(event.target.value) / 100) })} />
-                <input aria-label={`${serviceLabel(service)} priority`} type="number" min={requestLimitsV3.priorities.minimum} max={requestLimitsV3.priorities.maximum} step="0.1" value={draft.priorities[index]} onChange={(event) => onDraft({ ...draft, priorities: updateVector(draft.priorities, index, Number(event.target.value)) })} />
-                <input aria-label={`${serviceLabel(service)} solved target`} type="number" min={requestLimitsV3.recoveryTargets.minimum * 100} max={requestLimitsV3.recoveryTargets.maximum * 100} value={Math.round(draft.recovery_targets[index] * 100)} onChange={(event) => onDraft({ ...draft, recovery_targets: updateVector(draft.recovery_targets, index, Number(event.target.value) / 100) })} />
+                <input aria-label={`${serviceLabel(service)} starting state`} type="number" min={requestLimits.initialServices.minimum * 100} max={requestLimits.initialServices.maximum * 100} value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => onDraft({ ...draft, initial_services: updateVector(draft.initial_services, index, Number(event.target.value) / 100) })} />
+                <input aria-label={`${serviceLabel(service)} priority`} type="number" min={requestLimits.priorities.minimum} max={requestLimits.priorities.maximum} step="0.1" value={draft.priorities[index]} onChange={(event) => onDraft({ ...draft, priorities: updateVector(draft.priorities, index, Number(event.target.value)) })} />
+                <input aria-label={`${serviceLabel(service)} solved target`} type="number" min={requestLimits.recoveryTargets.minimum * 100} max={requestLimits.recoveryTargets.maximum * 100} value={Math.round(draft.recovery_targets[index] * 100)} onChange={(event) => onDraft({ ...draft, recovery_targets: updateVector(draft.recovery_targets, index, Number(event.target.value) / 100) })} />
               </div>
             ))}
           </fieldset>
@@ -224,13 +219,13 @@ function ScenarioEditor({
             <legend>Controlled incident</legend>
             <label className="toggle-row">
               <input type="checkbox" checked={forced !== null} onChange={(event) => onDraft({ ...draft, forced_shock: event.target.checked ? { day: 5, type: 'utility', severity: 0.26 } : null })} />
-              <span><b>Schedule one forced shock</b><small>Always rejected on assessment days {tailStart}–{requestLimitsV3.horizonDays.constant}.</small></span>
+              <span><b>Schedule one forced shock</b><small>Always rejected on assessment days {tailStart}–{requestLimits.horizonDays.constant}.</small></span>
             </label>
             {forced ? (
               <div className="forced-fields">
-                <label className="field"><span>Day</span><input type="number" min={requestLimitsV3.forcedShockDay.minimum} max={tailStart - 1} value={forced.day} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, day: Number(event.target.value) } })} /></label>
+                <label className="field"><span>Day</span><input type="number" min={requestLimits.forcedShockDay.minimum} max={tailStart - 1} value={forced.day} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, day: Number(event.target.value) } })} /></label>
                 <label className="field"><span>Type</span><select value={forced.type} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, type: event.target.value as typeof forced.type } })}>{shockTypes.map((type) => <option value={type} key={type}>{shockDisplayName(type)}</option>)}</select></label>
-                <label className="field"><span>Severity</span><div className="input-suffix"><input type="number" min={requestLimitsV3.forcedShockSeverity.minimum * 100} max={requestLimitsV3.forcedShockSeverity.maximum * 100} value={Math.round(forced.severity * 100)} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, severity: Number(event.target.value) / 100 } })} /><b>%</b></div></label>
+                <label className="field"><span>Severity</span><div className="input-suffix"><input type="number" min={requestLimits.forcedShockSeverity.minimum * 100} max={requestLimits.forcedShockSeverity.maximum * 100} value={Math.round(forced.severity * 100)} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, severity: Number(event.target.value) / 100 } })} /><b>%</b></div></label>
               </div>
             ) : null}
             {draft.forced_shocks.length ? (
@@ -241,10 +236,10 @@ function ScenarioEditor({
 
         <div className="scenario-dock">
           {issue ? <p className="scenario-issue"><AlertTriangle size={13} />{issue}</p> : null}
-          {!runReady ? <div className="release-recheck"><p className="scenario-issue release-note"><CircleDot size={13} />Run disabled until the verified V3 release is ready.</p><button type="button" onClick={onRecheck} disabled={busy}>Recheck release</button></div> : null}
+          {!runReady ? <div className="release-recheck"><p className="scenario-issue release-note"><CircleDot size={13} />Run disabled until a valid policy is configured.</p><button type="button" onClick={onRecheck} disabled={busy}>Recheck runtime</button></div> : null}
           <button className="run-button" type="submit" disabled={busy || !runReady || Boolean(issue)}>
             {busy ? <Activity className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
-            {busy ? 'Resolving paired trace' : `Run paired ${requestLimitsV3.horizonDays.constant}-day trace`}
+            {busy ? 'Resolving paired trace' : `Run paired ${requestLimits.horizonDays.constant}-day trace`}
           </button>
         </div>
       </form>
@@ -271,14 +266,14 @@ function VerdictPair({ result }: { result: CompareResponse }) {
   return (
     <section className="verdict-pair" aria-label="Independent official disaster outcomes">
       <article className="verdict-card candidate-verdict" data-solved={candidate.solved}>
-        <header><span>PPO V3 / ONNX</span><b>{candidate.solved ? 'SOLVED' : 'FAILED'}</b></header>
+        <header><span>PPO / ONNX</span><b>{candidate.solved ? 'SOLVED' : 'FAILED'}</b></header>
         <p>Independent absolute outcome</p>
         <strong>{percent(candidate.resilience_auc)}</strong><small>resilience AUC · floor {percent(candidate.resilience_auc_floor)}</small>
         <OutcomeChecks outcome={candidate} />
       </article>
       <div className="verdict-divider"><span>same tape</span><i /><b>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</b></div>
       <article className="verdict-card baseline-verdict" data-solved={baseline.solved}>
-        <header><span>Reactive heuristic V3</span><b>{baseline.solved ? 'SOLVED' : 'FAILED'}</b></header>
+        <header><span>Reactive heuristic</span><b>{baseline.solved ? 'SOLVED' : 'FAILED'}</b></header>
         <p>Independent absolute outcome</p>
         <strong>{percent(baseline.resilience_auc)}</strong><small>resilience AUC · floor {percent(baseline.resilience_auc_floor)}</small>
         <OutcomeChecks outcome={baseline} />
@@ -307,7 +302,7 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
     <figure className="paired-trace" aria-labelledby="trace-title">
       <figcaption>
         <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired {result.scenario.horizon_days}-day recovery trace</h3></div>
-        <div className="trace-legend"><span className="legend-ppo">PPO V3</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
+        <div className="trace-legend"><span className="legend-ppo">PPO policy</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
       </figcaption>
       <svg viewBox="0 0 824 246" role="img" aria-label={`Both planners on the same ${result.scenario.horizon_days}-day shock tape; day ${selectedDay} selected`}>
         <g transform="translate(52 24)">
@@ -337,7 +332,7 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
 function PlannerToggle({ planner, onPlanner }: { planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
   return (
     <div className="planner-toggle" role="group" aria-label="Planner to inspect">
-      <button type="button" className={planner === 'candidate' ? 'active' : ''} aria-pressed={planner === 'candidate'} onClick={() => onPlanner('candidate')}>PPO V3</button>
+      <button type="button" className={planner === 'candidate' ? 'active' : ''} aria-pressed={planner === 'candidate'} onClick={() => onPlanner('candidate')}>PPO policy</button>
       <button type="button" className={planner === 'baseline' ? 'active' : ''} aria-pressed={planner === 'baseline'} onClick={() => onPlanner('baseline')}>Heuristic</button>
     </div>
   )
@@ -441,26 +436,26 @@ function DecisionView({ result, planner, onPlanner }: { result: CompareResponse;
   )
 }
 
-function ArchitecturePanel({ metadata, result, failure }: { metadata: MetadataV3 | null; result: CompareResponse | null; failure: LoadFailure | null }) {
+function ArchitecturePanel({ metadata, result, failure }: { metadata: Metadata | null; result: CompareResponse | null; failure: LoadFailure | null }) {
   const observations = metadata?.model.observation_order ?? result?.observation_order ?? []
   const actions = metadata?.model.action_order ?? result?.action_order ?? []
   return (
     <section className="architecture-panel" aria-labelledby="architecture-heading">
-      <header><div><p className="eyebrow">V3 only / loaded evidence</p><h2 id="architecture-heading">Policy architecture & interface</h2></div><span className={metadata ? 'seal-ready' : 'seal-pending'}>{metadata ? <ShieldCheck size={15} /> : <CircleDot size={15} />}{metadata ? 'Verified release manifest' : 'Release manifest unavailable'}</span></header>
+      <header><div><p className="eyebrow">Current runtime / loaded contract</p><h2 id="architecture-heading">Policy architecture & interface</h2></div><span className={metadata ? 'seal-ready' : 'seal-pending'}>{metadata ? <ShieldCheck size={15} /> : <CircleDot size={15} />}{metadata ? 'Runtime contract ready' : 'Runtime contract unavailable'}</span></header>
       <div className="architecture-flow">
         <article><Database size={18} /><span>Public observation</span><strong>{observations.length || '—'}</strong><small>causal channels</small></article><ChevronRight size={18} />
-        <article><Cpu size={18} /><span>{metadata?.model.algorithm ?? 'PPO V3 policy'}</span><strong>{metadata ? compactNumber(metadata.model.trainable_parameters) : '—'}</strong><small>{metadata ? 'trainable parameters' : 'parameters withheld'}</small></article><ChevronRight size={18} />
+        <article><Cpu size={18} /><span>ONNX policy</span><strong>{metadata ? 'CPU' : '—'}</strong><small>{metadata ? 'deterministic inference' : 'runtime unavailable'}</small></article><ChevronRight size={18} />
         <article><SlidersHorizontal size={18} /><span>Continuous control</span><strong>{actions.length || '—'}</strong><small>bounded actions</small></article><ChevronRight size={18} />
         <article><Building2 size={18} /><span>Exact solver</span><strong>2×</strong><small>material + crew projections</small></article>
       </div>
       {metadata ? (
         <div className="architecture-facts">
-          <div><span>Model</span><b>{metadata.model.id}</b><small>{metadata.model.version} · {metadata.model.artifact_type}</small></div>
-          <div><span>Training</span><b>{metadata.model.completed_training_transitions.toLocaleString()}</b><small>completed / {metadata.model.requested_training_transitions.toLocaleString()} requested transitions</small></div>
-          <div><span>Runtime artifact</span><code>{shortHash(metadata.model.onnx_sha256)}</code><small>ONNX SHA-256</small></div>
-          <div><span>Parity receipt</span><code>{shortHash(metadata.model.parity_sha256)}</code><small>selected checkpoint ↔ export</small></div>
+          <div><span>Model</span><b>{metadata.model.id}</b><small>{metadata.model.artifact_type}</small></div>
+          <div><span>Runtime</span><b>{metadata.model.runtime}</b><small>{metadata.model.observation_contract.normalization.replaceAll('_', ' ')}</small></div>
+          <div><span>Runtime artifact</span><code>{shortHash(metadata.model.sha256)}</code><small>ONNX SHA-256</small></div>
+          <div><span>Environment</span><code>{shortHash(metadata.environment.spec_sha256)}</code><small>{metadata.environment.id} · {metadata.environment.version}</small></div>
         </div>
-      ) : <p className="architecture-withheld"><AlertTriangle size={15} />{failure?.message ?? 'Model parameters, hashes, and training receipts appear only after the backend verifies the sealed V3 bundle.'}</p>}
+      ) : <p className="architecture-withheld"><AlertTriangle size={15} />{failure?.message ?? 'Configure a compatible ONNX policy to expose the runtime contract.'}</p>}
       {observations.length && actions.length ? (
         <div className="contract-columns">
           <details><summary><span>Observation contract</span><b>{observations.length} ordered channels</b><ChevronRight size={15} /></summary><ol>{observations.map((name) => <li key={name}><code>{name}</code></li>)}</ol></details>
@@ -472,7 +467,7 @@ function ArchitecturePanel({ metadata, result, failure }: { metadata: MetadataV3
 }
 
 function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse) => void }) {
-  const [metadata, setMetadata] = useState<MetadataV3 | null>(null)
+  const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [metadataFailure, setMetadataFailure] = useState<LoadFailure | null>(null)
   const [draft, setDraft] = useState<Scenario>(initialResult?.scenario ?? defaultScenario)
   const [seed, setSeed] = useState(initialResult?.seed ?? defaultSeed)
@@ -495,7 +490,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
       setMetadata(null)
       setMetadataFailure({
         code: caught instanceof ComparisonError ? caught.code : 'METADATA_UNAVAILABLE',
-        message: caught instanceof Error ? caught.message : 'Verified V3 metadata is unavailable.',
+        message: caught instanceof Error ? caught.message : 'Runtime metadata is unavailable.',
       })
     }
   }, [])
@@ -547,7 +542,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
     } catch (caught) {
       setError({
         code: caught instanceof ComparisonError ? caught.code : 'PERSISTENCE_FAILED',
-        message: caught instanceof Error ? caught.message : 'The saved V3 result could not be restored.',
+        message: caught instanceof Error ? caught.message : 'The saved result could not be restored.',
       })
     } finally {
       setBusy(false)
@@ -578,7 +573,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-block"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><div><p>Municipal recovery lab</p><h1>RELAY / Analyst Toolbox</h1></div></div>
-        <BenchmarkRail metadata={metadata} failure={metadataFailure} />
+        <RuntimeRail metadata={metadata} failure={metadataFailure} />
         <button className="city-switch" type="button" disabled={!result || busy || draftChanged} onClick={() => result && onOpenGame(result)}><Building2 size={15} />Open 3D city<ArrowUpRight size={14} /></button>
       </header>
 
@@ -586,16 +581,16 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
         <ScenarioEditor draft={draft} seed={seed} busy={busy} runReady={metadata !== null} savedRuns={savedRuns} onDraft={setDraft} onSeed={setSeed} onRun={() => void execute()} onReset={reset} onRestore={(id) => void restore(id)} onRecheck={() => void refreshMetadata()} />
         <section className="results-panel" aria-live="polite" aria-busy={busy}>
           {error ? <div className="blocking-error" ref={errorRef} tabIndex={-1} role="alert"><AlertTriangle size={20} /><div><p>{error.code}</p><h2>Comparison blocked</h2><span>{error.message}</span></div><button type="button" onClick={() => setError(null)}>Dismiss</button></div> : null}
-          {busy ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} />Resolving two planners against one frozen 30-day shock tape…</div> : null}
+          {busy ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} />Resolving two planners against one shared 30-day shock tape…</div> : null}
 
           {!result ? (
             <section className="empty-state">
               <div className="empty-grid" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
               <p className="eyebrow">Technical judge workbench</p>
               <h2>One scenario. Two planners.<br />Two independent verdicts.</h2>
-              <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs PPO V3 and the reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
-              <div className="empty-protocol"><span><b>{requestLimitsV3.horizonDays.constant}</b> days</span><span><b>{observationOrderV3.length}</b> public inputs</span><span><b>{actionOrderV3.length}</b> actions</span><span><b>{environmentContractV3.assessmentTailDays}</b> assessment days</span></div>
-              <small>{metadata ? 'Verified release ready. Run the paired trace from the scenario panel.' : 'Run remains disabled until the sealed V3 model and final benchmark cross-verify.'}</small>
+              <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs the PPO policy and reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
+              <div className="empty-protocol"><span><b>{requestLimits.horizonDays.constant}</b> days</span><span><b>{observationOrder.length}</b> public inputs</span><span><b>{actionOrder.length}</b> actions</span><span><b>{environmentContract.assessmentTailDays}</b> assessment days</span></div>
+              <small>{metadata ? 'Runtime ready. Run the paired trace from the scenario panel.' : 'Run remains disabled until a compatible policy is configured.'}</small>
             </section>
           ) : (
             <>
