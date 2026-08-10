@@ -53,6 +53,7 @@ from backend.app.scenarios_v3 import (  # noqa: E402
     TRAINING_FAMILIES_V3,
     TRAINING_SEEDS_V3,
 )
+from backend.app.shared_evidence import file_sha256 as _sha256_file  # noqa: E402
 from backend.app.simulator_v4 import (  # noqa: E402
     ACTION_SIZE_V4,
     CyclingScenarioEnvV4,
@@ -63,10 +64,6 @@ DEFAULT_LANES = (4, 8, 12, 20)
 DEFAULT_WARMUP_STEPS = 60
 DEFAULT_MEASURED_STEPS = 600
 DEFAULT_MEMORY_SAMPLE_STEPS = 60
-
-
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _training_scenarios() -> tuple[tuple[Any, int], ...]:
@@ -616,6 +613,9 @@ def main() -> None:
         "physical_memory_mib": round(total_memory / (1024 * 1024), 3),
         "source_hashes": {
             "benchmark_script_sha256": _sha256_file(Path(__file__)),
+            "shared_evidence_sha256": _sha256_file(
+                ROOT / "backend" / "app" / "shared_evidence.py"
+            ),
             "simulator_v4_sha256": _sha256_file(
                 ROOT / "backend" / "app" / "simulator_v4.py"
             ),

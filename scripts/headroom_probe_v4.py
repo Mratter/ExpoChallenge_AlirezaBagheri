@@ -48,6 +48,11 @@ from backend.app.scenarios_v3 import (  # noqa: E402
     DEVELOPMENT_FAMILIES_V3,
     DEVELOPMENT_SEEDS_V3,
 )
+from backend.app.shared_evidence import (  # noqa: E402
+    canonical_hash,
+    file_sha256,
+    load_json_object,
+)
 from backend.app.simulator_core import (  # noqa: E402
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
@@ -63,6 +68,7 @@ from backend.app.simulator_v3 import (  # noqa: E402
     CRITICAL_SERVICE_FLOOR,
     OBSERVATION_SIZE_V3,
     ShockV3,
+    _weights_to_logits,
     _summarize_v3,
     generate_disaster_tape_v3,
     reactive_heuristic_action_v3,
@@ -230,24 +236,6 @@ def configure_worker_runtime() -> dict[str, Any]:
     ):
         raise HeadroomError(f"failed to set worker priority: {ctypes.get_last_error()}")
     return evidence
-
-
-def canonical_bytes(value: Any) -> bytes:
-    return json.dumps(
-        value,
-        allow_nan=False,
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-
-
-def canonical_hash(value: Any) -> str:
-    return hashlib.sha256(canonical_bytes(value)).hexdigest()
-
-
-def file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def action_sequence_sha256(actions: np.ndarray) -> str:
@@ -422,7 +410,11 @@ def select_prior_evidence(
     expected_row_ids: Sequence[str],
     expected_policy_seed: int = DEFAULT_POLICY_SEED,
 ) -> dict[str, Any]:
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = load_json_object(
+        summary_path,
+        "prior learning summary",
+        error_type=HeadroomError,
+    )
     if (
         summary.get("authorizing") is not False
         or summary.get("split") != "dev"
@@ -451,7 +443,11 @@ def select_prior_evidence(
         ),
     )
     receipt_path = base / str(selected["receipt"])
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt = load_json_object(
+        receipt_path,
+        "selected prior receipt",
+        error_type=HeadroomError,
+    )
     if (
         receipt.get("authorizing") is not False
         or receipt.get("split") != "dev"
@@ -503,13 +499,6 @@ def protected_v3_snapshot() -> dict[str, str]:
         str(path.relative_to(ROOT)).replace("\\", "/"): file_sha256(path)
         for path in sorted(files)
     }
-
-
-def _weights_to_logits(weights: np.ndarray) -> np.ndarray:
-    logs = np.log(np.maximum(np.asarray(weights, dtype=np.float64), 1e-9))
-    centered = logs - float(np.mean(logs))
-    scale = max(float(np.max(np.abs(centered))), 1e-9)
-    return np.clip(centered / scale, -1.0, 1.0)
 
 
 def _glop_seed(
@@ -1725,6 +1714,9 @@ def main() -> int:
         },
         "source_identity": {
             "headroom_probe_v4_sha256": file_sha256(Path(__file__).resolve()),
+            "shared_evidence_sha256": file_sha256(
+                ROOT / "backend" / "app" / "shared_evidence.py"
+            ),
             "simulator_v4_sha256": file_sha256(
                 ROOT / "backend" / "app" / "simulator_v4.py"
             ),

@@ -1,81 +1,36 @@
-export const services = ['transport', 'housing', 'food', 'healthcare', 'public_services'] as const
-export type Service = (typeof services)[number]
+import type {
+  Scenario,
+  Service,
+  ShockType,
+  Vector5,
+  Vector22,
+} from './generated/backendContract'
 
-export const shockTypes = ['aftershock', 'supply', 'epidemic', 'utility', 'weather'] as const
-export type ShockType = (typeof shockTypes)[number]
-
-export const observationOrderV3 = [
-  ...services.map((service) => `service_${service}`),
-  ...services.map((service) => `priority_${service}`),
-  ...services.map((service) => `support_${service}`),
-  ...services.map((service) => `shock_impact_${service}`),
-  ...services.map((service) => `depot_stock_fraction_${service}`),
-  ...services.map((service) => `pending_arrival_pressure_${service}`),
-  ...services.map((service) => `throughput_factor_${service}`),
-  ...services.map((service) => `depot_damage_penalty_${service}`),
-  ...services.map((service) => `depot_damage_days_fraction_${service}`),
-  ...services.map((service) => `recovery_target_${service}`),
-  ...services.map((service) => `prior_day_critical_streak_fraction_${service}`),
-  ...services.map((service) => `preparedness_level_${service}`),
-  'available_material_budget_fraction',
-  'available_crew_pool_fraction',
-  'horizon_remaining_fraction',
-  'assessment_tail_active',
-  'current_shock_severity',
-  'road_capacity',
-  'days_since_last_shock_fraction',
-  'previous_weighted_resilience',
-  ...shockTypes.map((shock) => `public_next_day_risk_${shock}`),
-] as const
-
-export const actionOrderV3 = [
-  ...services.map((service) => `material_share_${service}`),
-  'material_utilization',
-  ...services.map((service) => `crew_share_${service}`),
-  'crew_utilization',
-  ...services.map((service) => `stock_release_${service}`),
-  ...services.map((service) => `preparedness_investment_${service}`),
-] as const
-
-export const actionGroupsV3 = [
-  'material_share',
-  'material_utilization',
-  'crew_share',
-  'crew_utilization',
-  'stock_release',
-  'preparedness_investment',
-] as const
-
-export type Vector5 = [number, number, number, number, number]
-export type Vector22 = [
-  number, number, number, number, number, number,
-  number, number, number, number, number, number,
-  number, number, number, number, number,
-  number, number, number, number, number,
-]
-
-export type ForcedShock = {
-  day: number
-  type: ShockType
-  severity: number
-}
-
-/** The exact public CityRecoveryEnv-v3 request contract. */
-export type Scenario = {
-  name: string
-  horizon_days: 30
-  daily_budget: number
-  initial_services: Vector5
-  priorities: Vector5
-  shock_probability: number
-  severity_min: number
-  severity_max: number
-  forced_shock: ForcedShock | null
-  forced_shocks: ForcedShock[]
-  daily_crew_pool: number
-  recovery_targets: Vector5
-  assessment_tail_days: 3
-}
+export {
+  actionGroupsV3,
+  actionOrderV3,
+  actionSlicesV3,
+  compareRequestV3FieldOrder,
+  defaultCompareRequestV3,
+  defaultScenarioV3,
+  environmentContractV3,
+  forcedShockFieldOrder,
+  observationOrderV3,
+  requestLimitsV3,
+  scenarioV3FieldOrder,
+  services,
+  SHOCK_IMPACTS,
+  shockTypes,
+} from './generated/backendContract'
+export type {
+  CompareRequestV3,
+  ForcedShock,
+  Scenario,
+  Service,
+  ShockType,
+  Vector5,
+  Vector22,
+} from './generated/backendContract'
 
 export type Shock = {
   day: number

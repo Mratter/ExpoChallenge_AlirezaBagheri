@@ -1,5 +1,9 @@
 import type { CompareResponse, DayResult, ForcedShock, Scenario, Service, ShockType } from '../types'
 import {
+  services,
+  SHOCK_IMPACTS as BACKEND_SHOCK_IMPACTS,
+} from '../generated/backendContract'
+import {
   CITY_BUILDING_OFFSETS,
   CITY_DISTRICTS,
   type CityBuildingArchetype,
@@ -52,13 +56,7 @@ export const DISTRICTS: DistrictDefinition[] = CITY_DISTRICTS.map((district) => 
 
 export const DISTRICT_BUILDING_OFFSETS: ReadonlyArray<readonly [number, number]> = CITY_BUILDING_OFFSETS
 
-export const SHOCK_IMPACTS: Record<ShockType, [number, number, number, number, number]> = {
-  aftershock: [0.65, 1, 0.2, 0.35, 0.45],
-  supply: [0.35, 0.05, 1, 0.55, 0.1],
-  epidemic: [0.1, 0.2, 0.25, 1, 0.35],
-  utility: [0.3, 0.35, 0.45, 0.7, 1],
-  weather: [0.75, 0.55, 0.5, 0.4, 0.6],
-}
+export const SHOCK_IMPACTS = BACKEND_SHOCK_IMPACTS
 
 export function shockImpactFor(type: ShockType, service: Service): number {
   return SHOCK_IMPACTS[type][serviceIndex(service)]
@@ -132,7 +130,7 @@ export function damageStatesForDistrict(serviceLevel: number): DamageState[] {
 }
 
 export function serviceIndex(service: Service): number {
-  return ['transport', 'housing', 'food', 'healthcare', 'public_services'].indexOf(service)
+  return services.indexOf(service)
 }
 
 function realizedRecovery(
@@ -210,7 +208,7 @@ function strongestImpact(day: DayResult): Service {
   day.shock.impact.forEach((value, index) => {
     if (value > day.shock.impact[strongestIndex]) strongestIndex = index
   })
-  return ['transport', 'housing', 'food', 'healthcare', 'public_services'][strongestIndex] as Service
+  return services[strongestIndex]
 }
 
 function largestValue(values: number[]): number {

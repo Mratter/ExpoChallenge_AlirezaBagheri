@@ -16,16 +16,12 @@ from backend.app.simulator_core import (
     SERVICES,
     _round_vector,
     action_to_proposal,
-    canonical_hash,
-    canonical_json_bytes,
     measure_constraints,
 )
 
 __all__ = (
     "_round_vector",
     "action_to_proposal",
-    "canonical_hash",
-    "canonical_json_bytes",
     "measure_constraints",
     "project_capped_simplex",
 )

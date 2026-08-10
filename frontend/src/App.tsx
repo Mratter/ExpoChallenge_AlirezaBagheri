@@ -39,6 +39,10 @@ import {
 import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
 import { shockDisplayName } from './shockPresentation'
 import {
+  environmentContractV3,
+  observationOrderV3,
+  actionOrderV3,
+  requestLimitsV3,
   services,
   shockTypes,
   type CompareResponse,
@@ -164,7 +168,7 @@ function ScenarioEditor({
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Scenario control</p>
-              <h2 id="scenario-heading">30-day exercise</h2>
+              <h2 id="scenario-heading">{requestLimitsV3.horizonDays.constant}-day exercise</h2>
             </div>
             <button className="icon-button" type="button" onClick={onReset} disabled={busy} aria-label="Reset scenario">
               <RotateCcw size={16} />
@@ -189,18 +193,18 @@ function ScenarioEditor({
           </label>
 
           <div className="protocol-locks" aria-label="Frozen protocol">
-            <div><span>Horizon</span><b>30 days</b></div>
-            <div><span>Assessment</span><b>Days {tailStart}–30</b></div>
+            <div><span>Horizon</span><b>{requestLimitsV3.horizonDays.constant} days</b></div>
+            <div><span>Assessment</span><b>Days {tailStart}–{requestLimitsV3.horizonDays.constant}</b></div>
             <div><span>Tail shocks</span><b>Blocked</b></div>
           </div>
 
           <div className="field-grid">
-            <label className="field"><span>Seed</span><input type="number" min="0" max="4294967295" step="1" value={seed} onChange={(event) => onSeed(Number(event.target.value))} /></label>
-            <label className="field"><span>Material / day</span><input type="number" min="50" max="500" step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} /></label>
-            <label className="field"><span>Crew / day</span><input type="number" min="50" max="300" step="1" value={draft.daily_crew_pool} onChange={(event) => onDraft({ ...draft, daily_crew_pool: Number(event.target.value) })} /></label>
-            <label className="field"><span>Shock chance</span><div className="input-suffix"><input type="number" min="0" max="35" step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} /><b>%</b></div></label>
-            <label className="field"><span>Severity min</span><div className="input-suffix"><input type="number" min="5" max="25" value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} /><b>%</b></div></label>
-            <label className="field"><span>Severity max</span><div className="input-suffix"><input type="number" min="10" max="40" value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Seed</span><input type="number" min={requestLimitsV3.seed.minimum} max={requestLimitsV3.seed.maximum} step="1" value={seed} onChange={(event) => onSeed(Number(event.target.value))} /></label>
+            <label className="field"><span>Material / day</span><input type="number" min={requestLimitsV3.dailyBudget.minimum} max={requestLimitsV3.dailyBudget.maximum} step="1" value={draft.daily_budget} onChange={(event) => onDraft({ ...draft, daily_budget: Number(event.target.value) })} /></label>
+            <label className="field"><span>Crew / day</span><input type="number" min={requestLimitsV3.dailyCrewPool.minimum} max={requestLimitsV3.dailyCrewPool.maximum} step="1" value={draft.daily_crew_pool} onChange={(event) => onDraft({ ...draft, daily_crew_pool: Number(event.target.value) })} /></label>
+            <label className="field"><span>Shock chance</span><div className="input-suffix"><input type="number" min={requestLimitsV3.shockProbability.minimum * 100} max={requestLimitsV3.shockProbability.maximum * 100} step="1" value={Math.round(draft.shock_probability * 100)} onChange={(event) => onDraft({ ...draft, shock_probability: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity min</span><div className="input-suffix"><input type="number" min={requestLimitsV3.severityMin.minimum * 100} max={requestLimitsV3.severityMin.maximum * 100} value={Math.round(draft.severity_min * 100)} onChange={(event) => onDraft({ ...draft, severity_min: Number(event.target.value) / 100 })} /><b>%</b></div></label>
+            <label className="field"><span>Severity max</span><div className="input-suffix"><input type="number" min={requestLimitsV3.severityMax.minimum * 100} max={requestLimitsV3.severityMax.maximum * 100} value={Math.round(draft.severity_max * 100)} onChange={(event) => onDraft({ ...draft, severity_max: Number(event.target.value) / 100 })} /><b>%</b></div></label>
           </div>
 
           <fieldset className="service-editor">
@@ -209,9 +213,9 @@ function ScenarioEditor({
             {services.map((service, index) => (
               <div className="service-input-row" key={service}>
                 <span><b>{serviceCodes[service]}</b>{serviceLabel(service)}</span>
-                <input aria-label={`${serviceLabel(service)} starting state`} type="number" min="5" max="95" value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => onDraft({ ...draft, initial_services: updateVector(draft.initial_services, index, Number(event.target.value) / 100) })} />
-                <input aria-label={`${serviceLabel(service)} priority`} type="number" min="0.5" max="2" step="0.1" value={draft.priorities[index]} onChange={(event) => onDraft({ ...draft, priorities: updateVector(draft.priorities, index, Number(event.target.value)) })} />
-                <input aria-label={`${serviceLabel(service)} solved target`} type="number" min="45" max="75" value={Math.round(draft.recovery_targets[index] * 100)} onChange={(event) => onDraft({ ...draft, recovery_targets: updateVector(draft.recovery_targets, index, Number(event.target.value) / 100) })} />
+                <input aria-label={`${serviceLabel(service)} starting state`} type="number" min={requestLimitsV3.initialServices.minimum * 100} max={requestLimitsV3.initialServices.maximum * 100} value={Math.round(draft.initial_services[index] * 100)} onChange={(event) => onDraft({ ...draft, initial_services: updateVector(draft.initial_services, index, Number(event.target.value) / 100) })} />
+                <input aria-label={`${serviceLabel(service)} priority`} type="number" min={requestLimitsV3.priorities.minimum} max={requestLimitsV3.priorities.maximum} step="0.1" value={draft.priorities[index]} onChange={(event) => onDraft({ ...draft, priorities: updateVector(draft.priorities, index, Number(event.target.value)) })} />
+                <input aria-label={`${serviceLabel(service)} solved target`} type="number" min={requestLimitsV3.recoveryTargets.minimum * 100} max={requestLimitsV3.recoveryTargets.maximum * 100} value={Math.round(draft.recovery_targets[index] * 100)} onChange={(event) => onDraft({ ...draft, recovery_targets: updateVector(draft.recovery_targets, index, Number(event.target.value) / 100) })} />
               </div>
             ))}
           </fieldset>
@@ -220,13 +224,13 @@ function ScenarioEditor({
             <legend>Controlled incident</legend>
             <label className="toggle-row">
               <input type="checkbox" checked={forced !== null} onChange={(event) => onDraft({ ...draft, forced_shock: event.target.checked ? { day: 5, type: 'utility', severity: 0.26 } : null })} />
-              <span><b>Schedule one forced shock</b><small>Always rejected on assessment days {tailStart}–30.</small></span>
+              <span><b>Schedule one forced shock</b><small>Always rejected on assessment days {tailStart}–{requestLimitsV3.horizonDays.constant}.</small></span>
             </label>
             {forced ? (
               <div className="forced-fields">
-                <label className="field"><span>Day</span><input type="number" min="1" max={tailStart - 1} value={forced.day} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, day: Number(event.target.value) } })} /></label>
+                <label className="field"><span>Day</span><input type="number" min={requestLimitsV3.forcedShockDay.minimum} max={tailStart - 1} value={forced.day} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, day: Number(event.target.value) } })} /></label>
                 <label className="field"><span>Type</span><select value={forced.type} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, type: event.target.value as typeof forced.type } })}>{shockTypes.map((type) => <option value={type} key={type}>{shockDisplayName(type)}</option>)}</select></label>
-                <label className="field"><span>Severity</span><div className="input-suffix"><input type="number" min="5" max="40" value={Math.round(forced.severity * 100)} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, severity: Number(event.target.value) / 100 } })} /><b>%</b></div></label>
+                <label className="field"><span>Severity</span><div className="input-suffix"><input type="number" min={requestLimitsV3.forcedShockSeverity.minimum * 100} max={requestLimitsV3.forcedShockSeverity.maximum * 100} value={Math.round(forced.severity * 100)} onChange={(event) => onDraft({ ...draft, forced_shock: { ...forced, severity: Number(event.target.value) / 100 } })} /><b>%</b></div></label>
               </div>
             ) : null}
             {draft.forced_shocks.length ? (
@@ -240,7 +244,7 @@ function ScenarioEditor({
           {!runReady ? <div className="release-recheck"><p className="scenario-issue release-note"><CircleDot size={13} />Run disabled until the verified V3 release is ready.</p><button type="button" onClick={onRecheck} disabled={busy}>Recheck release</button></div> : null}
           <button className="run-button" type="submit" disabled={busy || !runReady || Boolean(issue)}>
             {busy ? <Activity className="spin" size={17} /> : <Play size={17} fill="currentColor" />}
-            {busy ? 'Resolving paired trace' : 'Run paired 30-day trace'}
+            {busy ? 'Resolving paired trace' : `Run paired ${requestLimitsV3.horizonDays.constant}-day trace`}
           </button>
         </div>
       </form>
@@ -296,15 +300,16 @@ function linePath(values: number[]): string {
 function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; selectedDay: number; onDay: (day: number) => void }) {
   const candidate = result.candidate.trajectory.map((day) => day.resilience)
   const baseline = result.baseline.trajectory.map((day) => day.resilience)
-  const selectedX = ((selectedDay - 1) / 29) * 736
-  const tailX = ((tailStartDay(result.scenario) - 1) / 29) * 736
+  const finalDayIndex = result.scenario.horizon_days - 1
+  const selectedX = ((selectedDay - 1) / finalDayIndex) * 736
+  const tailX = ((tailStartDay(result.scenario) - 1) / finalDayIndex) * 736
   return (
     <figure className="paired-trace" aria-labelledby="trace-title">
       <figcaption>
-        <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired 30-day recovery trace</h3></div>
+        <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired {result.scenario.horizon_days}-day recovery trace</h3></div>
         <div className="trace-legend"><span className="legend-ppo">PPO V3</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
       </figcaption>
-      <svg viewBox="0 0 824 246" role="img" aria-label={`Both planners on the same 30-day shock tape; day ${selectedDay} selected`}>
+      <svg viewBox="0 0 824 246" role="img" aria-label={`Both planners on the same ${result.scenario.horizon_days}-day shock tape; day ${selectedDay} selected`}>
         <g transform="translate(52 24)">
           <rect x={tailX} y="0" width={736 - tailX} height="176" className="tail-zone" />
           {[0.25, 0.5, 0.75, 1].map((tick) => (
@@ -312,8 +317,8 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
           ))}
           {result.shock_schedule.map((shock, index) => shock.type ? (
             <g key={`${shock.day}-${shock.type}`}>
-              <line x1={(index / 29) * 736} x2={(index / 29) * 736} y1="0" y2="176" className={shock.forced ? 'shock-guide forced' : 'shock-guide'} />
-              <circle cx={(index / 29) * 736} cy="5" r={shock.forced ? 4 : 3} className={shock.forced ? 'shock-dot forced' : 'shock-dot'}><title>Day {shock.day}: {shockDisplayName(shock.type)} · {percent(shock.severity)}</title></circle>
+              <line x1={(index / finalDayIndex) * 736} x2={(index / finalDayIndex) * 736} y1="0" y2="176" className={shock.forced ? 'shock-guide forced' : 'shock-guide'} />
+              <circle cx={(index / finalDayIndex) * 736} cy="5" r={shock.forced ? 4 : 3} className={shock.forced ? 'shock-dot forced' : 'shock-dot'}><title>Day {shock.day}: {shockDisplayName(shock.type)} · {percent(shock.severity)}</title></circle>
             </g>
           ) : null)}
           <line x1={selectedX} x2={selectedX} y1="0" y2="176" className="selected-guide" />
@@ -321,10 +326,10 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
           <path d={linePath(candidate)} className="trace-line trace-candidate" />
           <circle cx={selectedX} cy={176 - candidate[selectedDay - 1] * 176} r="4.5" className="selected-ppo" />
           <circle cx={selectedX} cy={176 - baseline[selectedDay - 1] * 176} r="4" className="selected-heuristic" />
-          <text x="0" y="203">Day 1</text><text x={tailX + 6} y="17" className="tail-label">NO INJECTED SHOCKS</text><text x="736" y="203" textAnchor="end">Day 30</text>
+          <text x="0" y="203">Day 1</text><text x={tailX + 6} y="17" className="tail-label">NO INJECTED SHOCKS</text><text x="736" y="203" textAnchor="end">Day {result.scenario.horizon_days}</text>
         </g>
       </svg>
-      <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input type="range" min="1" max="30" value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
+      <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
     </figure>
   )
 }
@@ -589,7 +594,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
               <p className="eyebrow">Technical judge workbench</p>
               <h2>One scenario. Two planners.<br />Two independent verdicts.</h2>
               <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs PPO V3 and the reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
-              <div className="empty-protocol"><span><b>30</b> days</span><span><b>73</b> public inputs</span><span><b>22</b> actions</span><span><b>3</b> assessment days</span></div>
+              <div className="empty-protocol"><span><b>{requestLimitsV3.horizonDays.constant}</b> days</span><span><b>{observationOrderV3.length}</b> public inputs</span><span><b>{actionOrderV3.length}</b> actions</span><span><b>{environmentContractV3.assessmentTailDays}</b> assessment days</span></div>
               <small>{metadata ? 'Verified release ready. Run the paired trace from the scenario panel.' : 'Run remains disabled until the sealed V3 model and final benchmark cross-verify.'}</small>
             </section>
           ) : (

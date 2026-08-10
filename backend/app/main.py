@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -13,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.models import CompareRequestV3
 from backend.app.persistence import PersistenceError, RunStore
+from backend.app.shared_evidence import canonical_bytes
 from backend.app.simulator_core import SERVICES
 from backend.app.simulator_v3 import (
     ACTION_GROUPS_V3,
@@ -46,13 +46,7 @@ class CanonicalJSONResponse(Response):
     media_type = "application/json"
 
     def render(self, content: Any) -> bytes:
-        return json.dumps(
-            content,
-            ensure_ascii=True,
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
+        return canonical_bytes(content)
 
 
 app = FastAPI(

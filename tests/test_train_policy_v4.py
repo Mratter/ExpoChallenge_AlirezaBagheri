@@ -9,7 +9,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 from backend.app.scenarios_v3 import TRAINING_FAMILIES_V3, TRAINING_SEEDS_V3
 from backend.app.simulator_v4 import CityRecoveryEnvV4
-from scripts.smoke_train_v4 import (
+from scripts.train_policy_v4 import (
     ROOT,
     STEP3E_ACTIVE_MILESTONES,
     STEP3E_ACTIVE_TRANSITIONS,
@@ -20,7 +20,7 @@ from scripts.smoke_train_v4 import (
     STEP3E_OPTIMIZER_RECEIPT,
     PROTECTED_V3_EXTRA_FILES_SHA256,
     STEP3E_SUPERVISOR_GATE_CORRECTION,
-    SmokeError,
+    TrainingError,
     actor_state,
     build_model,
     contested_case_outcomes,
@@ -225,12 +225,12 @@ def test_step3e_mode_is_exact_supervisor_authorized_attempt06_regime() -> None:
     ) == list(STEP3E_ACTIVE_MILESTONES)
 
     args.transitions = 200_000
-    with pytest.raises(SmokeError, match="exact supervisor-adopted"):
+    with pytest.raises(TrainingError, match="exact supervisor-adopted"):
         validate_step3e_runtime_config(args, rollout_size=5_000)
 
     args = _step3e_args()
     args.supervisor_step3e_authorization = False
-    with pytest.raises(SmokeError, match="requires --supervisor"):
+    with pytest.raises(TrainingError, match="requires --supervisor"):
         validate_step3e_runtime_config(args, rollout_size=5_000)
 
 
@@ -246,6 +246,13 @@ def test_step3e_provenance_derives_and_validates_four_contested_cases() -> None:
     assert provenance["optimizer_receipt"]["attempt"] == 6
     assert "+2 solves" in STEP3E_SUPERVISOR_GATE_CORRECTION
     assert "2.5%" in STEP3E_SUPERVISOR_GATE_CORRECTION
+    historical_headroom = json.loads(
+        STEP3E_HEADROOM_RECEIPT.read_text(encoding="utf-8")
+    )
+    assert (
+        provenance["validated_source_identity"]
+        == historical_headroom["source_identity"]
+    )
 
     protected = protected_v3_snapshot(
         provenance["protected_v3_expected_files_sha256"]
@@ -350,7 +357,7 @@ def test_step3e_return_rms_continuity_allows_treatment_hash_divergence() -> None
 
 
 def test_step3e_runner_has_no_final_split_import_or_policy_access() -> None:
-    source = (ROOT / "scripts" / "smoke_train_v4.py").read_text(encoding="utf-8")
+    source = (ROOT / "scripts" / "train_policy_v4.py").read_text(encoding="utf-8")
     assert "FINAL_FAMILIES_V3" not in source
     assert "FINAL_SEEDS_V3" not in source
     assert "authorize-final" not in source

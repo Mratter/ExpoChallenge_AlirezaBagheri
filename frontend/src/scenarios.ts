@@ -1,4 +1,8 @@
-import type { Scenario } from './types'
+import {
+  defaultCompareRequestV3,
+  defaultScenarioV3,
+  type Scenario,
+} from './types'
 
 function vectorsMatch(left: readonly number[], right: readonly number[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index])
@@ -33,19 +37,8 @@ export function scenariosMatch(left: Scenario, right: Scenario): boolean {
 }
 
 export const defaultScenario: Scenario = {
+  ...defaultScenarioV3,
   name: 'Central district recovery exercise',
-  horizon_days: 30,
-  daily_budget: 180,
-  initial_services: [0.34, 0.26, 0.41, 0.38, 0.3],
-  priorities: [1, 1.1, 1.2, 1.4, 1],
-  shock_probability: 0.2,
-  severity_min: 0.1,
-  severity_max: 0.28,
-  forced_shock: { day: 5, type: 'utility', severity: 0.26 },
-  forced_shocks: [],
-  daily_crew_pool: 150,
-  recovery_targets: [0.55, 0.55, 0.55, 0.55, 0.55],
-  assessment_tail_days: 3,
 }
 
-export const defaultSeed = 424242
+export const defaultSeed = defaultCompareRequestV3.seed

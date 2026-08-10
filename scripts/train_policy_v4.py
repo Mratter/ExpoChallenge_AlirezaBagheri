@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Run nonauthorizing v4 PPO learning and matched reward gates.
+"""Train and evaluate development-only CityRecoveryEnv-v4 PPO policies.
 
-Only authored training cases update either policy. Deterministic evaluation uses
-the 40-case development split. This tool never imports final split constants,
-authorizes evaluation, selects a checkpoint, or writes deployable artifacts.
+The production flow is explicit and sequential: build the BC/DAgger actor,
+warm the critic while the actor is frozen, run PPO actor-critic updates, evaluate
+on the 40 development tapes, then write a nonauthorizing receipt. Only authored
+training cases update a policy. This tool never imports the final split, selects
+a deployment checkpoint, or writes a deployable artifact.
 """
 
 from __future__ import annotations
@@ -55,6 +57,11 @@ from backend.app.scenarios_v3 import (  # noqa: E402
     TRAINING_FAMILIES_V3,
     TRAINING_SEEDS_V3,
 )
+from backend.app.shared_evidence import (  # noqa: E402
+    canonical_hash,
+    file_sha256,
+    load_json_object as load_shared_json_object,
+)
 from backend.app.simulator_v3 import (  # noqa: E402
     _summarize_v3,
     generate_disaster_tape_v3,
@@ -69,6 +76,7 @@ from backend.app.simulator_v4 import (  # noqa: E402
 )
 
 DEFAULT_TRANSITIONS = 200_000
+TOOL_ID = "train_policy_v4.py"
 DEFAULT_LANES = 20
 DEFAULT_N_STEPS = 250
 DEFAULT_BATCH_SIZE = 500
@@ -198,24 +206,11 @@ REPORTED_APPROX_KL_STABILITY_DEFINITION = (
 )
 
 
-class SmokeError(RuntimeError):
-    """Raised when the matched smoke contract cannot be honored."""
+class TrainingError(RuntimeError):
+    """Raised when the development-only v4 training contract cannot be honored."""
 
 
-def file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def canonical_hash(value: Any) -> str:
-    rendered = json.dumps(
-        value,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(rendered).hexdigest()
-
-
+# Historical evidence and immutable-v3 provenance checks.
 def historical_step3_rows_hash(rows: Sequence[dict[str, Any]]) -> str:
     projected = [
         {
@@ -242,14 +237,8 @@ def _receipt_path(path: Path) -> str:
         return str(resolved)
 
 
-def _load_json_object(path: Path, label: str) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SmokeError(f"cannot load {label}: {path}") from exc
-    if not isinstance(value, dict):
-        raise SmokeError(f"{label} must contain a JSON object")
-    return value
+def _load_training_receipt(path: Path, label: str) -> dict[str, Any]:
+    return load_shared_json_object(path, label, error_type=TrainingError)
 
 
 def validate_step3e_provenance(
@@ -268,15 +257,15 @@ def validate_step3e_provenance(
     summary_hash = file_sha256(summary_path)
     incomplete_attempt_hash = file_sha256(incomplete_attempt_path)
     if headroom_hash != STEP3E_HEADROOM_SHA256:
-        raise SmokeError("Step 3.5 headroom receipt hash mismatch")
+        raise TrainingError("Step 3.5 headroom receipt hash mismatch")
     if optimizer_hash != STEP3E_OPTIMIZER_SHA256:
-        raise SmokeError("Step 3d attempt-06 receipt hash mismatch")
+        raise TrainingError("Step 3d attempt-06 receipt hash mismatch")
     if summary_hash != STEP3E_SUMMARY_SHA256:
-        raise SmokeError("Step 3d summary receipt hash mismatch")
+        raise TrainingError("Step 3d summary receipt hash mismatch")
     if incomplete_attempt_hash != STEP3E_INCOMPLETE_ATTEMPT_SHA256:
-        raise SmokeError("incomplete Step 3e attempt receipt hash mismatch")
+        raise TrainingError("incomplete Step 3e attempt receipt hash mismatch")
 
-    summary = _load_json_object(summary_path, "Step 3d summary receipt")
+    summary = _load_training_receipt(summary_path, "Step 3d summary receipt")
     if (
         summary.get("status")
         != "developmental_ppo_learning_gate_failed_nonauthorizing"
@@ -288,9 +277,9 @@ def validate_step3e_provenance(
         or summary.get("conclusion", {}).get("reward_comparison_is_interpretable")
         is not False
     ):
-        raise SmokeError("Step 3d summary history drifted")
+        raise TrainingError("Step 3d summary history drifted")
 
-    incomplete_attempt = _load_json_object(
+    incomplete_attempt = _load_training_receipt(
         incomplete_attempt_path, "incomplete Step 3e attempt receipt"
     )
     incomplete_profiles = incomplete_attempt.get("profiles", {})
@@ -315,9 +304,9 @@ def validate_step3e_provenance(
         .get("fresh_rollout_explained_variance_at_unfreeze", 1.0)
         >= CRITIC_EXPLAINED_VARIANCE_GATE
     ):
-        raise SmokeError("incomplete Step 3e attempt evidence drifted")
+        raise TrainingError("incomplete Step 3e attempt evidence drifted")
 
-    headroom = _load_json_object(headroom_path, "Step 3.5 headroom receipt")
+    headroom = _load_training_receipt(headroom_path, "Step 3.5 headroom receipt")
     if (
         headroom.get("tool") != "headroom_probe_v4.py"
         or headroom.get("status")
@@ -337,7 +326,7 @@ def validate_step3e_provenance(
         != 37
         or headroom.get("feasibility", {}).get("contested_count") != 4
     ):
-        raise SmokeError("Step 3.5 headroom authorization evidence drifted")
+        raise TrainingError("Step 3.5 headroom authorization evidence drifted")
 
     contested_rows = [
         row
@@ -346,30 +335,37 @@ def validate_step3e_provenance(
     ]
     contested_ids = tuple(sorted(str(row.get("row_id")) for row in contested_rows))
     if contested_ids != STEP3E_CONTESTED_ROW_IDS:
-        raise SmokeError("Step 3.5 contested development cases drifted")
+        raise TrainingError("Step 3.5 contested development cases drifted")
     if any(
         row.get("planners", {}).get("best_ppo", {}).get("solved") is not False
         or row.get("planners", {}).get("oracle", {}).get("solved") is not True
         for row in contested_rows
     ):
-        raise SmokeError("Step 3.5 contested-case evidence is inconsistent")
+        raise TrainingError("Step 3.5 contested-case evidence is inconsistent")
 
     source_identity = headroom.get("source_identity", {})
-    current_sources = {
-        "headroom_probe_v4_sha256": file_sha256(
-            ROOT / "scripts" / "headroom_probe_v4.py"
-        ),
-        "simulator_v4_sha256": file_sha256(
-            ROOT / "backend" / "app" / "simulator_v4.py"
-        ),
-        "simulator_core_v4_sha256": file_sha256(
-            ROOT / "backend" / "app" / "simulator_core_v4.py"
-        ),
+    expected_source_keys = {
+        "headroom_probe_v4_sha256",
+        "simulator_v4_sha256",
+        "simulator_core_v4_sha256",
     }
-    if source_identity != current_sources:
-        raise SmokeError("Step 3.5 source identity no longer matches the worktree")
+    if (
+        not isinstance(source_identity, dict)
+        or set(source_identity) != expected_source_keys
+        or any(
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+            for digest in source_identity.values()
+        )
+    ):
+        raise TrainingError("Step 3.5 recorded source identity is invalid")
 
-    optimizer = _load_json_object(optimizer_path, "Step 3d attempt-06 receipt")
+    optimizer = _load_training_receipt(
+        optimizer_path, "Step 3d attempt-06 receipt"
+    )
+    # Historical receipts retain the generator name that was true when written;
+    # the production trainer was renamed only after this diagnostic campaign.
     if (
         optimizer.get("tool") != "smoke_train_v4.py"
         or optimizer.get("split") != "dev"
@@ -381,7 +377,7 @@ def validate_step3e_provenance(
         or optimizer.get("selects_or_exports_policy") is not False
         or optimizer.get("gate", {}).get("gate_passed") is not False
     ):
-        raise SmokeError("Step 3d attempt-06 provenance contract drifted")
+        raise TrainingError("Step 3d attempt-06 provenance contract drifted")
     config = optimizer.get("config", {})
     expected_config = {
         "active_actor_critic_transition_budget_per_profile": 200_000,
@@ -408,7 +404,7 @@ def validate_step3e_provenance(
         "vec_normalize": True,
     }
     if any(config.get(key) != value for key, value in expected_config.items()):
-        raise SmokeError("Step 3d attempt-06 optimizer configuration drifted")
+        raise TrainingError("Step 3d attempt-06 optimizer configuration drifted")
     attempt_profile = optimizer.get("profiles", {}).get("v3_equivalent", {})
     attempt_gate = optimizer.get("gate", {})
     canonical_initialization = {
@@ -445,7 +441,7 @@ def validate_step3e_provenance(
         or historical_step3_rows_hash(attempt_rows_200k)
         != STEP3E_ATTEMPT06_200K_ROWS_SHA256
     ):
-        raise SmokeError("Step 3d attempt-06 evidence fields drifted")
+        raise TrainingError("Step 3d attempt-06 evidence fields drifted")
 
     return {
         "supervisor_gate_correction": STEP3E_SUPERVISOR_GATE_CORRECTION,
@@ -488,7 +484,10 @@ def validate_step3e_provenance(
                 "fixed 50k warm-up ceiling; supervisor specified 50k minimum"
             ),
         },
-        "validated_source_identity": current_sources,
+        # This is historical execution provenance protected by the fixed receipt
+        # digest above. Requiring mutable current files to retain historical
+        # hashes would incorrectly turn a receipt into a source seal.
+        "validated_source_identity": source_identity,
         "protected_v3_expected_files_sha256": headroom.get("invariants", {}).get(
             "protected_v3_files_sha256"
         ),
@@ -497,14 +496,14 @@ def validate_step3e_provenance(
 
 def protected_v3_snapshot(expected: dict[str, str]) -> dict[str, Any]:
     if not isinstance(expected, dict) or not expected:
-        raise SmokeError("Step 3.5 protected-v3 hash map is missing")
+        raise TrainingError("Step 3.5 protected-v3 hash map is missing")
     complete_expected = {**expected, **PROTECTED_V3_EXTRA_FILES_SHA256}
     expected_paths = set(complete_expected)
     current_directory_paths: set[str] = set()
     for relative_root in PROTECTED_V3_DIRECTORY_ROOTS:
         root = ROOT / relative_root
         if not root.is_dir():
-            raise SmokeError(f"protected-v3 directory is missing: {relative_root}")
+            raise TrainingError(f"protected-v3 directory is missing: {relative_root}")
         current_directory_paths.update(
             str(path.relative_to(ROOT)).replace("\\", "/")
             for path in root.rglob("*")
@@ -519,35 +518,30 @@ def protected_v3_snapshot(expected: dict[str, str]) -> dict[str, Any]:
         )
     }
     if current_directory_paths != expected_directory_paths:
-        raise SmokeError("protected-v3 directory membership changed")
+        raise TrainingError("protected-v3 directory membership changed")
 
     current: dict[str, str] = {}
     for relative, expected_hash in sorted(complete_expected.items()):
         if not isinstance(relative, str) or not isinstance(expected_hash, str):
-            raise SmokeError("Step 3.5 protected-v3 hash map is malformed")
+            raise TrainingError("Step 3.5 protected-v3 hash map is malformed")
         path = (ROOT / relative).resolve()
         try:
             path.relative_to(ROOT.resolve())
         except ValueError as exc:
-            raise SmokeError("protected-v3 path escapes the repository") from exc
+            raise TrainingError("protected-v3 path escapes the repository") from exc
         if not path.is_file():
-            raise SmokeError(f"protected-v3 file is missing: {relative}")
+            raise TrainingError(f"protected-v3 file is missing: {relative}")
         current[relative] = file_sha256(path)
     if current != complete_expected:
-        raise SmokeError("protected-v3 files no longer match Step 3.5")
-    rendered = json.dumps(
-        current,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+        raise TrainingError("protected-v3 files no longer match Step 3.5")
     return {
         "file_count": len(current),
-        "map_sha256": hashlib.sha256(rendered).hexdigest(),
+        "map_sha256": canonical_hash(current),
         "files_sha256": current,
     }
 
 
+# PPO instrumentation and normalization controls.
 class FreezableRunningMeanStd(RunningMeanStd):
     """Running moments that may be fixed while normalization stays enabled."""
 
@@ -589,11 +583,11 @@ class InstrumentedPPO(PPO):
         for name in required:
             value = float(logged[f"train/{name}"])
             if not np.isfinite(value):
-                raise SmokeError(f"non-finite PPO diagnostic: {name}")
+                raise TrainingError(f"non-finite PPO diagnostic: {name}")
             metrics[name] = value
         action_std = torch.exp(self.policy.log_std.detach()).cpu().numpy()
         if not np.all(np.isfinite(action_std)):
-            raise SmokeError("non-finite PPO action standard deviation")
+            raise TrainingError("non-finite PPO action standard deviation")
         epochs_completed = int(self._n_updates) - updates_before
         self.training_iterations.append(
             {
@@ -621,9 +615,10 @@ class InstrumentedPPO(PPO):
         )
 
 
+# Spawn-safe training environment construction.
 def training_scenarios() -> list[tuple[Any, int]]:
     if any(not family.id.startswith("v3_train_") for family in TRAINING_FAMILIES_V3):
-        raise SmokeError("a non-training family entered the smoke training split")
+                raise TrainingError("a non-training family entered the training roster")
     return [
         (family.build(seed), family.tape_seed(seed))
         for family in TRAINING_FAMILIES_V3
@@ -656,7 +651,10 @@ def training_roster_and_tapes_contract() -> dict[str, Any]:
 
 def step3e_source_identity() -> dict[str, str]:
     paths = {
-        "smoke_train_v4_sha256": Path(__file__).resolve(),
+        "train_policy_v4_sha256": Path(__file__).resolve(),
+        "shared_evidence_sha256": (
+            ROOT / "backend" / "app" / "shared_evidence.py"
+        ),
         "simulator_v4_sha256": ROOT / "backend" / "app" / "simulator_v4.py",
         "simulator_core_v4_sha256": (
             ROOT / "backend" / "app" / "simulator_core_v4.py"
@@ -681,7 +679,7 @@ class TrainingLaneFactory:
             "NUMEXPR_NUM_THREADS",
         ):
             if os.environ.get(variable) != "1":
-                raise SmokeError(f"spawned worker thread cap drifted: {variable}")
+                raise TrainingError(f"spawned worker thread cap drifted: {variable}")
         torch.set_num_threads(1)
         torch.set_num_interop_threads(1)
         scenarios = training_scenarios()
@@ -740,6 +738,7 @@ def build_model(
     )
 
 
+# BC/DAgger actor initialization.
 def behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
     observations: list[np.ndarray] = []
     targets: list[np.ndarray] = []
@@ -757,7 +756,7 @@ def behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
         while not terminated:
             action, evidence = public_preparedness_curriculum_action_v3(observation)
             if evidence.get("future_tape_visible") is not False:
-                raise SmokeError("BC teacher exposed future tape information")
+                raise TrainingError("BC teacher exposed future tape information")
             observations.append(np.asarray(observation, dtype=np.float32).copy())
             targets.append(np.asarray(action, dtype=np.float32).copy())
             observation, _, terminated, _, _ = environment.step(action)
@@ -769,7 +768,7 @@ def behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
         or not np.all(np.isfinite(observation_array))
         or not np.all(np.isfinite(target_array))
     ):
-        raise SmokeError("BC dataset contract drifted")
+        raise TrainingError("BC dataset contract drifted")
     return observation_array, target_array
 
 
@@ -809,6 +808,7 @@ def actor_state(model: PPO) -> dict[str, torch.Tensor]:
     return state
 
 
+# Critic-only warm-up, followed by full actor-critic PPO.
 def freeze_actor_for_critic_warmup(model: PPO) -> int:
     for parameter in model.policy.parameters():
         parameter.requires_grad_(False)
@@ -826,7 +826,7 @@ def freeze_actor_for_critic_warmup(model: PPO) -> int:
     if {id(parameter) for parameter in trainable} != {
         id(parameter) for parameter in critic_parameters
     }:
-        raise SmokeError("critic warm-up trainable-parameter contract drifted")
+        raise TrainingError("critic warm-up trainable-parameter contract drifted")
     return sum(parameter.numel() for parameter in trainable)
 
 
@@ -834,7 +834,7 @@ def unfreeze_policy(model: PPO) -> None:
     for parameter in model.policy.parameters():
         parameter.requires_grad_(True)
     if not all(parameter.requires_grad for parameter in model.policy.parameters()):
-        raise SmokeError("policy unfreeze contract drifted")
+        raise TrainingError("policy unfreeze contract drifted")
 
 
 def rms_state(rms: RunningMeanStd) -> dict[str, Any]:
@@ -892,7 +892,7 @@ def policy_rollout_dataset(
                 or evidence.get("teacher_version") != "1.0.0"
                 or evidence.get("future_tape_visible") is not False
             ):
-                raise SmokeError("BC teacher contract drifted")
+                raise TrainingError("BC teacher contract drifted")
             observations.append(np.asarray(observation, dtype=np.float32).copy())
             targets.append(np.asarray(teacher_action, dtype=np.float32).copy())
             normalized = normalize_observations(
@@ -909,7 +909,7 @@ def policy_rollout_dataset(
         or not np.all(np.isfinite(observation_array))
         or not np.all(np.isfinite(target_array))
     ):
-        raise SmokeError("DAgger rollout dataset contract drifted")
+        raise TrainingError("DAgger rollout dataset contract drifted")
     return observation_array, target_array
 
 
@@ -1053,13 +1053,14 @@ def clone_actor_state(
         environment.close()
 
 
+# Frozen deterministic development evaluation and paired analysis.
 def evaluate_development(
     model: PPO, reward_profile: str, normalizer: VecNormalize
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for family in DEVELOPMENT_FAMILIES_V3:
         if not family.id.startswith("v3_dev_"):
-            raise SmokeError("a non-development family entered smoke evaluation")
+            raise TrainingError("a non-development family entered evaluation")
         for case_seed in DEVELOPMENT_SEEDS_V3:
             scenario = family.build(case_seed)
             tape_seed = family.tape_seed(case_seed)
@@ -1079,7 +1080,9 @@ def evaluate_development(
                 )
                 action, _ = model.predict(normalized, deterministic=True)
                 observation, _, terminated, _, _ = environment.step(action)
-            summary = _summarize_v3("v4_smoke", environment.trajectory, scenario)
+            summary = _summarize_v3(
+                "policy_training", environment.trajectory, scenario
+            )
             outcome = summary["absolute_outcome"]
             tail_minimum_services = np.asarray(
                 outcome["tail_minimum_services"], dtype=np.float64
@@ -1101,7 +1104,7 @@ def evaluate_development(
                 and np.all(np.isfinite(tail_minimum_services))
                 and np.all(np.isfinite(recovery_targets))
             ):
-                raise SmokeError("non-finite development evaluation outcome")
+                raise TrainingError("non-finite development evaluation outcome")
             rows.append(
                 {
                     "row_id": f"{family.id}:{case_seed}",
@@ -1120,7 +1123,7 @@ def evaluate_development(
                 }
             )
     if len(rows) != 40 or len({row["row_id"] for row in rows}) != 40:
-        raise SmokeError("development evaluation must contain 40 unique rows")
+        raise TrainingError("development evaluation must contain 40 unique rows")
     reasons = Counter(
         reason for row in rows if not row["solved"] for reason in row["reason_codes"]
     )
@@ -1241,11 +1244,11 @@ def paired_comparison(left: dict[str, Any], right: dict[str, Any]) -> dict[str, 
     if [row["row_id"] for row in left_rows] != [
         row["row_id"] for row in right_rows
     ]:
-        raise SmokeError("smoke evaluations are not paired on identical dev cases")
+        raise TrainingError("development evaluations are not paired on identical cases")
     if [row.get("tape_sha256") for row in left_rows] != [
         row.get("tape_sha256") for row in right_rows
     ]:
-        raise SmokeError("smoke evaluations are not paired on identical tapes")
+        raise TrainingError("development evaluations are not paired on identical tapes")
     both = sum(a["solved"] and b["solved"] for a, b in zip(left_rows, right_rows))
     left_only = sum(
         a["solved"] and not b["solved"] for a, b in zip(left_rows, right_rows)
@@ -1277,10 +1280,10 @@ def contested_case_outcomes(
 ) -> dict[str, Any]:
     rows = {str(row["row_id"]): row for row in evaluation["rows"]}
     if len(rows) != len(evaluation["rows"]):
-        raise SmokeError("development evaluation contains duplicate row ids")
+        raise TrainingError("development evaluation contains duplicate row ids")
     missing = [row_id for row_id in contested_row_ids if row_id not in rows]
     if missing:
-        raise SmokeError(f"development evaluation missed contested rows: {missing}")
+        raise TrainingError(f"development evaluation missed contested rows: {missing}")
     outcomes = [
         {
             "row_id": row_id,
@@ -1441,10 +1444,11 @@ def step3e_return_rms_continuity_valid(
     )
 
 
+# Durable nonauthorizing receipt output and CLI contract.
 def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        raise SmokeError(f"refusing to overwrite smoke result: {path}")
+        raise TrainingError(f"refusing to overwrite training result: {path}")
     temporary = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
     rendered = json.dumps(
         payload,
@@ -1465,11 +1469,11 @@ def validate_step3e_output_path(path: Path) -> Path:
     try:
         target.relative_to(allowed)
     except ValueError as exc:
-        raise SmokeError(
+        raise TrainingError(
             "Step 3e receipt must stay under internal/developmental_runs/v4"
         ) from exc
     if target.exists():
-        raise SmokeError(f"refusing to overwrite Step 3e receipt: {target}")
+        raise TrainingError(f"refusing to overwrite Step 3e receipt: {target}")
     return target
 
 
@@ -1551,7 +1555,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--minimum-solve-gain",
         type=int,
         default=3,
-        help="required risk-averse solved-count gain for the smoke gate",
+        help="required risk-averse solved-count gain for the matched reward gate",
     )
     parser.add_argument(
         "--minimum-learning-solve-gain",
@@ -1576,7 +1580,7 @@ def learning_milestones(
         if total_transitions != STEP3E_ACTIVE_TRANSITIONS or not all(
             milestone % rollout_size == 0 for milestone in STEP3E_ACTIVE_MILESTONES
         ):
-            raise SmokeError("Step 3e milestones require exact complete rollouts")
+            raise TrainingError("Step 3e milestones require exact complete rollouts")
         return list(STEP3E_ACTIVE_MILESTONES)
     if total_transitions == ACTIVE_MILESTONES[-1] and all(
         milestone % rollout_size == 0 for milestone in ACTIVE_MILESTONES
@@ -1616,16 +1620,16 @@ def validate_step3e_runtime_config(
             "actual": rollout_size,
         }
     if mismatches:
-        raise SmokeError(
+        raise TrainingError(
             "Step 3e must use the exact supervisor-adopted attempt-06 regime: "
             + json.dumps(mismatches, sort_keys=True)
         )
     if not args.supervisor_step3e_authorization:
-        raise SmokeError(
+        raise TrainingError(
             "Step 3e requires --supervisor-step3e-authorization"
         )
     if args.json_output is None:
-        raise SmokeError("Step 3e requires a create-new --json-output receipt")
+        raise TrainingError("Step 3e requires a create-new --json-output receipt")
 
 
 def _resolve_input_path(path: Path) -> Path:
@@ -1633,22 +1637,23 @@ def _resolve_input_path(path: Path) -> Path:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run BC/DAgger -> critic warm-up -> PPO -> evaluation -> receipt."""
     args = parse_args(argv)
     if args.gate_mode == "learning":
         profiles = tuple(args.profile or ("v3_equivalent",))
         if profiles != ("v3_equivalent",):
-            raise SmokeError(
+            raise TrainingError(
                 "the learning gate must use only the original v3 reward"
             )
     else:
         profiles = tuple(args.profile or PROFILE_ORDER)
         if profiles != PROFILE_ORDER:
-            raise SmokeError(
+            raise TrainingError(
                 f"the {args.gate_mode} gate requires the registered matched "
                 "profile order"
             )
     if len(set(profiles)) != len(profiles):
-        raise SmokeError("reward profiles must be unique")
+        raise TrainingError("reward profiles must be unique")
     rollout_size = args.lanes * args.n_steps
     step3e_provenance: dict[str, Any] | None = None
     step3e_output: Path | None = None
@@ -1674,9 +1679,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "case_count": 192,
             "sha256": STEP3E_TRAINING_ROSTER_AND_TAPES_SHA256,
         }:
-            raise SmokeError("Step 3e training roster or disaster tapes drifted")
+            raise TrainingError("Step 3e training roster or disaster tapes drifted")
     elif args.supervisor_step3e_authorization:
-        raise SmokeError(
+        raise TrainingError(
             "--supervisor-step3e-authorization is valid only for gate-mode step3e"
         )
     if (
@@ -1693,7 +1698,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         or args.critic_warmup_min_transitions
         > args.critic_warmup_max_transitions
     ):
-        raise SmokeError(
+        raise TrainingError(
             "training and critic warm-up must divide into complete lane "
             "rollouts and batch size must divide the rollout"
         )
@@ -1709,7 +1714,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         or not np.isfinite(args.ent_coef)
         or args.ent_coef < 0.0
     ):
-        raise SmokeError("BC, solve-gain, or critic-gate arguments are invalid")
+        raise TrainingError("BC, solve-gain, or critic-gate arguments are invalid")
 
     torch.set_num_threads(min(12, os.cpu_count() or 1))
     torch.set_num_interop_threads(1)
@@ -1735,7 +1740,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         or bc_receipt["observation_rms_sha256"]
         != STEP3E_INITIAL_OBSERVATION_RMS_SHA256
     ):
-        raise SmokeError("Step 3e behavior-cloning initialization drifted")
+        raise TrainingError("Step 3e behavior-cloning initialization drifted")
     results: dict[str, Any] = {}
     initial_hashes: dict[str, dict[str, str]] = {}
     for profile in profiles:
@@ -1791,20 +1796,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 or profile_initial_hashes["observation_rms_sha256"]
                 != bc_receipt["observation_rms_sha256"]
             ):
-                raise SmokeError("matched policy initialization drifted")
+                raise TrainingError("matched policy initialization drifted")
             if args.gate_mode == "step3e" and profile_initial_hashes != {
                 "policy_sha256": STEP3E_INITIAL_POLICY_SHA256,
                 "actor_sha256": STEP3E_INITIAL_ACTOR_SHA256,
                 "observation_rms_sha256": STEP3E_INITIAL_OBSERVATION_RMS_SHA256,
                 "return_rms_sha256": STEP3E_INITIAL_RETURN_RMS_SHA256,
             }:
-                raise SmokeError("Step 3e canonical initialization hash drifted")
+                raise TrainingError("Step 3e canonical initialization hash drifted")
             if initial_hashes and profile_initial_hashes != next(
                 iter(initial_hashes.values())
             ):
-                raise SmokeError("matched arm initialization hashes differ")
+                raise TrainingError("matched arm initialization hashes differ")
             if model.policy.optimizer.state:
-                raise SmokeError("PPO optimizer must start with empty state")
+                raise TrainingError("PPO optimizer must start with empty state")
             initial_hashes[profile] = profile_initial_hashes
 
             initial_evaluation = development_curve_evaluation(
@@ -1834,7 +1839,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 warmup_completed += rollout_size
                 if int(model.num_timesteps) != warmup_completed:
-                    raise SmokeError(
+                    raise TrainingError(
                         "critic warm-up missed an exact rollout boundary"
                     )
                 explained_variance_after = float(
@@ -1855,7 +1860,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             observation_rms_after_warmup = rms_state(environment.obs_rms)
             return_rms_after_warmup = rms_state(environment.ret_rms)
             if actor_hash_after_warmup != actor_hash_before_warmup:
-                raise SmokeError("actor changed during critic-only warm-up")
+                raise TrainingError("actor changed during critic-only warm-up")
             development_curve["post_critic_warmup"] = (
                 development_curve_evaluation(
                     evaluate_development_frozen(model, profile, environment),
@@ -1883,7 +1888,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     active_completed = milestone
                     expected_total = warmup_completed + active_completed
                     if int(model.num_timesteps) != expected_total:
-                        raise SmokeError(
+                        raise TrainingError(
                             "active PPO missed an exact transition milestone"
                         )
                     development_curve[
@@ -2250,7 +2255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     payload: dict[str, Any] = {
         "schema_version": 1,
-        "tool": "smoke_train_v4.py",
+        "tool": TOOL_ID,
         "status": (
             "supervisor_corrected_step3d_passed_step3e_matched_reward_nonauthorizing"
             if args.gate_mode == "step3e"
@@ -2516,7 +2521,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         assert step3e_sources_before is not None
         step3e_sources_after = step3e_source_identity()
         if step3e_sources_after != step3e_sources_before:
-            raise SmokeError("executing Step 3e sources changed during the run")
+            raise TrainingError("executing Step 3e sources changed during the run")
         payload["source_identity"] = {
             "unchanged": True,
             "before": step3e_sources_before,
@@ -2526,7 +2531,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             step3e_provenance["protected_v3_expected_files_sha256"]
         )
         if protected_v3_after != protected_v3_before:
-            raise SmokeError("protected-v3 snapshot changed during Step 3e")
+            raise TrainingError("protected-v3 snapshot changed during Step 3e")
         payload["protected_v3"] = {
             "unchanged": True,
             "before": protected_v3_before,

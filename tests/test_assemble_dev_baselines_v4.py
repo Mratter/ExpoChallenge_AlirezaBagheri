@@ -4,8 +4,6 @@ import hashlib
 import json
 from pathlib import Path
 
-import pytest
-
 from scripts import assemble_dev_baselines_v4 as assembly
 
 
@@ -18,19 +16,6 @@ RECEIPT = (
     / "step6-dev-baseline-table.json"
 )
 MARKDOWN = ROOT / "benchmarks" / "v4" / "development-baselines.md"
-
-
-def test_wilson_95_known_counts_and_validation() -> None:
-    assert assembly.wilson_95(35, 40) == {
-        "lower": 0.7388788016,
-        "upper": 0.9454049975,
-    }
-    assert assembly.wilson_95(37, 40) == {
-        "lower": 0.8013576648,
-        "upper": 0.9741639742,
-    }
-    with pytest.raises(ValueError, match="invalid binomial"):
-        assembly.wilson_95(2, 1)
 
 
 def test_committed_step6_receipt_has_all_planners_and_exact_pairings() -> None:

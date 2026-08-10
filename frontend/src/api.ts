@@ -1,6 +1,8 @@
 import {
   actionGroupsV3,
   actionOrderV3,
+  defaultScenarioV3,
+  environmentContractV3,
   observationOrderV3,
   services,
   type CompareResponse,
@@ -154,13 +156,13 @@ function validateOutcome(value: unknown, path: string): boolean {
     throw contractError(`${path}.status disagrees with the official solved flag.`)
   }
   requireHash(outcome.definition_sha256, `${path}.definition_sha256`)
-  requireVector(outcome.recovery_targets, 5, `${path}.recovery_targets`)
-  requireVector(outcome.tail_minimum_services, 5, `${path}.tail_minimum_services`)
-  if (!isBooleanArray(outcome.target_met_by_service, 5)) {
+  requireVector(outcome.recovery_targets, services.length, `${path}.recovery_targets`)
+  requireVector(outcome.tail_minimum_services, services.length, `${path}.tail_minimum_services`)
+  if (!isBooleanArray(outcome.target_met_by_service, services.length)) {
     throw contractError(`${path}.target_met_by_service must contain five booleans.`)
   }
-  if (outcome.assessment_tail_days !== 3) {
-    throw contractError(`${path}.assessment_tail_days must be 3.`)
+  if (outcome.assessment_tail_days !== environmentContractV3.assessmentTailDays) {
+    throw contractError(`${path}.assessment_tail_days must be ${environmentContractV3.assessmentTailDays}.`)
   }
   const checks = requireObject(outcome.checks, `${path}.checks`)
   for (const name of [
@@ -185,8 +187,8 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
     'preparedness_gain_requested', 'preparedness_gain', 'preparedness_end',
     'lower_bounds', 'upper_bounds', 'crew_lower_bounds', 'crew_upper_bounds',
     'support', 'throughput', 'public_next_day_risk', 'gain', 'strain', 'services_end',
-  ]) requireVector(day[field], 5, `${path}.${field}`)
-  requireVector(day.raw_action, 22, `${path}.raw_action`)
+  ]) requireVector(day[field], services.length, `${path}.${field}`)
+  requireVector(day.raw_action, actionOrderV3.length, `${path}.raw_action`)
   for (const field of [
     'available_budget', 'available_crew', 'material_used', 'material_unspent',
     'crew_used', 'crew_idle', 'preparedness_alignment_reward', 'backlog_pressure',
@@ -199,8 +201,8 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
   }
   const shock = requireObject(day.shock, `${path}.shock`)
   if (shock.day !== dayIndex + 1) throw contractError(`${path}.shock.day is not sequential.`)
-  requireVector(shock.impact, 5, `${path}.shock.impact`)
-  requireVector(shock.public_risk_next, 5, `${path}.shock.public_risk_next`)
+  requireVector(shock.impact, services.length, `${path}.shock.impact`)
+  requireVector(shock.public_risk_next, services.length, `${path}.shock.public_risk_next`)
   requireBoolean(shock.assessment_tail, `${path}.shock.assessment_tail`)
   requireNumber(shock.severity, `${path}.shock.severity`)
   requireBoolean(shock.forced, `${path}.shock.forced`)
@@ -222,7 +224,7 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
     'crew_capacity_effective', 'crew_capacity_physical', 'repair_dispatch',
     'repair_supply', 'spoilage', 'depot_stock_end', 'pending_next_day',
     'capacity_overflow', 'conservation_residual',
-  ]) requireVector(logistics[field], 5, `${path}.logistics.${field}`)
+  ]) requireVector(logistics[field], services.length, `${path}.logistics.${field}`)
   requireNumber(logistics.road_capacity, `${path}.logistics.road_capacity`)
   if (!Array.isArray(logistics.mutual_aid_transfers)) {
     throw contractError(`${path}.logistics.mutual_aid_transfers must be an array.`)
@@ -232,8 +234,8 @@ function validateDay(value: unknown, dayIndex: number, planner: string): void {
 function validatePlanner(value: unknown, path: string): boolean {
   const planner = requireObject(value, path)
   const trajectory = planner.trajectory
-  if (!Array.isArray(trajectory) || trajectory.length !== 30) {
-    throw contractError(`${path}.trajectory must contain exactly 30 days.`)
+  if (!Array.isArray(trajectory) || trajectory.length !== defaultScenarioV3.horizon_days) {
+    throw contractError(`${path}.trajectory must contain exactly ${defaultScenarioV3.horizon_days} days.`)
   }
   trajectory.forEach((day, index) => validateDay(day, index, path))
   for (const field of [
@@ -242,14 +244,15 @@ function validatePlanner(value: unknown, path: string): boolean {
     'largest_shock_loss_day', 'critical_service_days', 'hard_violation_count',
     'constraint_violations', 'max_logistics_conservation_residual',
   ]) requireNumber(planner[field], `${path}.${field}`)
-  requireVector(planner.final_depot_stock, 5, `${path}.final_depot_stock`)
-  requireVector(planner.final_pending_arrivals, 5, `${path}.final_pending_arrivals`)
+  requireVector(planner.final_depot_stock, services.length, `${path}.final_depot_stock`)
+  requireVector(planner.final_pending_arrivals, services.length, `${path}.final_pending_arrivals`)
   requireHash(planner.trajectory_sha256, `${path}.trajectory_sha256`)
   const solved = validateOutcome(planner.absolute_outcome, `${path}.absolute_outcome`)
-  const terminal = requireObject(trajectory[29], `${path}.trajectory[29]`)
+  const terminalIndex = defaultScenarioV3.horizon_days - 1
+  const terminal = requireObject(trajectory[terminalIndex], `${path}.trajectory[${terminalIndex}]`)
   const terminalSolved = validateOutcome(
     terminal.absolute_outcome,
-    `${path}.trajectory[29].absolute_outcome`,
+    `${path}.trajectory[${terminalIndex}].absolute_outcome`,
   )
   if (terminalSolved !== solved) {
     throw contractError(`${path} terminal and summary outcomes disagree.`)
@@ -260,29 +263,29 @@ function validatePlanner(value: unknown, path: string): boolean {
 /** Runtime validation prevents incompatible or partial evidence from being rendered as V3. */
 export function parseComparison(value: unknown): CompareResponse {
   const root = requireObject(value, 'comparison response')
-  if (root.schema_version !== '4.0.0' || root.engine_version !== 'city-recovery-env-v3') {
+  if (root.schema_version !== environmentContractV3.schemaVersion || root.engine_version !== 'city-recovery-env-v3') {
     throw contractError('The response is not a CityRecoveryEnv-v3 schema 4 result.')
   }
   const environment = requireObject(root.environment, 'environment')
   if (
-    environment.id !== 'CityRecoveryEnv-v3'
-    || environment.observation_count !== 73
-    || environment.action_count !== 22
+    environment.id !== environmentContractV3.id
+    || environment.observation_count !== environmentContractV3.observationCount
+    || environment.action_count !== environmentContractV3.actionCount
   ) throw contractError('The environment interface is not the frozen 73-input / 22-action V3 contract.')
   const scenario = requireObject(root.scenario, 'scenario')
-  if (scenario.horizon_days !== 30 || scenario.assessment_tail_days !== 3) {
+  if (scenario.horizon_days !== defaultScenarioV3.horizon_days || scenario.assessment_tail_days !== environmentContractV3.assessmentTailDays) {
     throw contractError('The scenario is not the frozen 30-day / 3-day-tail V3 protocol.')
   }
-  requireVector(scenario.initial_services, 5, 'scenario.initial_services')
-  requireVector(scenario.priorities, 5, 'scenario.priorities')
-  requireVector(scenario.recovery_targets, 5, 'scenario.recovery_targets')
-  if (!isStringArray(root.observation_order, 73) || !isStringArray(root.action_order, 22)) {
+  requireVector(scenario.initial_services, services.length, 'scenario.initial_services')
+  requireVector(scenario.priorities, services.length, 'scenario.priorities')
+  requireVector(scenario.recovery_targets, services.length, 'scenario.recovery_targets')
+  if (!isStringArray(root.observation_order, observationOrderV3.length) || !isStringArray(root.action_order, actionOrderV3.length)) {
     throw contractError('The returned policy channel order is incomplete.')
   }
   if (!Array.isArray(root.services) || root.services.join('|') !== services.join('|')) {
     throw contractError('The returned service order does not match the V3 contract.')
   }
-  if (!Array.isArray(root.shock_schedule) || root.shock_schedule.length !== 30) {
+  if (!Array.isArray(root.shock_schedule) || root.shock_schedule.length !== defaultScenarioV3.horizon_days) {
     throw contractError('The shared shock schedule must contain 30 days.')
   }
   const candidateSolved = validatePlanner(root.candidate, 'candidate')
@@ -434,7 +437,7 @@ function parseBenchmark(value: unknown): MetadataV3['benchmark'] {
     || invariants.candidate_hard_violations !== 0
     || invariants.baseline_hard_violations !== 0
     || residual < 0
-    || residual > 1e-6
+    || residual > environmentContractV3.conservationTolerance
   ) throw contractError('The final benchmark invariants did not pass.')
   requireHash(benchmark.artifact_sha256, 'benchmark.artifact_sha256')
   requireHash(benchmark.rows_sha256, 'benchmark.rows_sha256')
@@ -447,26 +450,26 @@ export function parseMetadata(value: unknown): MetadataV3 {
   const model = requireObject(root.model, 'metadata.model')
   const environment = requireObject(root.environment, 'metadata.environment')
   if (
-    root.schema_version !== '4.0.0'
+    root.schema_version !== environmentContractV3.schemaVersion
     || model.id !== 'city-recovery-sb3-ppo-v3-selected'
-    || model.version !== '3.0.0'
-    || model.schema_version !== '4.0.0'
+    || model.version !== environmentContractV3.version
+    || model.schema_version !== environmentContractV3.schemaVersion
     || model.manifest_schema_version !== 1
     || model.artifact_type !== 'stable_baselines3_ppo'
     || model.algorithm !== 'PPO'
     || model.training_library !== 'stable-baselines3'
-    || environment.id !== 'CityRecoveryEnv-v3'
-    || environment.version !== '3.0.0'
-    || environment.observation_count !== 73
-    || environment.action_count !== 22
+    || environment.id !== environmentContractV3.id
+    || environment.version !== environmentContractV3.version
+    || environment.observation_count !== environmentContractV3.observationCount
+    || environment.action_count !== environmentContractV3.actionCount
     || environment.policy_neutral_transition !== true
     || environment.future_tape_visible !== false
-    || model.observation_count !== 73
-    || model.action_count !== 22
+    || model.observation_count !== environmentContractV3.observationCount
+    || model.action_count !== environmentContractV3.actionCount
   ) throw contractError('Metadata does not describe the canonical selected V3 release.')
   requireExactStringArray(model.observation_order, observationOrderV3, 'metadata.model.observation_order')
   requireExactStringArray(model.action_order, actionOrderV3, 'metadata.model.action_order')
-  if (!isStringArray(root.services, 5) || root.services.join('|') !== services.join('|')) {
+  if (!isStringArray(root.services, services.length) || root.services.join('|') !== services.join('|')) {
     throw contractError('Metadata service order does not match the V3 contract.')
   }
   requireExactStringArray(model.action_groups, actionGroupsV3, 'metadata.model.action_groups')

@@ -33,6 +33,11 @@ from scripts.dev_probe_v3 import (  # noqa: E402
     resolve_policy,
     rollout,
 )
+from backend.app.shared_evidence import (  # noqa: E402
+    file_sha256,
+    load_json_object,
+    wilson_interval,
+)
 
 TOOL_ID = "assemble_dev_baselines_v4.py"
 SCHEMA_VERSION = 1
@@ -66,41 +71,13 @@ class AssemblyError(RuntimeError):
     """Raised when the canonical development table cannot be proved."""
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def load_receipt(path: Path, expected_sha256: str) -> dict[str, Any]:
-    if not path.is_file():
-        raise AssemblyError(f"required receipt is missing: {path}")
-    actual = sha256_file(path)
-    if actual != expected_sha256:
-        raise AssemblyError(
-            f"receipt hash mismatch for {path}: expected {expected_sha256}, got {actual}"
-        )
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise AssemblyError(f"receipt root must be an object: {path}")
-    return value
-
-
-def wilson_95(solved: int, total: int) -> dict[str, float]:
-    if total <= 0 or solved < 0 or solved > total:
-        raise ValueError("invalid binomial counts")
-    z = 1.959963984540054
-    rate = solved / total
-    denominator = 1.0 + z * z / total
-    center = (rate + z * z / (2.0 * total)) / denominator
-    half = (
-        z
-        * math.sqrt(rate * (1.0 - rate) / total + z * z / (4.0 * total * total))
-        / denominator
+    return load_json_object(
+        path,
+        f"required receipt {path}",
+        expected_sha256=expected_sha256,
+        error_type=AssemblyError,
     )
-    return {"lower": round(center - half, 10), "upper": round(center + half, 10)}
 
 
 def compact_probe_row(row: ProbeRow, tape_sha256: str) -> dict[str, Any]:
@@ -130,11 +107,12 @@ def aggregate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     if len(rows) != 40:
         raise AssemblyError(f"planner has {len(rows)} rows, expected 40")
     solved = sum(bool(row["solved"]) for row in rows)
+    lower, upper = wilson_interval(solved, 40, digits=10)
     return {
         "case_count": 40,
         "solved_count": solved,
         "solve_rate": round(solved / 40.0, 10),
-        "wilson_95_ci": wilson_95(solved, 40),
+        "wilson_95_ci": {"lower": lower, "upper": upper},
         "mean_resilience_auc": round(
             fmean(float(row["resilience_auc"]) for row in rows), 10
         ),
@@ -380,21 +358,24 @@ def build_payload() -> tuple[dict[str, Any], str]:
                 capture_output=True,
                 text=True,
             ).stdout.strip(),
-            "assembler_sha256": sha256_file(Path(__file__).resolve()),
-            "dev_probe_sha256": sha256_file(ROOT / "scripts" / "dev_probe_v3.py"),
-            "scenarios_v3_sha256": sha256_file(
+            "assembler_sha256": file_sha256(Path(__file__).resolve()),
+            "shared_evidence_sha256": file_sha256(
+                ROOT / "backend" / "app" / "shared_evidence.py"
+            ),
+            "dev_probe_sha256": file_sha256(ROOT / "scripts" / "dev_probe_v3.py"),
+            "scenarios_v3_sha256": file_sha256(
                 ROOT / "backend" / "app" / "scenarios_v3.py"
             ),
-            "simulator_core_sha256": sha256_file(
+            "simulator_core_sha256": file_sha256(
                 ROOT / "backend" / "app" / "simulator_core.py"
             ),
-            "simulator_v2_sha256": sha256_file(
+            "simulator_v2_sha256": file_sha256(
                 ROOT / "backend" / "app" / "simulator_v2.py"
             ),
-            "simulator_v3_sha256": sha256_file(
+            "simulator_v3_sha256": file_sha256(
                 ROOT / "backend" / "app" / "simulator_v3.py"
             ),
-            "shipped_v3_onnx_sha256": sha256_file(DEFAULT_ONNX_PATH),
+            "shipped_v3_onnx_sha256": file_sha256(DEFAULT_ONNX_PATH),
         },
         "v4_ppo_evidence": {
             "policy_seed": int(step3e["config"]["policy_seed"]),

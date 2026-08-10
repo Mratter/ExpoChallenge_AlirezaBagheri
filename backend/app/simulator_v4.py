@@ -17,42 +17,49 @@ import gymnasium as gym
 import numpy as np
 
 from backend.app.models import ScenarioV3
-from backend.app import simulator_v3 as frozen_v3
 from backend.app.simulator_core_v4 import (
     _round_vector,
     action_to_proposal,
     measure_constraints,
     project_capped_simplex,
 )
+from backend.app.simulator_v3 import (
+    ACTION_ORDER_V3,
+    ACTION_SIZE_V3,
+    CONSERVATION_TOLERANCE_V3,
+    CONSTRAINT_TOLERANCE,
+    CREW_PRODUCTIVITY,
+    CRITICAL_SERVICE_FLOOR,
+    DELTA,
+    DEPOT_CAPACITY,
+    ETA,
+    FOOD_SPOILAGE_RATE,
+    IMMEDIATE_DELIVERY_FRACTION,
+    OBSERVATION_ORDER_V3,
+    OBSERVATION_SIZE_V3,
+    PREPAREDNESS_DAILY_GAIN_CAP,
+    PREPAREDNESS_DECAY,
+    RESERVE_DRAW_FRACTION,
+    SHOCK_IMPACTS,
+    SOLVED_RAUC_FLOOR,
+    CityRecoveryEnvV3,
+    DayContextV3,
+    InterventionV3,
+    ShockV3,
+    _land_capped_v3,
+    _summarize_v3,
+    absolute_outcome_v3,
+    generate_disaster_tape_v3,
+)
 
-ACTION_ORDER_V4 = frozen_v3.ACTION_ORDER_V3
-ACTION_SIZE_V4 = frozen_v3.ACTION_SIZE_V3
-OBSERVATION_ORDER_V4 = frozen_v3.OBSERVATION_ORDER_V3
-OBSERVATION_SIZE_V4 = frozen_v3.OBSERVATION_SIZE_V3
+# The public v4 interface is the frozen v3 tensor contract by construction.
+ACTION_ORDER_V4 = ACTION_ORDER_V3
+ACTION_SIZE_V4 = ACTION_SIZE_V3
+OBSERVATION_ORDER_V4 = OBSERVATION_ORDER_V3
+OBSERVATION_SIZE_V4 = OBSERVATION_SIZE_V3
 ENGINE_V4_ID = "CityRecoveryEnv-v4"
 ENGINE_V4_VERSION = "4.0.0"
 REWARD_PROFILES_V4 = ("v3_equivalent", "risk_averse")
-
-ACTION_SIZE_V3 = frozen_v3.ACTION_SIZE_V3
-CONSERVATION_TOLERANCE_V3 = frozen_v3.CONSERVATION_TOLERANCE_V3
-CONSTRAINT_TOLERANCE = frozen_v3.CONSTRAINT_TOLERANCE
-CREW_PRODUCTIVITY = frozen_v3.CREW_PRODUCTIVITY
-CRITICAL_SERVICE_FLOOR = frozen_v3.CRITICAL_SERVICE_FLOOR
-DELTA = frozen_v3.DELTA
-DEPOT_CAPACITY = frozen_v3.DEPOT_CAPACITY
-DayContextV3 = frozen_v3.DayContextV3
-ETA = frozen_v3.ETA
-FOOD_SPOILAGE_RATE = frozen_v3.FOOD_SPOILAGE_RATE
-IMMEDIATE_DELIVERY_FRACTION = frozen_v3.IMMEDIATE_DELIVERY_FRACTION
-InterventionV3 = frozen_v3.InterventionV3
-OBSERVATION_SIZE_V3 = frozen_v3.OBSERVATION_SIZE_V3
-PREPAREDNESS_DAILY_GAIN_CAP = frozen_v3.PREPAREDNESS_DAILY_GAIN_CAP
-PREPAREDNESS_DECAY = frozen_v3.PREPAREDNESS_DECAY
-RESERVE_DRAW_FRACTION = frozen_v3.RESERVE_DRAW_FRACTION
-SHOCK_IMPACTS = frozen_v3.SHOCK_IMPACTS
-SOLVED_RAUC_FLOOR = frozen_v3.SOLVED_RAUC_FLOOR
-absolute_outcome_v3 = frozen_v3.absolute_outcome_v3
-_land_capped_v3 = frozen_v3._land_capped_v3
 
 
 def decode_action_v4(
@@ -122,14 +129,14 @@ def decode_action_v4(
         crew_projection=crew_projection,
     )
 
-class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
+class CityRecoveryEnvV4(CityRecoveryEnvV3):
     """V4 transition system with optional compact training records."""
 
     def __init__(
         self,
         scenario: ScenarioV3,
         shock_seed: int = 0,
-        schedule: Sequence[frozen_v3.ShockV3] | None = None,
+        schedule: Sequence[ShockV3] | None = None,
         *,
         collect_evidence: bool = True,
         reward_profile: str = "risk_averse",
@@ -172,7 +179,7 @@ class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
                 raise ValueError("precomputed v4 tape must match scenario horizon")
             self.schedule = list(self._provided_schedule)
         else:
-            self.schedule = frozen_v3.generate_disaster_tape_v3(
+            self.schedule = generate_disaster_tape_v3(
                 self.scenario, self.shock_seed
             )
         self.trajectory = []
@@ -696,7 +703,7 @@ class CyclingScenarioEnvV4(gym.Env[np.ndarray, np.ndarray]):
             (
                 scenario,
                 shock_seed,
-                tuple(frozen_v3.generate_disaster_tape_v3(scenario, shock_seed)),
+                tuple(generate_disaster_tape_v3(scenario, shock_seed)),
             )
             for scenario, shock_seed in scenarios
         ]
@@ -740,13 +747,13 @@ def rollout_candidate_v4(
     scenario: ScenarioV3,
     seed: int,
     action_provider: Callable[[np.ndarray], np.ndarray],
-    schedule: Sequence[frozen_v3.ShockV3] | None = None,
+    schedule: Sequence[ShockV3] | None = None,
     *,
     collect_evidence: bool = True,
     reward_profile: str = "risk_averse",
 ) -> dict[str, Any]:
     shared_schedule = (
-        frozen_v3.generate_disaster_tape_v3(scenario, seed)
+        generate_disaster_tape_v3(scenario, seed)
         if schedule is None
         else list(schedule)
     )
@@ -762,4 +769,4 @@ def rollout_candidate_v4(
     while not terminated:
         action = action_provider(observation)
         observation, _, terminated, _, _ = env.step(action)
-    return frozen_v3._summarize_v3("ppo_v4", env.trajectory, scenario)
+    return _summarize_v3("ppo_v4", env.trajectory, scenario)
