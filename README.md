@@ -6,7 +6,7 @@ The shortest accurate explanation is:
 
 > Both planners start from the same public scenario and encounter the same realized disaster sequence. Each then observes its own evolving city through the same 73-field public schema and independently proposes how to use material, crews, depot stock, and preparedness investment. A shared feasibility layer makes each proposal physically valid, the simulator advances one day, and an identical six-part rule decides whether each planner solved that disaster.
 
-This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The current model evidence is development-only: the primary benchmark is the number of synthetic disasters each planner independently **Solved** on the same 40 development tapes.
+This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The current benchmark evidence is development-only: the primary measure is the number of synthetic disasters each planner independently **Solved** on the same 200 development tapes.
 
 ## See the system
 
@@ -20,7 +20,7 @@ This is a sequential planning system, not a classifier. Do not describe it with 
 | --- |
 | ![Attribution, counterfactual, export, and sustainability decision support](docs/screenshots/decision-support.png) |
 
-These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The 35/40 v4 development result below is receipt-backed evidence, not the policy shown in the screenshots.
+These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The historical 35/40 learned-policy result below is receipt-backed evidence from the original development subset, not the policy shown in the screenshots.
 
 ## Runtime and evidence truth first
 
@@ -30,24 +30,37 @@ There is no implicit production checkpoint, fallback model, manifest, or source-
 
 ### Current development benchmark
 
-All methods below ran on the same 40 development tapes. The consolidated v4 path has not used the final split. Its score is therefore framed against the measured **37-case achievable ceiling**, not an assumed ceiling of 40: v4 PPO reaches **35 / 37 of the measured ceiling**.
+The current cheap-planner comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. All four planners ran on the same ordered tapes, with zero hard violations and an observed maximum conservation residual of exactly `0.0`. No learned-v4 policy has been evaluated on this expanded roster or on the final split.
 
-| Development method | Solved on 40 development tapes | Position against the measured ceiling |
-| --- | --- | --- |
-| **v4 PPO at 1M active transitions** | **35 / 40**, 95% Wilson interval **[0.739, 0.945]** | **35 / 37** |
-| Tuned constant rule | **33 / 40** | 33 / 37 |
-| BC initialization | **32 / 40** | 32 / 37 |
-| BC teacher | **31 / 40** | 31 / 37 |
-| Legacy shipped-policy regression fixture | **31 / 40** | 31 / 37 |
-| Reactive heuristic | **17 / 40** | 17 / 37 |
-| Causal MPC, horizon `k=1` | **18 / 40** | 18 / 37 |
-| Causal MPC, horizon `k=3` | **29 / 40** | 29 / 37 |
-| Causal MPC, horizon `k=5` | **30 / 40** | 30 / 37 |
-| Privileged clairvoyant oracle | **37 / 40** | Measured ceiling; future-shock access, **not a submission baseline** |
+| Development method | Solved on 200 development tapes | Wilson 95% CI |
+| --- | ---: | ---: |
+| Reactive heuristic | **91 / 200** | **[0.387, 0.524]** |
+| Preparedness teacher | **151 / 200** | **[0.691, 0.809]** |
+| **Tuned constant rule** | **160 / 200** | **[0.739, 0.850]** |
+| Legacy ONNX regression fixture | **141 / 200** | **[0.638, 0.764]** |
 
-The canonical aggregate and paired comparisons are in `benchmarks/v4/development-baselines.md`; complete ordered rows and source hashes are in `internal/developmental_runs/v4/step6-dev-baseline-table.json`. Both identify themselves as nonauthorizing development evidence with `final_split_used: false`.
+The human-readable aggregate is in `benchmarks/v4/development-baselines-200.md`; complete ordered rows, paired exact McNemar comparisons, invariants, and source hashes are in `internal/developmental_runs/v4/development-baselines-200.json`. Both identify themselves as nonauthorizing development evidence with `final_split_used: false`.
 
-The retired release's one-shot final report is retained at `docs/evidence/legacy-final-40.json` as legacy evidence only. It does not select a model, participate in current readiness, or describe the v4 development policy.
+### Historical original 40-case development subset
+
+The earlier learned-policy, BC, MPC, rule, and oracle measurements all used only the original eight-seed-per-family subset. They remain useful historical evidence but are not numerically comparable with the current 200-case table.
+
+| Historical development method | Solved on the original 40-case subset | Scope |
+| --- | ---: | --- |
+| **v4 PPO at 1M active transitions** | **35 / 40**, 95% Wilson interval **[0.739, 0.945]** | Historical learned-policy evidence |
+| Tuned constant rule | **33 / 40** | Historical rule evidence |
+| BC initialization | **32 / 40** | Historical BC evidence |
+| BC teacher | **31 / 40** | Historical BC evidence |
+| Legacy shipped-policy regression fixture | **31 / 40** | Historical fixture evidence |
+| Reactive heuristic | **17 / 40** | Historical heuristic evidence |
+| Causal MPC, horizon `k=1` | **18 / 40** | Historical MPC evidence |
+| Causal MPC, horizon `k=3` | **29 / 40** | Historical MPC evidence |
+| Causal MPC, horizon `k=5` | **30 / 40** | Historical MPC evidence |
+| Privileged clairvoyant oracle | **37 / 40** | Future-shock headroom diagnostic; **not a submission baseline** |
+
+The privileged oracle result is confined to that original subset. It is not a 200-case result, a ceiling estimate for the expanded roster, or a mathematical upper bound. The receipt-bound historical aggregate remains byte-identical at `benchmarks/v4/development-baselines.md`, with its complete rows in `internal/developmental_runs/v4/step6-dev-baseline-table.json`.
+
+A separate deterministic regression probe on the expanded 200-case final roster recorded **72 / 139 / 125** solves for the reactive heuristic, preparedness teacher, and legacy ONNX fixture respectively. That triple characterizes public and legacy fixtures only: it is not a learned-v4 final result and does not select or authorize a model. The retired release's one-shot 40-case final report remains at `docs/evidence/legacy-final-40.json` as legacy evidence only.
 
 ## Quick start on a fresh Windows computer
 
@@ -203,9 +216,9 @@ Given the same full scenario, seed, policy artifact, baseline version, and sourc
 
 ## Why this problem is hard
 
-On the development tapes, a 30-day run contains a mean of **10.6 shocks**, with a range of **4 to 16**. The final shock lands on days 25–27 in **32 of 40 cases (80%)**, and on day 27 exactly in **13 of 40**. Shocks are blocked during the days 28–30 assessment window.
+On the historical original 40-case development subset, a 30-day run contains a mean of **10.6 shocks**, with a range of **4 to 16**. The final shock lands on days 25–27 in **32 of 40 cases (80%)**, and on day 27 exactly in **13 of 40**. Shocks are blocked during the days 28–30 assessment window.
 
-Service recovery is concave and slow, so a late shock cannot be repaired reactively. The viable strategy is to buy resilience in advance against hazards visible only as probabilities. The measured consequence is that the learned policy's mean minimum tail margin grows **0.0288 → 0.0329 → 0.0397 → 0.0497** across BC, 200k, 500k, and 1M transitions: it learns to hold a buffer.
+Service recovery is concave and slow, so a late shock cannot be repaired reactively. The viable strategy is to buy resilience in advance against hazards visible only as probabilities. On that same historical subset, the learned policy's mean minimum tail margin grows **0.0288 → 0.0329 → 0.0397 → 0.0497** across BC, 200k, 500k, and 1M transitions: it learns to hold a buffer.
 
 ## Policy runtime and training architecture
 
@@ -312,15 +325,15 @@ The actor warm start uses four public-only DAgger iterations with beta schedule 
 
 Before PPO changes the actor, the trainer freezes every actor parameter and trains the critic alone for at least 50,000 and at most 100,000 transitions, stopping after the minimum once explained variance exceeds `0.5`. It records actor hashes, observation and return moments, explained variance, approximate KL, clip fraction, entropy loss, value loss, policy-gradient loss, and action standard deviation. Development curves are recorded at 200k, 500k, 1M, and the requested terminal budget.
 
-The current 35/40 result comes from the nonauthorizing 1M-transition development receipt at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`. That run persisted diagnostics and per-case outcomes, not a checkpoint or deployable ONNX file.
+The historical 35/40 result on the original development subset comes from the nonauthorizing 1M-transition receipt at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`. That run persisted diagnostics and per-case outcomes, not a checkpoint or deployable ONNX file, and it has not been reevaluated on the expanded 200-case development roster.
 
 ### Role-separated scenario splits
 
 | Split | Families × seeds | Cases | Purpose |
 | --- | --- | --- | --- |
 | Training | 6 × 32 (`810000–810031`) | 192 | Behavior cloning, DAgger, critic warm-up, and PPO interaction. |
-| Development | 5 × 8 (`820000–820007`) | 40 | Learning curves, policy comparison, and headroom measurement. |
-| Final | 5 × 8 (`830000–830007`) | 40 | Reserved evaluation set; no v4 final result is present in this repository. |
+| Development | 5 × 40 (`820000–820039`) | 200 | Learning curves, policy comparison, and development-only model selection. |
+| Final | 5 × 40 (`830000–830039`) | 200 | Reserved evaluation set; the recorded fixture regression is not a learned-v4 final result. |
 
 The family sets and seed intervals are disjoint. The development evidence names its split, records that the final split was not used, and binds every result to ordered scenario rows and disaster-tape hashes.
 
@@ -349,7 +362,7 @@ The frozen definition hash is `d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d79
 
 The definition resists several simple ways to game a terminal score. The first check is a conjunction over sectors **and** days, so a strong sector cannot mask a weak one and a planner cannot pass by spiking only on the last day. The tail-target and resilience-AUC checks pull against each other: neither “steady but ends short” nor “neglect then sprint” passes. The terminal-pipeline check closes end-game inventory dumping.
 
-The calibration is measured from both sides. The reactive baseline solves **14 / 40** on the retained legacy one-shot benchmark, while the privileged development oracle sees every future shock and still fails **3 of 40**. These are separate benchmark suites, but together they bound the authored bar empirically: it is neither trivially passable nor saturated by clairvoyance.
+Historical calibration evidence measures the rule from both sides. The reactive baseline solves **14 / 40** on the retained legacy one-shot benchmark, while the privileged oracle sees every future shock and still fails **3 of 40** on the original development subset. These are separate historical suites. The oracle result demonstrates constructive headroom on its subset, but it is not a ceiling estimate for the current 200-case development roster.
 
 ### Independent outcomes, not “winning against” the other planner
 
@@ -580,21 +593,23 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `project_environment.ps1` | Resolves the package's Python 3.12 environment, including the long-path fallback. |
 | `train_policy.py` | BC/DAgger, actor-frozen critic warm-up, PPO, development milestones, diagnostics, and receipt writing. |
 | `evaluate.py` | Shared-tape comparisons for named public planners or explicit ONNX paths. |
-| `headroom.py` | Development-only causal MPC and privileged-oracle headroom analysis. |
+| `build_development_baselines.py` | Rebuilds the current 200-case cheap-planner development table and machine receipt. |
+| `headroom.py` | Original-subset causal MPC and privileged-oracle headroom analysis retained for historical evidence. |
 | `generate_frontend_contract.py` | Generates or checks the canonical Python-to-TypeScript contract. |
 
 ### Evidence and tests
 
 | Path | Role |
 | --- | --- |
-| `benchmarks/v4/development-baselines.md` | Human-readable 40-tape development aggregate and paired comparisons. |
-| `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Complete development rows, source hashes, invariants, and paired statistics. |
-| `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Matched 1M-transition training and reward-comparison evidence. |
+| `benchmarks/v4/development-baselines-200.md` | Current human-readable 200-tape cheap-planner development aggregate. |
+| `internal/developmental_runs/v4/development-baselines-200.json` | Current complete 200-case rows, source hashes, invariants, and paired statistics. |
+| `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Byte-identical historical aggregate and receipt from the original 40-case subset. |
+| `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Historical matched 1M-transition training and reward-comparison evidence on the original subset. |
 | `docs/evidence/legacy-final-40.json` | Historical final report for the retired release; not an active runtime dependency. |
 | `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; not an implicitly selected runtime model. |
 | `tests/test_city_*.py`, `tests/test_simulator*.py` | Physics, scenarios, outcome, planners, optimizer, and environment behavior. |
 | `tests/test_policy.py`, `tests/test_api.py`, `tests/test_recovery_*.py` | Explicit policy loading, HTTP, replay analysis, and export behavior. |
-| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_headroom.py`, `tests/test_development_evidence.py` | Scientific tools and development evidence. |
+| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_development_evidence.py` | Scientific tools and current plus historical development evidence. |
 | `frontend/src/*.test.ts`, `frontend/src/generated/*.test.ts` | API parsing, generated contract, view-model, and decision-support behavior. |
 
 ## Policy selection and readiness
@@ -699,12 +714,12 @@ Normal demo users do not need these commands. They run training or development a
 
 The current performance claim is assembled from retained development evidence rather than runtime model selection:
 
-1. `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` records matched initialization, optimizer settings, critic warm-up, 200k/500k/1M curves, per-case outcomes, diagnostics, and exact physics invariants.
-2. `internal/developmental_runs/v4/headroom-probe-v4-dev.json` records tuned-rule, causal-MPC, and privileged-oracle headroom on the same 40 development cases.
-3. `internal/developmental_runs/v4/step6-dev-baseline-table.json` assembles ten planners in one ordered table with Wilson intervals, paired exact McNemar comparisons, source hashes, and `final_split_used: false`.
-4. `benchmarks/v4/development-baselines.md` is the human-readable aggregate whose SHA-256 is bound inside the Step 6 receipt.
-5. `tests/test_development_evidence.py` verifies every reported solved count, paired outcome, oracle label, and Markdown binding.
-6. `tests/test_consolidation_gate.py` anchors the consolidated outcome and engine hashes plus a complete deterministic golden trajectory.
+1. `internal/developmental_runs/v4/development-baselines-200.json` records all four cheap planners over the same 200 ordered development tapes, complete rows, Wilson intervals, paired exact McNemar comparisons, source hashes, and `final_split_used: false`.
+2. `benchmarks/v4/development-baselines-200.md` is the current human-readable aggregate.
+3. `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` records historical matched initialization, optimizer settings, critic warm-up, 200k/500k/1M curves, per-case outcomes, diagnostics, and exact physics invariants on the original 40-case subset.
+4. `internal/developmental_runs/v4/headroom-probe-v4-dev.json` records historical tuned-rule, causal-MPC, and privileged-oracle headroom on that same original subset. Its 37/40 oracle result is not a 200-case ceiling.
+5. `internal/developmental_runs/v4/step6-dev-baseline-table.json` and its bound `benchmarks/v4/development-baselines.md` preserve the original ten-planner table byte-identically as historical evidence.
+6. `tests/test_build_development_baselines.py` and `tests/test_development_evidence.py` verify the current and historical evidence contracts respectively; `tests/test_consolidation_gate.py` anchors the consolidated outcome and engine hashes plus a complete deterministic golden trajectory.
 
 These files support the development comparison but do not configure FastAPI. Runtime identity comes from the ONNX file explicitly supplied by the operator, and the API binds persisted results to that artifact's SHA-256. The legacy final JSON and legacy ONNX fixture remain separate historical/regression inputs under `docs/evidence` and `tests/fixtures`.
 
@@ -777,7 +792,7 @@ The 3D route loads a much larger rendering bundle. Close other graphics-heavy ta
 
 A concise presentation can say:
 
-> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to it and a transparent public heuristic. On 40 development tapes, the measured 1M-transition v4 PPO policy solved 35 cases with 95% Wilson interval [0.739, 0.945], against a measured clairvoyant ceiling of 37, with zero hard violations and exact conservation. The development run did not persist a deployable checkpoint, so the consolidated runtime serves only an ONNX artifact explicitly selected by the operator.
+> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. On the current 200-case development roster, the tuned public rule solved 160 cases with 95% Wilson interval [0.739, 0.850], the preparedness teacher solved 151, the legacy ONNX fixture solved 141, and the reactive heuristic solved 91, all with zero hard violations and exact conservation. The learned-policy result remains historical 35/40 evidence from the original subset; no learned-v4 final result or deployable checkpoint is present.
 
 ## Data character
 
@@ -785,4 +800,4 @@ All scenarios and shock tapes are authored and generated locally by `backend/app
 
 ---
 
-For a demo operator: run `setup.ps1`, select a compatible ONNX file, and pass it to `run.ps1`. For a reviewer: start with `docs/CODE_TOUR.md`, `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json`, `model/policy.py`, and `scripts/preflight_check.py`.
+For a demo operator: run `setup.ps1`, select a compatible ONNX file, and pass it to `run.ps1`. For a reviewer: start with `docs/CODE_TOUR.md`, `benchmarks/v4/development-baselines-200.md`, `internal/developmental_runs/v4/development-baselines-200.json`, `model/policy.py`, and `scripts/preflight_check.py`; the unsuffixed development table is the historical original-subset record.

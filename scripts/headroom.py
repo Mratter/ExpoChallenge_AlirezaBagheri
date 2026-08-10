@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure achievable policy headroom on the development scenarios.
+"""Measure achievable headroom on the original 40-case development subset.
 
 This tool does not select or export a policy and cannot authorize training or
 final-split evaluation. It can compare imported policy outcomes with a
@@ -72,7 +72,6 @@ from backend.app.city.physics import (  # noqa: E402
 )
 from backend.app.city.scenarios import (  # noqa: E402
     DEVELOPMENT_FAMILIES,
-    DEVELOPMENT_SEEDS,
     Shock,
     generate_disaster_tape,
 )
@@ -87,6 +86,9 @@ MPC_FIXED_SEVERITY_RANGE = (0.10, 0.35)
 MPC_FORECAST_ID = "constant-announced-risk-crn-v1"
 WORKER_AFFINITY_ENV = "HEADROOM_WORKER_AFFINITY_MASK"
 WORKER_PRIORITY_ENV = "HEADROOM_WORKER_PRIORITY"
+ORIGINAL_DEVELOPMENT_SUBSET_ID = "original_40_case_development_subset"
+ORIGINAL_DEVELOPMENT_SUBSET_SEEDS = tuple(range(820000, 820008))
+ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT = 40
 
 
 class HeadroomError(RuntimeError):
@@ -219,10 +221,31 @@ def action_sequence_sha256(actions: np.ndarray) -> str:
     return hashlib.sha256(values.tobytes()).hexdigest()
 
 
+def original_development_subset_contract() -> dict[str, Any]:
+    """Describe the historical 40 cases used by privileged headroom analysis."""
+
+    return {
+        "id": ORIGINAL_DEVELOPMENT_SUBSET_ID,
+        "case_count": ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT,
+        "family_count": len(DEVELOPMENT_FAMILIES),
+        "seed_interval": {
+            "first": ORIGINAL_DEVELOPMENT_SUBSET_SEEDS[0],
+            "last": ORIGINAL_DEVELOPMENT_SUBSET_SEEDS[-1],
+            "count": len(ORIGINAL_DEVELOPMENT_SUBSET_SEEDS),
+        },
+        "canonical_200_case_development_ceiling_claimed": False,
+        "interpretation": (
+            "Privileged oracle and headroom results apply only to the original "
+            "40-case development subset, not the canonical 200-case development "
+            "split."
+        ),
+    }
+
+
 def build_development_cases() -> list[HeadroomCase]:
     cases: list[HeadroomCase] = []
     for family in DEVELOPMENT_FAMILIES:
-        for case_seed in DEVELOPMENT_SEEDS:
+        for case_seed in ORIGINAL_DEVELOPMENT_SUBSET_SEEDS:
             scenario = family.build(case_seed)
             tape_seed = family.tape_seed(case_seed)
             cases.append(
@@ -235,10 +258,16 @@ def build_development_cases() -> list[HeadroomCase]:
                     schedule=tuple(generate_disaster_tape(scenario, tape_seed)),
                 )
             )
-    if len(cases) != 40 or len({case.row_id for case in cases}) != 40:
-        raise HeadroomError("development contract must contain 40 unique cases")
-    if tuple(DEVELOPMENT_SEEDS) != tuple(range(820000, 820008)):
-        raise HeadroomError("development seed contract drifted")
+    if (
+        len(cases) != ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+        or len({case.row_id for case in cases})
+        != ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+    ):
+        raise HeadroomError(
+            "original development subset must contain 40 unique cases"
+        )
+    if ORIGINAL_DEVELOPMENT_SUBSET_SEEDS != tuple(range(820000, 820008)):
+        raise HeadroomError("original development subset seed contract drifted")
     return cases
 
 
@@ -426,10 +455,19 @@ def load_prior_evidence(
     bc_rows = bc_stage["rows"]
     ppo_rows = actor_stage["rows"]
     expected = list(expected_row_ids)
-    if [row["row_id"] for row in bc_rows] != expected:
-        raise HeadroomError("BC prior rows do not match the ordered dev cases")
-    if [row["row_id"] for row in ppo_rows] != expected:
-        raise HeadroomError("PPO prior rows do not match the ordered dev cases")
+
+    def ordered_subset(rows: list[Any], label: str) -> list[dict[str, Any]]:
+        if not all(isinstance(row, dict) and isinstance(row.get("row_id"), str) for row in rows):
+            raise HeadroomError(f"{label} prior rows are invalid")
+        by_id = {str(row["row_id"]): row for row in rows}
+        if len(by_id) != len(rows) or any(row_id not in by_id for row_id in expected):
+            raise HeadroomError(
+                f"{label} prior rows do not contain the ordered original subset"
+            )
+        return [by_id[row_id] for row_id in expected]
+
+    bc_rows = ordered_subset(bc_rows, "BC")
+    ppo_rows = ordered_subset(ppo_rows, "PPO")
     try:
         display_path = str(receipt_path.relative_to(ROOT)).replace("\\", "/")
     except ValueError:
@@ -442,9 +480,12 @@ def load_prior_evidence(
         "actor_critic_stage": str(actor_stage_name),
         "active_actor_critic_transitions": actor_transitions,
         "selected_or_exported_policy": False,
+        "analysis_subset": ORIGINAL_DEVELOPMENT_SUBSET_ID,
+        "source_development_row_count": len(bc_stage["rows"]),
         "limitation": (
-            "BC and PPO rows are imported outcomes, not executions in this "
-            "process; this diagnostic does not select or export their policy"
+            "Only original-subset BC and PPO rows are imported outcomes, not "
+            "executions in this process; this diagnostic does not select or "
+            "export their policy"
         ),
         "bc": {row["row_id"]: _prior_result(row) for row in bc_rows},
         "ppo": {row["row_id"]: _prior_result(row) for row in ppo_rows},
@@ -1228,8 +1269,10 @@ def _run_parallel(
 
 
 def _validate_result_invariants(planner: str, rows: dict[str, PlannerResult]) -> None:
-    if len(rows) != 40:
-        raise HeadroomError(f"{planner} did not produce exactly 40 cases")
+    if len(rows) != ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT:
+        raise HeadroomError(
+            f"{planner} did not produce exactly 40 original-subset cases"
+        )
     if any(row.hard_violation_count != 0 for row in rows.values()):
         raise HeadroomError(f"{planner} produced a hard violation")
     if any(row.maximum_conservation_residual != 0.0 for row in rows.values()):
@@ -1328,7 +1371,10 @@ def main() -> int:
             prior_path.resolve(), row_ids, expected_policy_seed=args.policy_seed
         )
 
-    print("tuned rule: replaying 40 development cases", flush=True)
+    print(
+        "tuned rule: replaying original 40-case development subset",
+        flush=True,
+    )
     tuned_rows: dict[str, PlannerResult] = {}
     tuned_actions: dict[str, np.ndarray] = {}
     for case in cases:
@@ -1513,9 +1559,10 @@ def main() -> int:
     elif achievable_count <= 34 and contested_count <= 1:
         decision_row = "empirical_saturation"
         recommendation = (
-            "The exhausted diagnostic search matches the requested low-ceiling "
-            "row; do not run the 8M campaign. This is empirical saturation, "
-            "not a proof that unsolved cases are physically infeasible."
+            "The exhausted diagnostic search matches the requested low-headroom "
+            "row on the original 40-case subset; do not run the 8M campaign. "
+            "This is empirical saturation on that subset, not a proof that "
+            "unsolved cases are physically infeasible."
         )
     else:
         decision_row = "inconclusive_between_registered_rows"
@@ -1544,16 +1591,20 @@ def main() -> int:
     receipt = {
         "schema_version": SCHEMA_VERSION,
         "tool": TOOL_ID,
-        "status": "privileged_development_headroom_analysis_nonauthorizing",
+        "status": (
+            "privileged_original_40_case_development_subset_"
+            "headroom_analysis_nonauthorizing"
+        ),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "authorizing": False,
         "authorizes_training": False,
         "selects_or_exports_policy": False,
         "privileged_diagnostic": True,
-        "split": "dev",
+        "split": ORIGINAL_DEVELOPMENT_SUBSET_ID,
+        "development_subset": original_development_subset_contract(),
         "final_split_used": False,
         "uses_final_split": False,
-        "case_count": 40,
+        "case_count": ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT,
         "policy_seed": (
             prior["policy_seed"] if prior is not None else args.policy_seed
         ),
@@ -1619,7 +1670,10 @@ def main() -> int:
             ),
             "config": asdict(oracle_config),
             "solved_count": oracle_count,
-            "ceiling_statement": f"ceiling >= {achievable_count}/40",
+            "subset_headroom_statement": (
+                "achieved lower bound on original 40-case development subset "
+                f">= {achievable_count}/40; not a canonical 200-case ceiling"
+            ),
             "cases": {
                 row_id: {
                     key: value
@@ -1645,8 +1699,8 @@ def main() -> int:
             "taxonomy_note": (
                 "The requested three literal classes are not exhaustive when "
                 "the reference and oracle solve but a weaker planner fails. The "
-                "residual category makes all 40 rows explicit. Oracle search "
-                "failure is not proof of physical infeasibility."
+                "residual category makes all 40 original-subset rows explicit. "
+                "Oracle search failure is not proof of physical infeasibility."
             ),
             "achievable_lower_bound_solved_count": achievable_count,
             "oracle_cem_solved_count": oracle_count,
@@ -1669,10 +1723,19 @@ def main() -> int:
         },
         "rows": table,
         "invariants": {
-            "development_case_count_exactly_40": len(table) == 40,
-            "development_row_ids_unique": len({row["row_id"] for row in table}) == 40,
-            "development_seed_interval_exact": list(DEVELOPMENT_SEEDS)
-            == list(range(820000, 820008)),
+            "analysis_scope_is_original_40_case_development_subset": True,
+            "original_subset_case_count_exactly_40": (
+                len(table) == ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+            ),
+            "original_subset_row_ids_unique": (
+                len({row["row_id"] for row in table})
+                == ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+            ),
+            "original_subset_seed_interval_exact": (
+                ORIGINAL_DEVELOPMENT_SUBSET_SEEDS
+                == tuple(range(820000, 820008))
+            ),
+            "canonical_200_case_development_ceiling_claimed": False,
             "same_true_tape_for_newly_executed_tuned_mpc_oracle": True,
             "prior_bc_ppo_rows_hash_validated_and_order_aligned": prior is not None,
             "prior_evidence_supplied": prior is not None,
@@ -1739,7 +1802,10 @@ def main() -> int:
                 "mpc_best_k": selected_horizon,
                 "mpc": mpc_count,
                 "oracle_cem": oracle_count,
-                "ceiling_statement": f"ceiling >= {achievable_count}/40",
+                "subset_headroom_statement": (
+                    "achieved lower bound on original 40-case development subset "
+                    f">= {achievable_count}/40; not a canonical 200-case ceiling"
+                ),
                 "contested": contested_count,
                 "decision": decision_row,
                 "receipt": str(output),

@@ -2,7 +2,7 @@
 
 This document records the gated path from durable training checkpoints to a served model. It is a plan, not an authorization to run compute or publish a model. Stage 0 is a pre-training prerequisite that must be implemented and verified before the next owner-authorized training run. Stages 1–5 begin only after the owner identifies that run's completed receipt and explicitly authorizes checkpoint selection and deployment work.
 
-The plan therefore has one pre-training stage and five ordered post-training stages: select on development cases, export the selected actor, prove SB3-to-ONNX parity, publish descriptive metadata, and connect the selected artifact to the application. Every performance decision in Stages 1–5 uses the 40 development cases.
+The plan therefore has one pre-training stage and five ordered post-training stages: select on development cases, export the selected actor, prove SB3-to-ONNX parity, publish descriptive metadata, and connect the selected artifact to the application. Every performance decision in Stages 1–5 uses the 200 development cases.
 
 ## 0. Make milestone checkpoints durable before training
 
@@ -21,11 +21,11 @@ Before authorized training compute, add a fresh-process round-trip test that rel
 
 ## 1. Select one checkpoint on development solve rate
 
-Evaluate every complete candidate checkpoint from the authorized training run on the same 40 development cases and deterministic disaster tapes. Use the deterministic actor, its matching frozen observation-normalization state, and the canonical outcome implementation.
+Evaluate every complete candidate checkpoint from the authorized training run on the same 200 development cases and deterministic disaster tapes. Use the deterministic actor, its matching frozen observation-normalization state, and the canonical outcome implementation.
 
 Rank checkpoints by:
 
-1. development cases solved out of 40;
+1. development cases solved out of 200;
 2. earlier active transition count if solve counts tie; and
 3. lower registered policy seed if both solve count and transition count tie.
 
@@ -70,7 +70,7 @@ After export, inspect the ONNX graph and an ONNX Runtime CPU session. Reject an 
 
 ## 3. Prove full development parity
 
-Run matched SB3 and ONNX candidate rollouts on all 40 development cases. Each implementation receives the same raw observation at each step: the SB3 reference applies the selected frozen VecNormalize state, while the ONNX graph applies the baked transform. Compare every one of the 22 action elements across all 30 days and 40 cases, for 1,200 action samples in total.
+Run matched SB3 and ONNX candidate rollouts on all 200 development cases. Each implementation receives the same raw observation at each step: the SB3 reference applies the selected frozen VecNormalize state, while the ONNX graph applies the baked transform. Compare every one of the 22 action elements across all 30 days and 200 cases: **6,000 paired action vectors and 132,000 paired action-element comparisons** in total.
 
 The parity receipt must include checkpoint, ONNX, and RMS hashes; interface inspection; per-case rows; sample counts; and observed maxima. It passes only when all of these conditions hold:
 
@@ -82,7 +82,7 @@ The parity receipt must include checkpoint, ONNX, and RMS hashes; interface insp
 - ONNX replay produces no hard violations and a maximum conservation residual at or below `1e-6`; and
 - a second ONNX replay of every case reproduces the first ONNX trajectory digest exactly.
 
-Record the SB3 solve count, ONNX solve count, per-case outcome mismatch count, maximum action error, maximum resilience-AUC error, replay mismatch count, hard-violation count, maximum conservation residual, and a canonical hash of the 40 parity rows. Any failed condition stops deployment; it is not rounded away or accepted through an aggregate-only comparison.
+Record the SB3 solve count, ONNX solve count, per-case outcome mismatch count, maximum action error, maximum resilience-AUC error, replay mismatch count, hard-violation count, maximum conservation residual, and a canonical hash of the 200 parity rows. Any failed condition stops deployment; it is not rounded away or accepted through an aggregate-only comparison.
 
 ## 4. Publish lightweight deployment metadata
 
@@ -112,7 +112,7 @@ Verify the configured artifact through the same path used by operators:
 1. load it through `model.policy.load_policy`;
 2. confirm `/health/ready` and `/api/v1/meta` report the configured ONNX identity and 73/22 contract;
 3. exercise the comparison endpoint and persisted-result replay with that policy;
-4. replay all 40 development cases through the served policy path; and
+4. replay all 200 development cases through the served policy path; and
 5. require the served-path per-case outcomes and total solve count to equal the accepted ONNX parity receipt.
 
 The served-path replay proves that the application is using the selected bytes, raw-observation contract, baked normalization, and CPU execution path rather than a direct training-only helper.
@@ -125,8 +125,8 @@ Deployment is accepted only when all five gates pass together:
 | --- | --- |
 | Checkpoints | Every selectable milestone has an atomic, hash-bound model/optimizer/normalization bundle that passes fresh-process reload; its resume capability is stated exactly. |
 | Tests | The complete Python test suite passes, including ONNX interface, normalization, manifest-consistency, API, persistence, and replay coverage. Ruff remains clean. |
-| Application | The configured model passes readiness and metadata checks, a comparison can be persisted and reloaded, and the 40-case served-path development replay matches the accepted artifact. |
-| Parity | The full 40-case receipt passes every action, outcome, AUC, determinism, safety, and conservation condition above. |
+| Application | The configured model passes readiness and metadata checks, a comparison can be persisted and reloaded, and the 200-case served-path development replay matches the accepted artifact. |
+| Parity | The full 200-case receipt passes every action, outcome, AUC, determinism, safety, and conservation condition above. |
 | Manifest | Every required field is present and matches the selected checkpoint, frozen RMS, ONNX bytes, interface inspection, and parity receipt; the manifest remains descriptive rather than a runtime authorization mechanism. |
 
 Record the commands, environment versions, artifact paths, hashes, observed gate values, and pass/fail result in the deployment report. Stop and report on the first failed gate. Do not replace the selected checkpoint, adjust normalization, relax tolerances, or rewrite a failed receipt inside the same publication attempt.
@@ -135,4 +135,4 @@ Record the commands, environment versions, artifact paths, hashes, observed gate
 
 This phase does not recreate the `ppo_v3` release ceremony. Do not add source seals, semantic source hashes, preregistration files, training or final authorization tokens, write-once receipts, append-only ledgers, write locks, or a hash-pinned runtime chain. The selected ONNX hash, checkpoint hash, RMS hash, parity receipt, and lightweight manifest provide the necessary technical traceability without turning deployment metadata into an enforcement system.
 
-The legacy command `scripts/evaluate.py --split final` and its `14 / 30 / 25` result are a separate regression gate. It must not run without explicit final authorization from the owner, including during checkpoint selection, ONNX parity, application integration, served-path replay, or acceptance testing. Development selection and deployment evidence use only the 40 development cases.
+The expanded 200-case final regression probe records **72 / 139 / 125** solves for the reactive heuristic, preparedness teacher, and legacy ONNX fixture respectively. It is a separate fixture regression result, not a learned-v4 final evaluation and not a model-selection input. Any future `scripts/evaluate.py --split final` run still requires explicit final authorization from the owner, including during checkpoint selection, ONNX parity, application integration, served-path replay, or acceptance testing. Development selection and deployment evidence use only the 200 development cases.

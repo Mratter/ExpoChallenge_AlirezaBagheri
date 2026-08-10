@@ -17,9 +17,11 @@ from scripts import export_policy
 from scripts.export_policy import (
     ACTION_COUNT,
     ACTION_TOLERANCE,
+    CANONICAL_DEVELOPMENT_CASES,
     EXPECTED_DEVELOPMENT_CASES,
     EXPECTED_HORIZON_DAYS,
     INPUT_NAME,
+    LEGACY_DEVELOPMENT_CASES,
     OBSERVATION_COUNT,
     ONNX_OPSET,
     OUTPUT_NAME,
@@ -34,6 +36,8 @@ from scripts.export_policy import (
     load_selection_provenance,
     load_sb3_checkpoint,
     load_training_provenance,
+    selection_development_case_count,
+    training_development_case_count,
     write_new_json,
 )
 
@@ -196,8 +200,9 @@ def test_development_roster_is_exact_and_exporter_cannot_import_final() -> None:
     cases = development_cases()
     source = inspect.getsource(export_policy)
 
-    assert len(cases) == EXPECTED_DEVELOPMENT_CASES == 40
-    assert len({case.row_id for case in cases}) == 40
+    assert len(cases) == EXPECTED_DEVELOPMENT_CASES == 200
+    assert EXPECTED_DEVELOPMENT_CASES == CANONICAL_DEVELOPMENT_CASES
+    assert len({case.row_id for case in cases}) == 200
     assert all(case.scenario.horizon_days == EXPECTED_HORIZON_DAYS for case in cases)
     assert all(case.row_id.startswith("v3_dev_") for case in cases)
     assert "FINAL_FAMILIES" not in source
@@ -205,17 +210,27 @@ def test_development_roster_is_exact_and_exporter_cannot_import_final() -> None:
     assert 'parser.add_argument("--split"' not in source
 
 
+def test_historical_40_case_evidence_counts_remain_readable() -> None:
+    assert selection_development_case_count(
+        {"schema_version": "city-recovery-checkpoint-selection-v1"}
+    ) == LEGACY_DEVELOPMENT_CASES
+    assert training_development_case_count(
+        {"development": {"case_count": LEGACY_DEVELOPMENT_CASES}}
+    ) == LEGACY_DEVELOPMENT_CASES
+
+
 def _passing_parity() -> dict[str, object]:
     return {
         "passed": True,
-        "case_count": 40,
+        "expected_case_count": 200,
+        "case_count": 200,
         "action_tolerance": 1e-5,
         "action_relative_tolerance": 0.0,
         "maximum_action_absolute_error": 2e-7,
         "resilience_auc_tolerance": 1e-6,
         "maximum_resilience_auc_absolute_error": 0.0,
-        "sb3_solved_count": 35,
-        "onnx_solved_count": 35,
+        "sb3_solved_count": 175,
+        "onnx_solved_count": 175,
         "onnx_hard_violation_count": 0,
         "onnx_maximum_conservation_residual": 0.0,
         "deterministic_replay_mismatch_count": 0,
@@ -235,9 +250,11 @@ def _training_provenance() -> dict[str, object]:
         "tool": "train_policy.py",
         "policy_seed": 37_017,
         "registered_active_actor_critic_transitions": 2_000_000,
+        "development_case_count": 200,
         "config": {
             "policy_seed": 37_017,
             "active_actor_critic_transitions": 2_000_000,
+            "development_case_count": 200,
         },
         "training_roster_and_tapes": {
             "case_count": 192,
@@ -255,9 +272,10 @@ def _selection_provenance(
     return {
         "path": "output/selection.json",
         "sha256": "d" * 64,
-        "schema_version": 1,
+        "schema_version": "city-recovery-checkpoint-selection-v2",
         "tool": "select_policy.py",
         "split": "dev",
+        "development_case_count": 200,
         "ranking": {
             "primary_metric": "solved_count",
             "resilience_auc_used_for_selection": False,
@@ -277,18 +295,18 @@ def _selection_provenance(
             "observation_rms_sha256": normalization_sha256,
         },
         "winner": {
-            "solved_count": 35,
+            "solved_count": 175,
             "solve_rate": 0.875,
             "mean_resilience_auc": 0.49,
             "mean_minimum_tail_margin": 0.01,
         },
         "runner_up": {
-            "solved_count": 34,
+            "solved_count": 170,
             "solve_rate": 0.85,
             "mean_resilience_auc": 0.50,
             "mean_minimum_tail_margin": 0.02,
         },
-        "margin": {"solved_cases": 1, "percentage_points": 2.5},
+        "margin": {"solved_cases": 5, "percentage_points": 2.5},
         "tie_break": {"used": False, "level": None},
         "candidate_count": 5,
         "policy_seed_set": [37_017, 47_017, 57_017, 67_017, 77_017],
@@ -335,25 +353,38 @@ def test_receipt_and_manifest_bind_every_artifact_and_refuse_overwrite(
         training=training,
         selection=selection,
     )
+    with pytest.raises(ExportError, match="consistent 200-case"):
+        build_parity_receipt(
+            model_id="city-recovery-test",
+            checkpoint_path=checkpoint_path,
+            normalization_path=normalization_path,
+            normalization=normalization,
+            onnx_path=onnx_path,
+            interface={"opset": 17},
+            parity={**_passing_parity(), "case_count": 40},
+            training=training,
+            selection=selection,
+        )
     write_new_json(receipt_path, receipt)
     manifest = build_manifest(receipt_path=receipt_path, receipt=receipt)
     write_new_json(manifest_path, manifest)
 
     assert manifest["runtime_enforcement"] == "descriptive_only"
+    assert receipt["development_case_count"] == 200
     assert manifest["artifact"]["sha256"] == file_sha256(onnx_path)
     assert manifest["source_checkpoint"]["sha256"] == file_sha256(checkpoint_path)
     assert manifest["normalization"]["file_sha256"] == file_sha256(
         normalization_path
     )
     assert manifest["parity_receipt"]["sha256"] == file_sha256(receipt_path)
-    assert manifest["development_parity"]["sb3_solved_count"] == 35
-    assert manifest["development_parity"]["onnx_solved_count"] == 35
+    assert manifest["development_parity"]["sb3_solved_count"] == 175
+    assert manifest["development_parity"]["onnx_solved_count"] == 175
     assert manifest["source_checkpoint"]["id"] == (
         "seed-37017-transition-2000000"
     )
     assert manifest["training"]["config"] == training["config"]
     assert manifest["selection"]["margin"] == {
-        "solved_cases": 1,
+        "solved_cases": 5,
         "percentage_points": 2.5,
     }
     assert set(manifest["runtime_versions"]) == {
@@ -388,6 +419,7 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
     config = {
         "policy_seed": 37_017,
         "active_actor_critic_transitions": 2_000_000,
+        "development_case_count": 200,
         "learning_rate": 7.5e-5,
     }
     checkpoint_id = "seed-37017-transition-2000000"
@@ -478,6 +510,7 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
                 "status": "complete",
                 "training_split": "train",
                 "evaluation_split": "dev",
+                "development_case_count": 200,
                 "final_split_used": False,
                 "config": config,
                 "training_roster_and_tapes": {
@@ -494,9 +527,10 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
     selection_receipt_path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": "city-recovery-checkpoint-selection-v2",
                 "tool": "select_policy.py",
                 "split": "dev",
+                "development_case_count": 200,
                 "final_split_used": False,
                 "ranking": {
                     "primary_metric": "solved_count",
@@ -519,18 +553,18 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
                     "training_receipt_sha256": file_sha256(training_receipt_path),
                 },
                 "winner": {
-                    "solved_count": 35,
+                    "solved_count": 175,
                     "solve_rate": 0.875,
                     "mean_resilience_auc": 0.49,
                     "mean_minimum_tail_margin": 0.01,
                 },
                 "runner_up": {
-                    "solved_count": 34,
+                    "solved_count": 170,
                     "solve_rate": 0.85,
                     "mean_resilience_auc": 0.50,
                     "mean_minimum_tail_margin": 0.02,
                 },
-                "margin": {"solved_cases": 1, "percentage_points": 2.5},
+                "margin": {"solved_cases": 5, "percentage_points": 2.5},
                 "tie_break": {"used": False, "level": None},
                 "candidate_count": 5,
                 "candidates": [
@@ -538,7 +572,7 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
                         "id": checkpoint_id,
                         "policy_seed": 37_017,
                         "development": {
-                            "solved_count": 35,
+                            "solved_count": 175,
                             "solve_rate": 0.875,
                             "mean_resilience_auc": 0.49,
                             "mean_minimum_tail_margin": 0.01,
@@ -548,7 +582,7 @@ def test_provenance_validation_binds_training_selection_bundle_and_rms(
                         "id": "runner-up",
                         "policy_seed": 47_017,
                         "development": {
-                            "solved_count": 34,
+                            "solved_count": 170,
                             "solve_rate": 0.85,
                             "mean_resilience_auc": 0.50,
                             "mean_minimum_tail_margin": 0.02,

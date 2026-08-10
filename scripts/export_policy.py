@@ -61,7 +61,12 @@ OUTPUT_NAME = "action"
 ACTION_TOLERANCE = 1e-5
 AUC_TOLERANCE = 1e-6
 RESIDUAL_TOLERANCE = 1e-6
-EXPECTED_DEVELOPMENT_CASES = 40
+EXPECTED_DEVELOPMENT_CASES = len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS)
+CANONICAL_DEVELOPMENT_CASES = 200
+LEGACY_DEVELOPMENT_CASES = 40
+SUPPORTED_DEVELOPMENT_CASE_COUNTS = frozenset(
+    {LEGACY_DEVELOPMENT_CASES, CANONICAL_DEVELOPMENT_CASES}
+)
 EXPECTED_HORIZON_DAYS = 30
 _SHA256_PATTERN = re.compile(r"[0-9a-fA-F]{64}")
 _SB3_RUNTIME_KEYS = (
@@ -127,7 +132,7 @@ class ObservationNormalization:
 
 @dataclass(frozen=True, slots=True)
 class DevelopmentCase:
-    """One deterministic member of the 40-case development roster."""
+    """One deterministic member of the current development roster."""
 
     row_id: str
     family_id: str
@@ -312,6 +317,31 @@ def _resolve_recorded_path(
     return existing[0]
 
 
+def training_development_case_count(receipt: dict[str, Any]) -> int:
+    """Read explicit current counts while accepting legacy 40-case receipts."""
+
+    config = receipt.get("config")
+    development = receipt.get("development")
+    values = [receipt.get("development_case_count")]
+    if isinstance(config, dict):
+        values.append(config.get("development_case_count"))
+    if isinstance(development, dict):
+        values.append(development.get("case_count"))
+    present = [value for value in values if value is not None]
+    if not present:
+        raise ExportError("training receipt development case count is missing")
+    counts = {
+        _required_int(value, label="training development case count")
+        for value in present
+    }
+    if len(counts) != 1:
+        raise ExportError("training receipt development case counts disagree")
+    count = counts.pop()
+    if count not in SUPPORTED_DEVELOPMENT_CASE_COUNTS:
+        raise ExportError("training development case count is unsupported")
+    return count
+
+
 def load_training_provenance(path: Path) -> dict[str, Any]:
     """Validate and normalize the selected run's training receipt."""
 
@@ -359,6 +389,7 @@ def load_training_provenance(path: Path) -> dict[str, Any]:
         label="training receipt",
         required_keys=_SB3_RUNTIME_KEYS,
     )
+    development_case_count = training_development_case_count(receipt)
     return {
         "path": _portable_path(path),
         "sha256": file_sha256(
@@ -370,6 +401,7 @@ def load_training_provenance(path: Path) -> dict[str, Any]:
         "tool": receipt.get("tool"),
         "policy_seed": policy_seed,
         "registered_active_actor_critic_transitions": registered_transitions,
+        "development_case_count": development_case_count,
         "config": config,
         "training_roster_and_tapes": roster,
         "checkpoint_bundles": checkpoint_bundles,
@@ -377,19 +409,28 @@ def load_training_provenance(path: Path) -> dict[str, Any]:
     }
 
 
-def _selection_score(value: Any, *, label: str) -> dict[str, Any]:
+def _selection_score(
+    value: Any,
+    *,
+    label: str,
+    case_count: int,
+) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ExportError(f"selection {label} must be an object")
     solved_count = _required_int(
         value.get("solved_count"),
         label=f"selection {label} solved_count",
     )
-    if solved_count > EXPECTED_DEVELOPMENT_CASES:
-        raise ExportError(f"selection {label} solved_count exceeds 40")
+    if case_count not in SUPPORTED_DEVELOPMENT_CASE_COUNTS:
+        raise ExportError("selection development case count is unsupported")
+    if solved_count > case_count:
+        raise ExportError(
+            f"selection {label} solved_count exceeds {case_count}"
+        )
     solve_rate = _required_float(
         value.get("solve_rate"), label=f"selection {label} solve_rate"
     )
-    expected_rate = solved_count / EXPECTED_DEVELOPMENT_CASES
+    expected_rate = solved_count / case_count
     if abs(solve_rate - expected_rate) > 1e-12:
         raise ExportError(f"selection {label} solve_rate disagrees with solved_count")
     return {
@@ -404,6 +445,21 @@ def _selection_score(value: Any, *, label: str) -> dict[str, Any]:
             label=f"selection {label} mean_minimum_tail_margin",
         ),
     }
+
+
+def selection_development_case_count(receipt: dict[str, Any]) -> int:
+    """Read current counts explicitly and legacy v1 evidence as 40 cases."""
+
+    value = receipt.get("development_case_count")
+    if value is None and receipt.get("schema_version") in (
+        1,
+        "city-recovery-checkpoint-selection-v1",
+    ):
+        return LEGACY_DEVELOPMENT_CASES
+    count = _required_int(value, label="selection development_case_count")
+    if count not in SUPPORTED_DEVELOPMENT_CASE_COUNTS:
+        raise ExportError("selection development case count is unsupported")
+    return count
 
 
 def load_selection_provenance(
@@ -421,6 +477,11 @@ def load_selection_provenance(
         raise ExportError("selection receipt must describe only the development split")
     if receipt.get("schema_version") is None or not isinstance(receipt.get("tool"), str):
         raise ExportError("selection receipt schema_version and tool are required")
+    development_case_count = selection_development_case_count(receipt)
+    if development_case_count != training["development_case_count"]:
+        raise ExportError(
+            "selection and training development case counts disagree"
+        )
 
     ranking = receipt.get("ranking")
     expected_tie_breaks = [
@@ -631,8 +692,16 @@ def load_selection_provenance(
     ):
         raise ExportError("checkpoint bundle is incomplete or not exportable")
 
-    winner = _selection_score(receipt.get("winner"), label="winner")
-    runner_up = _selection_score(receipt.get("runner_up"), label="runner_up")
+    winner = _selection_score(
+        receipt.get("winner"),
+        label="winner",
+        case_count=development_case_count,
+    )
+    runner_up = _selection_score(
+        receipt.get("runner_up"),
+        label="runner_up",
+        case_count=development_case_count,
+    )
     if winner["solved_count"] < runner_up["solved_count"]:
         raise ExportError("selection winner has fewer solves than runner-up")
     margin = receipt.get("margin")
@@ -675,11 +744,15 @@ def load_selection_provenance(
     if candidates[0].get("id") != checkpoint_id:
         raise ExportError("selected checkpoint is not the first ranked candidate")
     if _selection_score(
-        candidates[0].get("development"), label="first candidate"
+        candidates[0].get("development"),
+        label="first candidate",
+        case_count=development_case_count,
     ) != winner:
         raise ExportError("selection winner disagrees with first candidate")
     if _selection_score(
-        candidates[1].get("development"), label="second candidate"
+        candidates[1].get("development"),
+        label="second candidate",
+        case_count=development_case_count,
     ) != runner_up:
         raise ExportError("selection runner-up disagrees with second candidate")
     policy_seed_set = sorted(
@@ -708,6 +781,7 @@ def load_selection_provenance(
         "schema_version": receipt["schema_version"],
         "tool": receipt["tool"],
         "split": "dev",
+        "development_case_count": development_case_count,
         "ranking": ranking,
         "selected_checkpoint": {
             "id": checkpoint_id,
@@ -1123,7 +1197,7 @@ def action_parity(
 
 
 def development_cases() -> list[DevelopmentCase]:
-    """Build only the canonical 40-case development roster."""
+    """Build only the canonical current development roster."""
 
     cases: list[DevelopmentCase] = []
     for family in DEVELOPMENT_FAMILIES:
@@ -1144,7 +1218,8 @@ def development_cases() -> list[DevelopmentCase]:
                 )
             )
     if (
-        len(cases) != EXPECTED_DEVELOPMENT_CASES
+        EXPECTED_DEVELOPMENT_CASES != CANONICAL_DEVELOPMENT_CASES
+        or len(cases) != EXPECTED_DEVELOPMENT_CASES
         or len({case.row_id for case in cases}) != EXPECTED_DEVELOPMENT_CASES
         or any(case.scenario.horizon_days != EXPECTED_HORIZON_DAYS for case in cases)
     ):
@@ -1307,7 +1382,7 @@ def development_parity(
         row["onnx"]["maximum_conservation_residual"] for row in rows
     )
     conditions = {
-        "complete_40_case_development_roster": (
+        "complete_development_roster": (
             len(rows) == EXPECTED_DEVELOPMENT_CASES
         ),
         "all_actions_within_tolerance": (
@@ -1328,6 +1403,7 @@ def development_parity(
     return {
         "split": "dev",
         "final_split_used": False,
+        "expected_case_count": EXPECTED_DEVELOPMENT_CASES,
         "case_count": len(rows),
         "action_sample_count": action_sample_count,
         "action_element_count": action_element_count,
@@ -1367,12 +1443,27 @@ def build_parity_receipt(
 
     if not model_id.strip():
         raise ExportError("model id must be nonempty")
+    case_counts = (
+        EXPECTED_DEVELOPMENT_CASES,
+        parity.get("expected_case_count"),
+        parity.get("case_count"),
+        training.get("development_case_count"),
+        selection.get("development_case_count"),
+    )
+    if (
+        EXPECTED_DEVELOPMENT_CASES != CANONICAL_DEVELOPMENT_CASES
+        or any(count != EXPECTED_DEVELOPMENT_CASES for count in case_counts)
+    ):
+        raise ExportError(
+            "parity publication requires one consistent 200-case development contract"
+        )
     return {
         "schema_version": "city-recovery-onnx-parity-v1",
         "created_at": _utc_now(),
         "tool": TOOL_ID,
         "model_id": model_id,
         "split": "dev",
+        "development_case_count": parity["case_count"],
         "final_split_used": False,
         "source_checkpoint": {
             "id": selection["selected_checkpoint"]["id"],
@@ -1436,6 +1527,18 @@ def build_manifest(
     parity = receipt["parity"]
     if not parity.get("passed"):
         raise ExportError("cannot publish a manifest for failed parity")
+    if (
+        receipt.get("development_case_count") != EXPECTED_DEVELOPMENT_CASES
+        or receipt.get("training", {}).get("development_case_count")
+        != EXPECTED_DEVELOPMENT_CASES
+        or receipt.get("selection", {}).get("development_case_count")
+        != EXPECTED_DEVELOPMENT_CASES
+        or parity.get("expected_case_count") != EXPECTED_DEVELOPMENT_CASES
+        or parity.get("case_count") != EXPECTED_DEVELOPMENT_CASES
+    ):
+        raise ExportError(
+            "manifest publication requires one consistent 200-case development contract"
+        )
     return {
         "schema_version": "city-recovery-onnx-manifest-v1",
         "model_id": receipt["model_id"],
@@ -1466,6 +1569,9 @@ def build_manifest(
             "registered_active_actor_critic_transitions": receipt["training"][
                 "registered_active_actor_critic_transitions"
             ],
+            "development_case_count": receipt["training"][
+                "development_case_count"
+            ],
             "training_roster_and_tapes": receipt["training"][
                 "training_roster_and_tapes"
             ],
@@ -1474,6 +1580,9 @@ def build_manifest(
             "receipt_path": receipt["selection"]["path"],
             "receipt_sha256": receipt["selection"]["sha256"],
             "split": receipt["selection"]["split"],
+            "development_case_count": receipt["selection"][
+                "development_case_count"
+            ],
             "ranking": receipt["selection"]["ranking"],
             "winner": receipt["selection"]["winner"],
             "runner_up": receipt["selection"]["runner_up"],
@@ -1558,7 +1667,7 @@ def write_new_json(path: Path, payload: dict[str, Any]) -> None:
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Export a selected PPO checkpoint and prove parity on the 40-case "
+            "Export a selected PPO checkpoint and prove parity on the current "
             "development roster. This tool cannot access the final split."
         )
     )
@@ -1594,6 +1703,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         normalization=normalization,
         training=training,
     )
+    if (
+        EXPECTED_DEVELOPMENT_CASES != CANONICAL_DEVELOPMENT_CASES
+        or training["development_case_count"] != EXPECTED_DEVELOPMENT_CASES
+        or selection["development_case_count"] != EXPECTED_DEVELOPMENT_CASES
+    ):
+        raise ExportError(
+            "publication requires the canonical 200-case development contract"
+        )
     model = load_sb3_checkpoint(checkpoint_path)
     interface = export_deterministic_actor(model, normalization, onnx_path)
     session = load_onnx_cpu_session(onnx_path)

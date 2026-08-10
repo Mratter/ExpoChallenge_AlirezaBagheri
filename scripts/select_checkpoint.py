@@ -17,7 +17,18 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.app.shared_evidence import file_sha256, fsync_parent  # noqa: E402
+from backend.app.city.scenarios import (  # noqa: E402
+    DEVELOPMENT_FAMILIES,
+    DEVELOPMENT_SEEDS,
+)
 from scripts.training_artifacts import verify_checkpoint_bundle  # noqa: E402
+
+DEVELOPMENT_CASE_COUNT = len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS)
+CANONICAL_DEVELOPMENT_CASE_COUNT = 200
+LEGACY_DEVELOPMENT_CASE_COUNT = 40
+SUPPORTED_DEVELOPMENT_CASE_COUNTS = frozenset(
+    {LEGACY_DEVELOPMENT_CASE_COUNT, CANONICAL_DEVELOPMENT_CASE_COUNT}
+)
 
 
 class SelectionError(RuntimeError):
@@ -50,6 +61,30 @@ def _load_object(path: Path, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise SelectionError(f"{label} must be a JSON object")
     return value
+
+
+def receipt_development_case_count(receipt: dict[str, Any]) -> int:
+    """Read current explicit counts and historical 40-case evidence safely."""
+
+    config = receipt.get("config")
+    development = receipt.get("development")
+    values = [receipt.get("development_case_count")]
+    if isinstance(config, dict):
+        values.append(config.get("development_case_count"))
+    if isinstance(development, dict):
+        values.append(development.get("case_count"))
+    present = [value for value in values if value is not None]
+    if not present:
+        raise SelectionError("training receipt development case count is missing")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in present):
+        raise SelectionError("training receipt development case count is invalid")
+    counts = set(present)
+    if len(counts) != 1:
+        raise SelectionError("training receipt development case counts disagree")
+    count = counts.pop()
+    if count not in SUPPORTED_DEVELOPMENT_CASE_COUNTS:
+        raise SelectionError("training receipt development case count is unsupported")
+    return count
 
 
 def rank_candidates(candidates: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -110,8 +145,23 @@ def _candidate(
     }
     if any(reference.get(key) != value for key, value in expected.items()):
         raise SelectionError("training receipt checkpoint reference hash mismatch")
+    receipt_case_count = receipt_development_case_count(receipt)
+    if receipt_case_count != DEVELOPMENT_CASE_COUNT:
+        raise SelectionError(
+            "historical 40-case evidence cannot enter current checkpoint selection"
+        )
     solved_count = development.get("solved_count")
-    if not isinstance(solved_count, int) or development.get("case_count") != 40:
+    solve_rate = development.get("solve_rate")
+    if (
+        not isinstance(solved_count, int)
+        or isinstance(solved_count, bool)
+        or solved_count < 0
+        or solved_count > DEVELOPMENT_CASE_COUNT
+        or not isinstance(solve_rate, (int, float))
+        or isinstance(solve_rate, bool)
+        or abs(float(solve_rate) - solved_count / DEVELOPMENT_CASE_COUNT) > 1e-12
+        or development.get("case_count") != DEVELOPMENT_CASE_COUNT
+    ):
         raise SelectionError("checkpoint development evaluation is incomplete")
     checkpoint_id = str(reference.get("checkpoint_id", "")).strip()
     if not checkpoint_id:
@@ -133,8 +183,9 @@ def _candidate(
             "observation_rms_sha256"
         ],
         "development": {
+            "case_count": DEVELOPMENT_CASE_COUNT,
             "solved_count": solved_count,
-            "solve_rate": development["solve_rate"],
+            "solve_rate": float(solve_rate),
             "mean_resilience_auc": development["mean_resilience_auc"],
             "mean_minimum_tail_margin": development[
                 "mean_minimum_tail_margin"
@@ -148,7 +199,9 @@ def build_selection(seed_sweep_summary_path: Path) -> dict[str, Any]:
 
     summary = _load_object(seed_sweep_summary_path, "seed-sweep summary")
     if (
-        summary.get("phase") != "seed_sweep"
+        DEVELOPMENT_CASE_COUNT != CANONICAL_DEVELOPMENT_CASE_COUNT
+        or summary.get("development_case_count") != DEVELOPMENT_CASE_COUNT
+        or summary.get("phase") != "seed_sweep"
         or summary.get("split") != "dev"
         or summary.get("final_split_used") is not False
         or len(summary.get("rows", [])) != 5
@@ -194,9 +247,10 @@ def build_selection(seed_sweep_summary_path: Path) -> dict[str, Any]:
     else:
         tie_break = {"used": True, "level": "lower_policy_seed"}
     return {
-        "schema_version": "city-recovery-checkpoint-selection-v1",
+        "schema_version": "city-recovery-checkpoint-selection-v2",
         "tool": "select_checkpoint.py",
         "split": "dev",
+        "development_case_count": DEVELOPMENT_CASE_COUNT,
         "final_split_used": False,
         "source_seed_sweep_summary": {
             "path": str(seed_sweep_summary_path.resolve()),

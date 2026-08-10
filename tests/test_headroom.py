@@ -11,9 +11,13 @@ import pytest
 
 import scripts.headroom as headroom
 from backend.app.city.environment import CityRecoveryEnv
+from backend.app.city.scenarios import DEVELOPMENT_FAMILIES, DEVELOPMENT_SEEDS
 from scripts.headroom import (
     HeadroomError,
     MPCConfig,
+    ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT,
+    ORIGINAL_DEVELOPMENT_SUBSET_ID,
+    ORIGINAL_DEVELOPMENT_SUBSET_SEEDS,
     PlannerResult,
     _antithetic_samples,
     build_development_cases,
@@ -21,6 +25,7 @@ from scripts.headroom import (
     classify_case,
     lexicographic_key,
     load_prior_evidence,
+    original_development_subset_contract,
     plan_mpc_action,
     rollout_actions,
     select_best_mpc_k,
@@ -48,12 +53,34 @@ def _result(
 def test_build_development_cases_is_the_ordered_40_case_split() -> None:
     cases = build_development_cases()
 
-    assert len(cases) == 40
-    assert len({case.row_id for case in cases}) == 40
+    assert ORIGINAL_DEVELOPMENT_SUBSET_ID == "original_40_case_development_subset"
+    assert ORIGINAL_DEVELOPMENT_SUBSET_SEEDS == tuple(range(820000, 820008))
+    assert ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT == 40
+    assert DEVELOPMENT_SEEDS == tuple(range(820000, 820040))
+    assert set(ORIGINAL_DEVELOPMENT_SUBSET_SEEDS) < set(DEVELOPMENT_SEEDS)
+    assert len(cases) == ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+    assert len({case.row_id for case in cases}) == (
+        ORIGINAL_DEVELOPMENT_SUBSET_CASE_COUNT
+    )
     assert [case.case_seed for case in cases[:8]] == list(range(820000, 820008))
     assert all(case.row_id == f"{case.family_id}:{case.case_seed}" for case in cases)
     assert all(case.tape_seed != case.case_seed for case in cases)
     assert all(len(case.schedule) == case.scenario.horizon_days == 30 for case in cases)
+
+
+def test_original_subset_contract_never_claims_the_200_case_ceiling() -> None:
+    assert original_development_subset_contract() == {
+        "id": "original_40_case_development_subset",
+        "case_count": 40,
+        "family_count": 5,
+        "seed_interval": {"first": 820000, "last": 820007, "count": 8},
+        "canonical_200_case_development_ceiling_claimed": False,
+        "interpretation": (
+            "Privileged oracle and headroom results apply only to the original "
+            "40-case development subset, not the canonical 200-case development "
+            "split."
+        ),
+    }
 
 
 def test_lexicographic_key_prioritizes_solved_then_margin_then_auc() -> None:
@@ -230,6 +257,30 @@ def test_load_prior_evidence_binds_policy_seed(tmp_path: Path) -> None:
         )
 
 
+def test_load_prior_evidence_selects_the_original_subset_from_200_rows(
+    tmp_path: Path,
+) -> None:
+    full_row_ids = [
+        f"{family.id}:{seed}"
+        for family in DEVELOPMENT_FAMILIES
+        for seed in DEVELOPMENT_SEEDS
+    ]
+    expected_row_ids = [case.row_id for case in build_development_cases()]
+    receipt_path = tmp_path / "prior-200.json"
+    _write_prior_receipt(receipt_path, full_row_ids)
+
+    evidence = load_prior_evidence(
+        receipt_path,
+        expected_row_ids,
+        expected_policy_seed=73,
+    )
+
+    assert len(full_row_ids) == evidence["source_development_row_count"] == 200
+    assert evidence["analysis_subset"] == "original_40_case_development_subset"
+    assert list(evidence["bc"]) == expected_row_ids
+    assert list(evidence["ppo"]) == expected_row_ids
+
+
 def test_select_best_mpc_k_uses_one_global_lexicographic_winner() -> None:
     more_solves = {
         1: {"a": _result(True, -0.2, 0.4), "b": _result(True, -0.2, 0.4)},
@@ -344,6 +395,7 @@ def test_headroom_does_not_import_final_split_or_legacy_simulators() -> None:
     }
 
     assert not {name for name in imported_names if name.startswith("FINAL_")}
+    assert "DEVELOPMENT_SEEDS" not in source
     assert "FINAL_" not in source
     assert "simulator_v" not in source
     assert "scenarios_v" not in source

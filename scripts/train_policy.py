@@ -100,6 +100,8 @@ DIAGNOSTIC_NAMES = (
     "value_loss",
     "policy_gradient_loss",
 )
+DEVELOPMENT_CASE_COUNT = len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS)
+CANONICAL_DEVELOPMENT_CASE_COUNT = 200
 
 
 class TrainingError(RuntimeError):
@@ -813,7 +815,9 @@ def evaluate_development(
                 }
             )
 
-    expected_count = len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS)
+    expected_count = DEVELOPMENT_CASE_COUNT
+    if expected_count != CANONICAL_DEVELOPMENT_CASE_COUNT:
+        raise TrainingError("canonical development roster must contain 200 cases")
     if len(rows) != expected_count or len({row["row_id"] for row in rows}) != len(
         rows
     ):
@@ -1225,6 +1229,7 @@ def resolved_training_config(
         "policy_seed": args.policy_seed,
         "bc_epochs": args.bc_epochs,
         "bc_warm_start": args.bc_warm_start,
+        "development_case_count": DEVELOPMENT_CASE_COUNT,
         "evaluation_milestones": learning_milestones(
             args.transitions,
             rollout_size,
@@ -1592,6 +1597,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
             "training_split": "train",
             "evaluation_split": "dev",
+            "development_case_count": DEVELOPMENT_CASE_COUNT,
             "final_split_used": False,
             "flow": [
                 "behavior_cloning_and_dagger",

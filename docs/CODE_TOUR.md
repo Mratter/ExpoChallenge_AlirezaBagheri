@@ -9,6 +9,7 @@ This repository is organized around one dependency rule: city mechanics are the 
 | Trace a runtime request | `backend/app/main.py` | `backend/app/models.py`, `model/policy.py`, `backend/app/city/environment.py`, `backend/app/persistence.py` |
 | Understand or change training | `scripts/train_policy.py` | `backend/app/city/environment.py`, `backend/app/city/planners.py`, `backend/app/city/outcome.py` |
 | Reproduce a policy comparison | `scripts/evaluate.py` | `model/policy.py`, `backend/app/city/scenarios.py`, `backend/app/city/environment.py` |
+| Rebuild current development evidence | `scripts/build_development_baselines.py` | `scripts/evaluate.py`, `benchmarks/v4/development-baselines-200.md`, `internal/developmental_runs/v4/development-baselines-200.json` |
 | Study achievable headroom | `scripts/headroom.py` | `backend/app/city/planners.py`, `backend/app/city/optimizer.py`, `backend/app/city/outcome.py` |
 | Work on the browser application | `frontend/src/App.tsx` | `frontend/src/generated/backendContract.ts`, `frontend/src/api.ts`, `frontend/src/analysisApi.ts`, `frontend/src/DecisionAnalysis.tsx` |
 
@@ -52,7 +53,7 @@ Then read `backend/app/shared_evidence.py`. It provides canonical JSON bytes and
 
 Begin with `backend/app/city/physics.py`. It is the numerical foundation: service and hazard order, allocation projection, action proposals, depot damage, throughput, transfers, capped landing, and conservation measurements. The remaining city modules use these functions instead of reimplementing allocation or logistics rules.
 
-Continue with `backend/app/city/scenarios.py`. It defines canonical training, development, and final scenario families and turns a validated scenario plus seed into a deterministic disaster tape. This is where split membership and shock realization become concrete.
+Continue with `backend/app/city/scenarios.py`. It defines the disjoint canonical rosters—192 training cases (6 families × 32 seeds), 200 development cases (5 × 40), and 200 reserved final cases (5 × 40)—and turns a validated scenario plus seed into a deterministic disaster tape. This is where split membership and shock realization become concrete.
 
 Read `backend/app/city/outcome.py` beside it. Outcome calculation is deliberately separate from state transition code. `absolute_outcome` evaluates the canonical solved conjunction; `summarize_trajectory` derives the aggregate evidence used by the API, evaluation tools, and analysis views.
 
@@ -80,9 +81,11 @@ A comparison request therefore follows a compact path: validate the request, loa
 
 `scripts/train_policy.py` is the full training pipeline. Its main flow is behavior cloning and DAgger, actor-frozen critic warm-up, PPO optimization, development evaluation at fixed milestones, and receipt writing. The instrumented PPO class and diagnostic helpers make optimizer movement, actor freezing, normalization state, and critic quality visible in the resulting evidence. The gated post-training sequence is recorded in the [training deployment plan](TRAINING_DEPLOYMENT_PLAN.md).
 
-`scripts/evaluate.py` is the compact comparison runner. Read `build_cases`, `resolve_policy`, `rollout`, and `aggregate` in that order to see how a named split and policy set become matched per-case rows and paired statistics.
+`scripts/evaluate.py` is the compact comparison runner. Read `build_cases`, `resolve_policy`, `rollout`, and `aggregate` in that order to see how a named 200-case development or final split and policy set become matched per-case rows and paired statistics. The final roster is reserved for explicit regression or owner-authorized evaluation; the repository contains no learned-v4 final result.
 
-`scripts/headroom.py` measures what is achievable on development cases. It compares public planners and MPC horizons with a privileged oracle, preserves physics invariants, classifies contested cases, and writes a deterministic evidence receipt. The oracle is an analysis instrument; normal runtime policies remain causal public-state planners.
+`scripts/build_development_baselines.py` assembles the current cheap-planner evidence over all 200 development cases. Its Markdown table is `benchmarks/v4/development-baselines-200.md`, and its machine receipt at `internal/developmental_runs/v4/development-baselines-200.json` preserves the complete ordered rows, paired comparisons, invariants, and source identity.
+
+`scripts/headroom.py` produced the retained headroom evidence on the original 40-case development subset. It compares public planners and MPC horizons with a privileged oracle, preserves physics invariants, and classifies contested cases. The oracle's historical 37/40 result demonstrates constructive headroom only on that subset; it is not a submission baseline, a result on the expanded roster, or a 200-case ceiling estimate. Normal runtime policies remain causal public-state planners.
 
 `scripts/generate_frontend_contract.py` is the cross-language boundary. It imports canonical service, hazard, observation, action, request, and outcome values and renders `frontend/src/generated/backendContract.ts`. Run it with `--check` after changing a value it projects.
 
@@ -107,7 +110,7 @@ The Python suite follows the production boundaries:
 
 - `tests/test_city_physics.py`, `test_city_scenarios.py`, `test_city_outcome.py`, `test_city_planners.py`, `test_city_optimizer.py`, and `test_city_environment.py` cover the domain from primitives through complete transitions.
 - `tests/test_policy.py` covers ONNX loading and inference contracts.
-- `tests/test_train_policy.py`, `test_evaluate.py`, `test_development_evidence.py`, and `test_headroom.py` cover the scientific tools and their evidence.
+- `tests/test_train_policy.py`, `test_evaluate.py`, `test_build_development_baselines.py`, `test_development_evidence.py`, and `test_headroom.py` cover the scientific tools and their current plus historical evidence.
 - `tests/test_api.py`, `test_recovery_analysis.py`, `test_recovery_exports.py`, and `test_shared_evidence.py` cover the runtime shell and durable results.
 - `tests/test_frontend_contract_generation.py` proves that the generated TypeScript contract matches the canonical Python values.
 - Tests beside the frontend source (`*.test.ts`) cover response parsing, generated contracts, view-model calculations, and decision-support behavior.

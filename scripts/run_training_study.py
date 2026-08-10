@@ -23,6 +23,21 @@ DEFAULT_OUTPUT_ROOT = ROOT / "internal" / "developmental_runs" / "v4" / "study-2
 POLICY_SEEDS = (37_017, 47_017, 57_017, 67_017, 77_017)
 ABLATION_SEEDS = POLICY_SEEDS[:3]
 
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.app.city.scenarios import (  # noqa: E402
+    DEVELOPMENT_FAMILIES,
+    DEVELOPMENT_SEEDS,
+)
+
+DEVELOPMENT_CASE_COUNT = len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS)
+CANONICAL_DEVELOPMENT_CASE_COUNT = 200
+LEGACY_DEVELOPMENT_CASE_COUNT = 40
+SUPPORTED_DEVELOPMENT_CASE_COUNTS = frozenset(
+    {LEGACY_DEVELOPMENT_CASE_COUNT, CANONICAL_DEVELOPMENT_CASE_COUNT}
+)
+
 
 class StudyError(RuntimeError):
     """Raised when a training arm or its evidence violates the study contract."""
@@ -112,6 +127,30 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def receipt_development_case_count(payload: dict[str, Any]) -> int:
+    """Read both explicit current and historical 40-case receipt counts."""
+
+    config = payload.get("config")
+    development = payload.get("development")
+    values = [payload.get("development_case_count")]
+    if isinstance(config, dict):
+        values.append(config.get("development_case_count"))
+    if isinstance(development, dict):
+        values.append(development.get("case_count"))
+    present = [value for value in values if value is not None]
+    if not present or any(
+        isinstance(value, bool) or not isinstance(value, int) for value in present
+    ):
+        raise StudyError("training receipt development case count is invalid")
+    counts = set(present)
+    if len(counts) != 1:
+        raise StudyError("training receipt development case counts disagree")
+    count = counts.pop()
+    if count not in SUPPORTED_DEVELOPMENT_CASE_COUNTS:
+        raise StudyError("training receipt development case count is unsupported")
+    return count
+
+
 def validate_training_receipt(path: Path, arm: Arm, seed: int) -> dict[str, Any]:
     """Fail closed on incomplete, mismatched, unsafe, or final-split evidence."""
 
@@ -134,9 +173,19 @@ def validate_training_receipt(path: Path, arm: Arm, seed: int) -> dict[str, Any]
     ):
         raise StudyError(f"training receipt does not match registered arm: {path}")
     development = payload.get("development", {})
+    solved_count = development.get("solved_count")
+    solve_rate = development.get("solve_rate")
     if (
-        development.get("case_count") != 40
-        or not isinstance(development.get("solved_count"), int)
+        DEVELOPMENT_CASE_COUNT != CANONICAL_DEVELOPMENT_CASE_COUNT
+        or receipt_development_case_count(payload) != DEVELOPMENT_CASE_COUNT
+        or development.get("case_count") != DEVELOPMENT_CASE_COUNT
+        or not isinstance(solved_count, int)
+        or isinstance(solved_count, bool)
+        or solved_count < 0
+        or solved_count > DEVELOPMENT_CASE_COUNT
+        or not isinstance(solve_rate, (int, float))
+        or isinstance(solve_rate, bool)
+        or abs(float(solve_rate) - solved_count / DEVELOPMENT_CASE_COUNT) > 1e-12
     ):
         raise StudyError(f"development result is incomplete: {path}")
     return payload
@@ -175,7 +224,7 @@ def run_arm(output_root: Path, arm: Arm, seed: int) -> dict[str, Any]:
     payload = validate_training_receipt(receipt_path, arm, seed)
     print(
         f"[study] finished {arm.name} seed {seed}: "
-        f"{payload['development']['solved_count']}/40",
+        f"{payload['development']['solved_count']}/{DEVELOPMENT_CASE_COUNT}",
         flush=True,
     )
     return payload
@@ -192,6 +241,7 @@ def _receipt_row(
         "arm": arm.name,
         "seed": seed,
         "active_actor_critic_transitions": arm.transitions,
+        "development_case_count": development["case_count"],
         "solved_count": development["solved_count"],
         "solve_rate": development["solve_rate"],
         "mean_resilience_auc": development["mean_resilience_auc"],
@@ -249,6 +299,7 @@ def run_seed_sweep(output_root: Path) -> dict[str, Any]:
         "tool": "run_training_study.py",
         "phase": "seed_sweep",
         "split": "dev",
+        "development_case_count": DEVELOPMENT_CASE_COUNT,
         "final_split_used": False,
         "registered_policy_seeds": list(POLICY_SEEDS),
         "baseline": asdict(BASELINE),
@@ -314,6 +365,7 @@ def run_ablations(output_root: Path) -> dict[str, Any]:
         "tool": "run_training_study.py",
         "phase": "ablations",
         "split": "dev",
+        "development_case_count": DEVELOPMENT_CASE_COUNT,
         "final_split_used": False,
         "registered_policy_seeds": list(ABLATION_SEEDS),
         "baseline_receipts_reused": True,

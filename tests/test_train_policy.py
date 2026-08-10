@@ -23,6 +23,8 @@ from scripts.train_policy import (
     DEFAULT_REWARD_PROFILE,
     DEFAULT_TARGET_KL,
     DEFAULT_TRANSITIONS,
+    CANONICAL_DEVELOPMENT_CASE_COUNT,
+    DEVELOPMENT_CASE_COUNT,
     TrainingError,
     actor_state,
     build_model,
@@ -67,6 +69,7 @@ def test_canonical_defaults_match_the_adopted_optimizer_regime(
     )
     assert args.freeze_observation_rms is True
     assert validate_runtime_config(args) == 5_000
+    assert DEVELOPMENT_CASE_COUNT == CANONICAL_DEVELOPMENT_CASE_COUNT == 200
 
 
 def test_learning_milestones_make_the_training_curve_visible() -> None:
