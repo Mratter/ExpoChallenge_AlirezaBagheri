@@ -1,4 +1,4 @@
-"""Training-only V3 vectorization benchmark; never evaluation evidence.
+"""Training-only V4 vectorization benchmark; never evaluation evidence.
 
 This tool compares Stable-Baselines3 ``DummyVecEnv`` with Windows-safe
 ``SubprocVecEnv(..., start_method="spawn")`` execution.  It deliberately imports
@@ -53,13 +53,13 @@ from backend.app.scenarios_v3 import (  # noqa: E402
     TRAINING_FAMILIES_V3,
     TRAINING_SEEDS_V3,
 )
-from backend.app.simulator_v3 import (  # noqa: E402
-    ACTION_SIZE_V3,
-    CyclingScenarioEnvV3,
+from backend.app.simulator_v4 import (  # noqa: E402
+    ACTION_SIZE_V4,
+    CyclingScenarioEnvV4,
 )
 
 ACTION_STREAM_SEED = 0xB3C7_0A11
-DEFAULT_LANES = (4, 8, 12)
+DEFAULT_LANES = (4, 8, 12, 20)
 DEFAULT_WARMUP_STEPS = 60
 DEFAULT_MEASURED_STEPS = 600
 DEFAULT_MEMORY_SAMPLE_STEPS = 60
@@ -88,14 +88,14 @@ class _TrainingLaneFactory:
 
     lane: int
 
-    def __call__(self) -> CyclingScenarioEnvV3:
+    def __call__(self) -> CyclingScenarioEnvV4:
         scenarios = _training_scenarios()
         offset = self.lane % len(scenarios)
         rotated = list(scenarios[offset:] + scenarios[:offset])
-        return CyclingScenarioEnvV3(rotated)
+        return CyclingScenarioEnvV4(rotated, collect_evidence=False)
 
 
-def _make_factories(lanes: int) -> list[Callable[[], CyclingScenarioEnvV3]]:
+def _make_factories(lanes: int) -> list[Callable[[], CyclingScenarioEnvV4]]:
     return [_TrainingLaneFactory(lane) for lane in range(lanes)]
 
 
@@ -108,7 +108,7 @@ def _fixed_actions(total_steps: int, lanes: int) -> np.ndarray:
     return generator.uniform(
         -1.0,
         1.0,
-        size=(total_steps, lanes, ACTION_SIZE_V3),
+        size=(total_steps, lanes, ACTION_SIZE_V4),
     ).astype(np.float32)
 
 
@@ -483,20 +483,21 @@ def _recommend(
             safe_results.append(subproc)
 
     fastest = max(safe_results, key=lambda item: item.transitions_per_second)
-    twelve_dummy = by_key.get((12, "dummy"))
-    twelve_subproc = by_key.get((12, "subproc_spawn"))
+    target_lanes = 20
+    target_dummy = by_key.get((target_lanes, "dummy"))
+    target_subproc = by_key.get((target_lanes, "subproc_spawn"))
     registered_recommendation: dict[str, Any] | None = None
-    if twelve_dummy is not None and twelve_subproc is not None:
-        exact = _digest_match(twelve_dummy, twelve_subproc)
+    if target_dummy is not None and target_subproc is not None:
+        exact = _digest_match(target_dummy, target_subproc)
         memory_safe = not memory_limit_mib or (
-            twelve_subproc.peak_process_tree_rss_mib <= memory_limit_mib
+            target_subproc.peak_process_tree_rss_mib <= memory_limit_mib
         )
-        speedup = twelve_subproc.transitions_per_second / max(
-            twelve_dummy.transitions_per_second, 1e-9
+        speedup = target_subproc.transitions_per_second / max(
+            target_dummy.transitions_per_second, 1e-9
         )
         use_subproc = exact and memory_safe and speedup >= min_parallel_speedup
         registered_recommendation = {
-            "lanes": 12,
+            "lanes": target_lanes,
             "mode": "subproc_spawn" if use_subproc else "dummy",
             "reason": (
                 f"spawn passed exact digests and achieved {speedup:.3f}x speedup"
@@ -522,7 +523,7 @@ def _recommend(
             "transitions_per_second": fastest.transitions_per_second,
             "note": "changing lane count changes training geometry and requires a new seal",
         },
-        "registered_12_lane_recommendation": registered_recommendation,
+        "v4_20_lane_recommendation": registered_recommendation,
     }
 
 
@@ -533,7 +534,7 @@ def _parse_args() -> argparse.Namespace:
         nargs="+",
         type=int,
         default=list(DEFAULT_LANES),
-        help="lane counts to compare (default: 4 8 12)",
+        help="lane counts to compare (default: 4 8 12 20)",
     )
     parser.add_argument(
         "--warmup-steps", type=int, default=DEFAULT_WARMUP_STEPS
@@ -599,6 +600,7 @@ def main() -> None:
         "uses_development_split": False,
         "uses_final_split": False,
         "trains_or_selects_policy": False,
+        "collect_evidence": False,
         "thread_caps": {
             name: os.environ[name]
             for name in (
@@ -614,8 +616,11 @@ def main() -> None:
         "physical_memory_mib": round(total_memory / (1024 * 1024), 3),
         "source_hashes": {
             "benchmark_script_sha256": _sha256_file(Path(__file__)),
-            "simulator_v3_sha256": _sha256_file(
-                ROOT / "backend" / "app" / "simulator_v3.py"
+            "simulator_v4_sha256": _sha256_file(
+                ROOT / "backend" / "app" / "simulator_v4.py"
+            ),
+            "simulator_core_v4_sha256": _sha256_file(
+                ROOT / "backend" / "app" / "simulator_core_v4.py"
             ),
             "scenarios_v3_sha256": _sha256_file(
                 ROOT / "backend" / "app" / "scenarios_v3.py"
