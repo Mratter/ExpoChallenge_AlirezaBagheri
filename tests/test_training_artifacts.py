@@ -14,6 +14,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from backend.app.shared_evidence import canonical_bytes
+from scripts import training_artifacts
 from scripts.training_artifacts import (
     EXPECTED_BUNDLE_FILES,
     MANIFEST_FILENAME,
@@ -394,3 +395,95 @@ def test_bundle_verification_detects_artifact_and_manifest_tampering(
     manifest_path.write_bytes(canonical_bytes(manifest))
     with pytest.raises(TrainingArtifactError, match="resume disclosure drifted"):
         verify_checkpoint_bundle(second)
+
+
+def _transient_windows_rename_error(winerror: int = 5) -> PermissionError:
+    error = PermissionError(13, "transient Windows sharing denial")
+    error.winerror = winerror
+    return error
+
+
+def test_directory_publication_retries_transient_windows_sharing_denials(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    staging = tmp_path / ".checkpoint.staging"
+    target = tmp_path / "checkpoint"
+    staging.mkdir()
+    (staging / "payload").write_bytes(b"complete")
+    real_rename = training_artifacts.os.rename
+    calls = 0
+    delays: list[float] = []
+
+    def flaky_rename(source: Path, destination: Path) -> None:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise _transient_windows_rename_error()
+        real_rename(source, destination)
+
+    monkeypatch.setattr(training_artifacts, "_rename_directory", flaky_rename)
+    monkeypatch.setattr(training_artifacts.time, "sleep", delays.append)
+
+    training_artifacts._publish_staging_directory(staging, target)
+
+    assert calls == 3
+    assert delays == [0.025, 0.05]
+    assert not staging.exists()
+    assert (target / "payload").read_bytes() == b"complete"
+
+
+def test_directory_publication_refuses_concurrent_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    staging = tmp_path / ".checkpoint.staging"
+    target = tmp_path / "checkpoint"
+    staging.mkdir()
+    sentinel = target / "sentinel"
+
+    def racing_rename(source: Path, destination: Path) -> None:
+        destination.mkdir()
+        sentinel.write_bytes(b"concurrent publisher")
+        raise _transient_windows_rename_error(32)
+
+    monkeypatch.setattr(training_artifacts, "_rename_directory", racing_rename)
+
+    with pytest.raises(TrainingArtifactError, match="refusing to overwrite"):
+        training_artifacts._publish_staging_directory(staging, target)
+
+    assert staging.is_dir()
+    assert sentinel.read_bytes() == b"concurrent publisher"
+
+
+def test_bundle_terminal_rename_failure_cleans_verified_staging_directory(
+    tmp_path: Path,
+    checkpoint_source: tuple[PPO, VecNormalize],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "checkpoint"
+
+    def blocked_rename(source: Path, target: Path) -> None:
+        raise _transient_windows_rename_error(33)
+
+    monkeypatch.setattr(training_artifacts, "_rename_directory", blocked_rename)
+    monkeypatch.setattr(training_artifacts.time, "sleep", lambda _: None)
+
+    model, normalizer = checkpoint_source
+    with pytest.raises(
+        TrainingArtifactError,
+        match="could not be atomically published",
+    ):
+        persist_checkpoint_bundle(
+            destination,
+            model=model,
+            normalizer=normalizer,
+            training_config={"run": "terminal-rename-failure"},
+            seed=37017,
+            milestone=200_000,
+            checkpoint_id="active-200000",
+            active_actor_critic_transitions=200_000,
+        )
+
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".checkpoint.staging-*"))

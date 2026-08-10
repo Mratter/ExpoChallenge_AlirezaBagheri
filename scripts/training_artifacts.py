@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,6 +54,9 @@ EXPECTED_BUNDLE_FILES = frozenset(
     {MODEL_FILENAME, NORMALIZATION_FILENAME, MANIFEST_FILENAME}
 )
 CHECKPOINT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+WINDOWS_DIRECTORY_RENAME_ATTEMPTS = 8
+WINDOWS_DIRECTORY_RENAME_BASE_DELAY_SECONDS = 0.025
+WINDOWS_TRANSIENT_DIRECTORY_RENAME_ERRORS = frozenset({5, 32, 33})
 NON_BIT_EXACT_RESUME_DISCLOSURE = (
     "The bundle restores policy and optimizer state, training counters, and "
     "normalization statistics, but it is not bit-exact resumable because "
@@ -830,6 +834,41 @@ def checkpoint_bundle_reference(
     }
 
 
+def _rename_directory(source: Path, destination: Path) -> None:
+    os.rename(source, destination)
+
+
+def _publish_staging_directory(staging: Path, target: Path) -> None:
+    """Publish one create-new bundle, retrying transient Windows share locks."""
+
+    for attempt in range(WINDOWS_DIRECTORY_RENAME_ATTEMPTS):
+        if target.exists() or target.is_symlink():
+            raise TrainingArtifactError(
+                f"refusing to overwrite checkpoint bundle: {target}"
+            )
+        try:
+            _rename_directory(staging, target)
+            return
+        except OSError as exc:
+            if target.exists() or target.is_symlink():
+                raise TrainingArtifactError(
+                    f"refusing to overwrite checkpoint bundle: {target}"
+                ) from exc
+            transient_windows_error = getattr(exc, "winerror", None) in (
+                WINDOWS_TRANSIENT_DIRECTORY_RENAME_ERRORS
+            )
+            final_attempt = attempt + 1 == WINDOWS_DIRECTORY_RENAME_ATTEMPTS
+            if not transient_windows_error or final_attempt:
+                raise TrainingArtifactError(
+                    "checkpoint bundle could not be atomically published"
+                ) from exc
+            time.sleep(
+                WINDOWS_DIRECTORY_RENAME_BASE_DELAY_SECONDS * (2**attempt)
+            )
+
+    raise AssertionError("checkpoint publication retry loop did not terminate")
+
+
 def persist_checkpoint_bundle(
     destination: str | Path,
     *,
@@ -911,20 +950,7 @@ def persist_checkpoint_bundle(
         fsync_parent(staging / MANIFEST_FILENAME)
         verify_checkpoint_bundle(staging)
 
-        if target.exists() or target.is_symlink():
-            raise TrainingArtifactError(
-                f"refusing to overwrite checkpoint bundle: {target}"
-            )
-        try:
-            os.rename(staging, target)
-        except OSError as exc:
-            if target.exists() or target.is_symlink():
-                raise TrainingArtifactError(
-                    f"refusing to overwrite checkpoint bundle: {target}"
-                ) from exc
-            raise TrainingArtifactError(
-                "checkpoint bundle could not be atomically published"
-            ) from exc
+        _publish_staging_directory(staging, target)
         published = True
         fsync_parent(target)
     finally:
