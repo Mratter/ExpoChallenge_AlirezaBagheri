@@ -1,4 +1,4 @@
-"""Behavior anchors for safely flattening the simulator lineage."""
+"""Behavior anchors for the consolidated city-recovery implementation."""
 
 from __future__ import annotations
 
@@ -6,18 +6,18 @@ from dataclasses import asdict
 
 import numpy as np
 
+from backend.app.city.environment import (
+    ACTION_SIZE,
+    ENGINE_SPEC_SHA256,
+    CityRecoveryEnv,
+)
 from backend.app.city.outcome import SOLVED_DEFINITION_SHA256, summarize_trajectory
 from backend.app.city.scenarios import (
     TRAINING_FAMILIES,
     TRAINING_SEEDS,
     generate_disaster_tape,
 )
-from backend.app.simulator_core import canonical_hash
-from backend.app.simulator_v3 import (
-    ACTION_SIZE_V3,
-    ENGINE_V3_SPEC_SHA256,
-)
-from backend.app.simulator_v4 import CityRecoveryEnvV4
+from backend.app.shared_evidence import canonical_hash
 
 
 EXPECTED_SOLVED_DEFINITION_SHA256 = (
@@ -30,7 +30,7 @@ EXPECTED_ENGINE_SPEC_SHA256 = (
 
 def test_scientific_contract_value_hashes_are_stable() -> None:
     assert SOLVED_DEFINITION_SHA256 == EXPECTED_SOLVED_DEFINITION_SHA256
-    assert ENGINE_V3_SPEC_SHA256 == EXPECTED_ENGINE_SPEC_SHA256
+    assert ENGINE_SPEC_SHA256 == EXPECTED_ENGINE_SPEC_SHA256
 
 
 def test_full_evidence_training_trajectory_is_byte_stable() -> None:
@@ -41,18 +41,17 @@ def test_full_evidence_training_trajectory_is_byte_stable() -> None:
         "cdade263357aeebff3d9c9274e04b14306c941efca579b3c79b6c73ba79511ae"
     )
 
-    environment = CityRecoveryEnvV4(
+    environment = CityRecoveryEnv(
         scenario,
         seed,
         schedule,
         collect_evidence=True,
-        reward_profile="v3_equivalent",
     )
     environment.reset(seed=seed)
     random = np.random.Generator(np.random.PCG64(0xA17_2026))
     terminated = False
     while not terminated:
-        action = random.uniform(-1.0, 1.0, size=ACTION_SIZE_V3)
+        action = random.uniform(-1.0, 1.0, size=ACTION_SIZE)
         _, _, terminated, truncated, _ = environment.step(action)
         assert not truncated
 

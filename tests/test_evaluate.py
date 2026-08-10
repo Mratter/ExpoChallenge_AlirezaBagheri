@@ -1,6 +1,37 @@
 from __future__ import annotations
 
-from scripts.evaluate import ProbeRow, exact_mcnemar_p, paired_contingency
+import hashlib
+from pathlib import Path
+
+from scripts.evaluate import (
+    DEFAULT_ONNX_PATH,
+    DEFAULT_POLICIES,
+    ProbeRow,
+    exact_mcnemar_p,
+    paired_contingency,
+    resolve_policy,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+LEGACY_REPORT = ROOT / "docs" / "evidence" / "legacy-final-40.json"
+
+
+def test_default_model_is_the_explicit_legacy_fixture() -> None:
+    assert DEFAULT_ONNX_PATH.parts[-3:] == (
+        "tests",
+        "fixtures",
+        "legacy_policy.onnx",
+    )
+    assert DEFAULT_POLICIES[-1] == "onnx:tests/fixtures/legacy_policy.onnx"
+    policy = resolve_policy(DEFAULT_POLICIES[-1])
+    assert policy.label == DEFAULT_POLICIES[-1]
+    assert policy.kind == "onnx"
+
+
+def test_legacy_report_is_retained_byte_for_byte() -> None:
+    assert hashlib.sha256(LEGACY_REPORT.read_bytes()).hexdigest() == (
+        "f6d3b654ca6b2831af5bec07530b81ecf0e72b2aae44029a805d98325bfe5fb3"
+    )
 
 
 def _row(row_id: str, solved: bool) -> ProbeRow:

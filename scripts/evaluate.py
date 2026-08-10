@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Compare v3-compatible planners on shared development or final tapes.
+"""Compare City Recovery policies on shared development or final tapes.
 
-This is deliberately a nonauthorizing diagnostic. It reads model artifacts and
-the optional sealed v3 ledger, but it never creates or changes governance files.
-Use the development split for tuning; the final split exists only for the
-explicit reproducibility gates in the release protocol.
+This is deliberately a nonauthorizing diagnostic. It reads policies but never
+creates or changes governance files. Use the development split for diagnostics;
+the final split exists only for an explicitly authorized reproducibility gate.
 """
 
 from __future__ import annotations
@@ -21,12 +20,16 @@ from statistics import fmean
 from typing import Any, Callable, Sequence
 
 import numpy as np
-import onnxruntime as ort
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from backend.app.city.environment import (  # noqa: E402
+    ACTION_ORDER,
+    OBSERVATION_ORDER,
+    CityRecoveryEnv,
+)
 from backend.app.city.outcome import summarize_trajectory  # noqa: E402
 from backend.app.city.planners import (  # noqa: E402
     preparedness_teacher_action,
@@ -38,14 +41,14 @@ from backend.app.city.scenarios import (  # noqa: E402
     DEVELOPMENT_SEEDS,
     generate_disaster_tape,
 )
-from backend.app.simulator_v3 import (  # noqa: E402
-    ACTION_ORDER_V3,
-    OBSERVATION_ORDER_V3,
-    CityRecoveryEnvV3,
+from model.policy import (  # noqa: E402
+    ACTION_COUNT,
+    OBSERVATION_COUNT,
+    PolicyError,
+    load_policy,
 )
 
-DEFAULT_ONNX_PATH = ROOT / "artifacts" / "city_recovery_ppo.v3.selected.onnx"
-V3_FINAL_LEDGER_PATH = ROOT / "internal" / "training_runs" / "v3" / "final-ledger.jsonl"
+DEFAULT_ONNX_PATH = ROOT / "tests" / "fixtures" / "legacy_policy.onnx"
 DEFAULT_POLICIES = (
     "heuristic",
     "teacher",
@@ -74,7 +77,6 @@ class Policy:
     label: str
     kind: str
     action: PolicyFn
-    artifact_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -102,51 +104,28 @@ def _resolve_artifact_path(value: str) -> Path:
 
 
 def _onnx_policy(path: Path) -> Policy:
-    if not path.is_file():
-        raise ProbeError(f"ONNX artifact does not exist: {path}")
-    options = ort.SessionOptions()
-    options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-    options.intra_op_num_threads = 1
-    options.inter_op_num_threads = 1
-    session = ort.InferenceSession(
-        path.read_bytes(), options, providers=["CPUExecutionProvider"]
-    )
-    inputs = session.get_inputs()
-    outputs = session.get_outputs()
     if (
-        session.get_providers() != ["CPUExecutionProvider"]
-        or len(inputs) != 1
-        or len(outputs) != 1
-        or inputs[0].name != "observation"
-        or outputs[0].name != "action"
-        or inputs[0].type != "tensor(float)"
-        or outputs[0].type != "tensor(float)"
-        or list(inputs[0].shape) != ["batch", len(OBSERVATION_ORDER_V3)]
-        or list(outputs[0].shape) != ["batch", len(ACTION_ORDER_V3)]
+        len(OBSERVATION_ORDER) != OBSERVATION_COUNT
+        or len(ACTION_ORDER) != ACTION_COUNT
     ):
-        raise ProbeError(f"ONNX interface contract is incompatible: {path}")
+        raise ProbeError("policy tensor contract does not match the environment")
+    try:
+        loaded_policy = load_policy(path)
+    except PolicyError as exc:
+        raise ProbeError(f"ONNX policy is incompatible: {path}: {exc}") from exc
 
     def action(observation: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
-        output = session.run(
-            ["action"],
-            {
-                "observation": np.asarray(observation, dtype=np.float32).reshape(
-                    1, len(OBSERVATION_ORDER_V3)
-                )
-            },
-        )[0]
-        result = np.asarray(output, dtype=np.float64)
-        if result.shape != (1, len(ACTION_ORDER_V3)) or not np.all(
-            np.isfinite(result)
-        ):
-            raise ProbeError(f"ONNX policy emitted an invalid action: {path}")
-        return result[0], {"runtime": "onnxruntime-cpu", "path": str(path)}
+        try:
+            result = loaded_policy.predict(observation)
+        except PolicyError as exc:
+            raise ProbeError(f"ONNX policy emitted an invalid action: {path}") from exc
+        return result, {"runtime": "onnxruntime-cpu", "path": str(path)}
 
     try:
         display_path = path.relative_to(ROOT).as_posix()
     except ValueError:
         display_path = str(path)
-    return Policy(f"onnx:{display_path}", "onnx", action, path)
+    return Policy(f"onnx:{display_path}", "onnx", action)
 
 
 def resolve_policy(spec: str) -> Policy:
@@ -204,7 +183,7 @@ def build_cases(split: str) -> list[ProbeCase]:
 
 
 def rollout(case: ProbeCase, policy: Policy) -> ProbeRow:
-    env = CityRecoveryEnvV3(case.scenario, case.tape_seed, list(case.schedule))
+    env = CityRecoveryEnv(case.scenario, case.tape_seed, case.schedule)
     observation, _ = env.reset(seed=case.tape_seed)
     terminated = False
     while not terminated:
@@ -346,70 +325,11 @@ def run_probe(split: str, policies: Sequence[Policy]) -> dict[str, Any]:
     }
 
 
-def _ledger_summary(row: ProbeRow) -> dict[str, Any]:
-    return {
-        "solved": row.solved,
-        "status": row.status,
-        "reason_codes": list(row.reason_codes),
-        "resilience_auc": row.resilience_auc,
-        "critical_service_days": row.critical_service_days,
-        "hard_violation_count": row.hard_violation_count,
-        "max_conservation_residual": row.max_conservation_residual,
-        "trajectory_sha256": row.trajectory_sha256,
-    }
-
-
-def verify_v3_final_ledger(
-    result: dict[str, Any], policies: Sequence[Policy]
-) -> dict[str, Any]:
-    if result["split"] != "final":
-        raise ProbeError("the sealed v3 ledger can only be checked against --split final")
-    if not V3_FINAL_LEDGER_PATH.is_file():
-        raise ProbeError(f"sealed v3 ledger is missing: {V3_FINAL_LEDGER_PATH}")
-    ledger_rows = [
-        json.loads(line)
-        for line in V3_FINAL_LEDGER_PATH.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    if len(ledger_rows) != 40:
-        raise ProbeError(f"sealed v3 ledger has {len(ledger_rows)} rows, expected 40")
-    ledger_by_id = {row["row_id"]: row for row in ledger_rows}
-    checks: dict[str, Any] = {}
-    for policy in policies:
-        side: str | None = None
-        if policy.kind == "heuristic":
-            side = "baseline"
-        elif (
-            policy.kind == "onnx"
-            and policy.artifact_path is not None
-            and policy.artifact_path == DEFAULT_ONNX_PATH.resolve()
-        ):
-            side = "candidate"
-        if side is None:
-            continue
-        mismatches: list[str] = []
-        for row in result["rows"][policy.label]:
-            ledger = ledger_by_id.get(row.row_id)
-            if ledger is None or _ledger_summary(row) != ledger.get(side):
-                mismatches.append(row.row_id)
-        checks[policy.label] = {
-            "ledger_side": side,
-            "matched_rows": 40 - len(mismatches),
-            "mismatched_rows": len(mismatches),
-            "mismatch_ids": mismatches,
-        }
-    if not checks:
-        raise ProbeError(
-            "ledger verification requires heuristic or the shipped selected v3 ONNX"
-        )
-    return checks
-
-
 def serializable_result(result: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in result.items() if key != "rows"}
 
 
-def print_human(result: dict[str, Any], ledger: dict[str, Any] | None) -> None:
+def print_human(result: dict[str, Any]) -> None:
     print(
         f"evaluate split={result['split']} cases=40 "
         f"authorizing={str(result['authorizing']).lower()} same_tapes=true"
@@ -434,16 +354,6 @@ def print_human(result: dict[str, Any], ledger: dict[str, Any] | None) -> None:
             f"neither={values['neither']} "
             f"p={values['exact_mcnemar_p_two_sided']:.12g}"
         )
-    if ledger is not None:
-        print("\n[sealed v3 ledger]")
-        for label, values in ledger.items():
-            print(
-                f"{label}: side={values['ledger_side']} "
-                f"matched={values['matched_rows']}/40 "
-                f"mismatches={values['mismatched_rows']}"
-            )
-
-
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--split", choices=("dev", "final"), required=True)
@@ -456,11 +366,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "repeatable: heuristic, teacher, tuned, onnx:<path>, mpc, or oracle; "
             "defaults to heuristic+teacher+the legacy ONNX regression fixture"
         ),
-    )
-    parser.add_argument(
-        "--verify-v3-ledger",
-        action="store_true",
-        help="compare final heuristic/shipped-ONNX summaries with the sealed v3 ledger",
     )
     parser.add_argument(
         "--json",
@@ -476,21 +381,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         specs = args.policy or list(DEFAULT_POLICIES)
         policies = [resolve_policy(spec) for spec in specs]
         result = run_probe(args.split, policies)
-        ledger = (
-            verify_v3_final_ledger(result, policies)
-            if args.verify_v3_ledger
-            else None
-        )
-    except (ProbeError, OSError, ValueError, ort.OnnxRuntimeException) as exc:
+    except (ProbeError, OSError, ValueError) as exc:
         print(f"evaluate: error: {exc}", file=sys.stderr)
         return 2
     if args.json:
-        payload = serializable_result(result)
-        if ledger is not None:
-            payload["sealed_v3_ledger_verification"] = ledger
-        print(json.dumps(payload, indent=2, sort_keys=True))
+        print(json.dumps(serializable_result(result), indent=2, sort_keys=True))
     else:
-        print_human(result, ledger)
+        print_human(result)
     return 0
 
 

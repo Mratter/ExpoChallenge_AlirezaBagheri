@@ -14,7 +14,7 @@ import model.policy as policy_module
 from model.policy import PolicyError, load_policy
 
 ROOT = Path(__file__).resolve().parents[1]
-LEGACY_POLICY = ROOT / "artifacts" / "city_recovery_ppo.v3.selected.onnx"
+LEGACY_POLICY = ROOT / "tests" / "fixtures" / "legacy_policy.onnx"
 LEGACY_POLICY_SHA256 = (
     "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b"
 )
