@@ -36,6 +36,7 @@ import {
   loadSimulation,
   runComparison,
 } from './api'
+import { DecisionAnalysis } from './DecisionAnalysis'
 import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
 import { shockDisplayName } from './shockPresentation'
 import {
@@ -55,7 +56,6 @@ import {
 } from './types'
 import {
   actionEntriesForDay,
-  actionGroupSummaries,
   observationEntriesForDay,
   outcomeReasonLabel,
   scenarioIssue,
@@ -421,17 +421,30 @@ function DispatchView({ result, selectedDay, planner, onPlanner }: { result: Com
   )
 }
 
-function DecisionView({ result, planner, onPlanner }: { result: CompareResponse; planner: PlannerKey; onPlanner: (value: PlannerKey) => void }) {
+function DecisionView({
+  result,
+  selectedDay,
+  planner,
+  onPlanner,
+  onDay,
+}: {
+  result: CompareResponse
+  selectedDay: number
+  planner: PlannerKey
+  onPlanner: (value: PlannerKey) => void
+  onDay: (day: number) => void
+}) {
   return (
     <section className="decision-view" aria-labelledby="decision-heading">
-      <header className="table-heading"><div><p className="eyebrow">Raw policy interface / all days</p><h3 id="decision-heading">Decision log</h3></div><PlannerToggle planner={planner} onPlanner={onPlanner} /></header>
-      <div className="decision-list">{result[planner].trajectory.map((day) => (
-        <article key={day.day}>
-          <header><b>Day {String(day.day).padStart(2, '0')}</b><span>{day.shock.type ? `${shockDisplayName(day.shock.type)} · ${percent(day.shock.severity)}` : 'Clear operations'}</span><em>reward {day.reward.toFixed(3)}</em></header>
-          <div className="action-groups">{actionGroupSummaries(day).map((group) => <div key={group.label}><span>{group.label}</span><b>{group.value.toFixed(4)}</b></div>)}</div>
-          <footer><span>Material {units(day.material_used)}</span><span>Crew {units(day.crew_used)}</span><span>Stock {units(day.stock_release.reduce((sum, value) => sum + value, 0))}</span><span>Prep {units(day.preparedness_investment.reduce((sum, value) => sum + value, 0))}</span>{day.planner_evidence ? <code>{JSON.stringify(day.planner_evidence)}</code> : <small>Direct PPO action · no narrative forecast</small>}</footer>
-        </article>
-      ))}</div>
+      <h3 id="decision-heading" className="sr-only">Decision log</h3>
+      <DecisionAnalysis
+        result={result}
+        resultId={result.result_id}
+        selectedDay={selectedDay}
+        planner={planner}
+        onPlannerChange={onPlanner}
+        onSelectedDayChange={onDay}
+      />
     </section>
   )
 }
@@ -466,7 +479,7 @@ function ArchitecturePanel({ metadata, result, failure }: { metadata: Metadata |
   )
 }
 
-function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse) => void }) {
+function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse | null) => void }) {
   const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [metadataFailure, setMetadataFailure] = useState<LoadFailure | null>(null)
   const [draft, setDraft] = useState<Scenario>(initialResult?.scenario ?? defaultScenario)
@@ -556,6 +569,36 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
   }
 
   const draftChanged = result ? seed !== result.seed || !scenariosMatch(draft, result.scenario) : false
+  const openCity = async () => {
+    if (busy) return
+    if (result && !draftChanged) {
+      onOpenGame(result)
+      return
+    }
+    if (!metadata) {
+      onOpenGame(null)
+      return
+    }
+    const issue = scenarioIssue(draft, seed)
+    if (issue) {
+      setError({ code: 'INVALID_SCENARIO', message: issue })
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const response = await runComparison(seed, draft)
+      setResult(response)
+      onOpenGame(response)
+    } catch (caught) {
+      setError({
+        code: caught instanceof ComparisonError ? caught.code : 'RUNTIME_UNREACHABLE',
+        message: caught instanceof Error ? caught.message : 'The 3D recovery run could not be prepared.',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
   const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
     const index = viewModes.indexOf(view)
     let next: ViewMode | null = null
@@ -574,7 +617,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
       <header className="topbar">
         <div className="brand-block"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><div><p>Municipal recovery lab</p><h1>RELAY / Analyst Toolbox</h1></div></div>
         <RuntimeRail metadata={metadata} failure={metadataFailure} />
-        <button className="city-switch" type="button" disabled={!result || busy || draftChanged} onClick={() => result && onOpenGame(result)}><Building2 size={15} />Open 3D city<ArrowUpRight size={14} /></button>
+        <button className="city-switch" type="button" disabled={busy} onClick={() => void openCity()}><Building2 size={15} />{result && !draftChanged ? 'Open current run in 3D' : metadata ? 'Run & open 3D city' : 'Open 3D city setup'}<ArrowUpRight size={14} /></button>
       </header>
 
       <main className="workspace">
@@ -611,7 +654,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
               </div>
               <div role="tabpanel" aria-labelledby="tab-audit" hidden={view !== 'audit'}><AuditView result={result} /></div>
               <div role="tabpanel" aria-labelledby="tab-dispatch" hidden={view !== 'dispatch'}><DispatchView result={result} selectedDay={selectedDay} planner={planner} onPlanner={setPlanner} /></div>
-              <div role="tabpanel" aria-labelledby="tab-decisions" hidden={view !== 'decisions'}><DecisionView result={result} planner={planner} onPlanner={setPlanner} /></div>
+              <div role="tabpanel" aria-labelledby="tab-decisions" hidden={view !== 'decisions'}><DecisionView result={result} selectedDay={selectedDay} planner={planner} onPlanner={setPlanner} onDay={setSelectedDay} /></div>
 
               <footer className="evidence-footer"><div><span>Policy</span><code>{shortHash(result.policy.sha256)}</code></div><div><span>Candidate trajectory</span><code>{shortHash(result.candidate.trajectory_sha256)}</code></div><div><span>Heuristic trajectory</span><code>{shortHash(result.baseline.trajectory_sha256)}</code></div></footer>
             </>
@@ -647,7 +690,7 @@ function App() {
   }
 
   return route === 'toolbox' ? (
-    <AnalystToolbox initialResult={toolboxLaunchResult} onOpenGame={(result) => { setLatestResult(result); setGameLaunchResult(result); setToolboxLaunchResult(null); navigate('game') }} />
+    <AnalystToolbox initialResult={toolboxLaunchResult} onOpenGame={(result) => { if (result) setLatestResult(result); setGameLaunchResult(result); setToolboxLaunchResult(null); navigate('game') }} />
   ) : (
     <Suspense fallback={<div className="route-loading" role="status"><Activity className="spin" size={22} /><b>Loading the 3D city renderer</b></div>}>
       <CityGame initialResult={gameLaunchResult} onResult={(result) => { setLatestResult(result); setGameLaunchResult(null) }} onOpenToolbox={() => { setToolboxLaunchResult(latestResult ?? gameLaunchResult); navigate('toolbox') }} />

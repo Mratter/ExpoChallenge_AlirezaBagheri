@@ -31,6 +31,18 @@ from backend.app.city.outcome import SOLVED_DEFINITION, SOLVED_DEFINITION_SHA256
 from backend.app.city.physics import SERVICES
 from backend.app.models import CompareRequest
 from backend.app.persistence import PersistenceError, RunStore
+from backend.app.recovery_analysis import (
+    AnalysisError,
+    CounterfactualRequest,
+    build_counterfactual,
+    build_explanations,
+)
+from backend.app.recovery_exports import (
+    ExportError,
+    ExportFormat,
+    PlannerName,
+    recovery_plan_export,
+)
 from backend.app.shared_evidence import canonical_bytes
 from model.policy import Policy, PolicyError, load_policy
 
@@ -83,10 +95,16 @@ def dependency_error(exc: Exception) -> CanonicalJSONResponse:
 def persistence_error(exc: PersistenceError) -> CanonicalJSONResponse:
     """Map persistence failures to stable HTTP responses."""
 
-    status = 404 if str(exc) == "persisted result was not found" else 500
+    message = str(exc)
+    if message == "result id must be 64 lowercase hexadecimal characters":
+        status = 400
+    elif message == "persisted result was not found":
+        status = 404
+    else:
+        status = 500
     return CanonicalJSONResponse(
         status_code=status,
-        content=error_payload("PERSISTENCE_FAILED", str(exc)),
+        content=error_payload("PERSISTENCE_FAILED", message),
     )
 
 
@@ -157,18 +175,27 @@ def metadata_payload(policy: Policy) -> dict[str, Any]:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Return field-local validation evidence before loading the policy."""
 
     details = [
         {"path": ".".join(str(part) for part in item["loc"]), "message": item["msg"]}
         for item in exc.errors()
     ]
+    is_counterfactual = request.url.path.endswith("/counterfactuals")
+    is_export = request.url.path.endswith("/recovery-plan")
+    if is_counterfactual:
+        code = "INVALID_COUNTERFACTUAL"
+        message = "Counterfactual validation failed."
+    elif is_export:
+        code = "INVALID_EXPORT"
+        message = "Recovery-plan export validation failed."
+    else:
+        code = "INVALID_SCENARIO"
+        message = "Scenario validation failed."
     return CanonicalJSONResponse(
         status_code=422,
-        content=error_payload(
-            "INVALID_SCENARIO", "Scenario validation failed.", details
-        ),
+        content=error_payload(code, message, details),
     )
 
 
@@ -258,6 +285,74 @@ def compare_simulations(payload: CompareRequest) -> Response | dict[str, Any]:
             status_code=500,
             content=error_payload("COMPUTATION_FAILED", str(exc)),
         )
+
+
+@app.get("/api/v1/simulations/{result_id}/explanations", response_model=None)
+def explain_simulation(result_id: str) -> Response | dict[str, Any]:
+    """Explain a persisted candidate using non-causal local action sensitivity."""
+
+    try:
+        result = RunStore().load(result_id)
+    except PersistenceError as exc:
+        return persistence_error(exc)
+    try:
+        policy = configured_policy()
+        return build_explanations(result, policy)
+    except PolicyError as exc:
+        return dependency_error(exc)
+    except AnalysisError as exc:
+        return CanonicalJSONResponse(
+            status_code=409,
+            content=error_payload("REPLAY_MISMATCH", str(exc)),
+        )
+
+
+@app.post("/api/v1/simulations/{result_id}/counterfactuals", response_model=None)
+def counterfactual_simulation(
+    result_id: str, payload: CounterfactualRequest
+) -> Response | dict[str, Any]:
+    """Apply a one-day allocation override without persisting a derived run."""
+
+    try:
+        result = RunStore().load(result_id)
+    except PersistenceError as exc:
+        return persistence_error(exc)
+    try:
+        policy = configured_policy()
+        return build_counterfactual(result, policy, payload)
+    except PolicyError as exc:
+        return dependency_error(exc)
+    except AnalysisError as exc:
+        return CanonicalJSONResponse(
+            status_code=409,
+            content=error_payload("REPLAY_MISMATCH", str(exc)),
+        )
+
+
+@app.get("/api/v1/simulations/{result_id}/recovery-plan", response_model=None)
+def download_recovery_plan(
+    result_id: str,
+    planner: PlannerName = "candidate",
+    format: ExportFormat = "csv",
+) -> Response:
+    """Download persisted 30-day evidence as deterministic CSV or PDF."""
+
+    try:
+        result = RunStore().load(result_id)
+    except PersistenceError as exc:
+        return persistence_error(exc)
+    try:
+        payload, media_type, filename = recovery_plan_export(result, planner, format)
+    except (ExportError, KeyError, TypeError, ValueError) as exc:
+        return CanonicalJSONResponse(
+            status_code=500,
+            content=error_payload("EXPORT_FAILED", str(exc)),
+        )
+    return Response(
+        content=payload,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"

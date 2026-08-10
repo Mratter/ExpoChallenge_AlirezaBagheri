@@ -567,7 +567,7 @@
   .service-strip span { font-size: 8px; }
   .service-strip strong { font-size: 12px; }
   .camera-hint span { display: none; }
-  .shock-ribbon { right: 12px; }
+  .shock-ribbon { right: 12px; bottom: 208px; max-width: calc(100vw - 24px); }
   .relay-bubble { width: 220px; }
   .incident-phase-banner { top: 90px; width: calc(100vw - 24px); min-width: 0; }
   .district-inspector { top: 154px; left: 12px; width: calc(100vw - 24px); max-height: 250px; overflow: auto; }
