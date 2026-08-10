@@ -1,0 +1,3939 @@
+{
+  "authorizes_training": false,
+  "authorizing": false,
+  "behavior_cloning": {
+    "batch_size": 512,
+    "dagger_beta_schedule": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "dataset_sha256": "c434d1973b99c64f3ff2b1974ab04ccbfe126532f5d17101b59dd449a66088a8",
+    "epochs_per_iteration": 15,
+    "final_batch_mse": 0.008950212970376015,
+    "full_dataset_mse": 0.007783463224768639,
+    "iteration_reports": [
+      {
+        "cumulative_observation_count": 5760,
+        "dagger_beta": 1.0,
+        "full_dataset_mse": 0.029906533658504486,
+        "iteration": 1
+      },
+      {
+        "cumulative_observation_count": 11520,
+        "dagger_beta": 0.0,
+        "full_dataset_mse": 0.017676332965493202,
+        "iteration": 2
+      },
+      {
+        "cumulative_observation_count": 17280,
+        "dagger_beta": 0.0,
+        "full_dataset_mse": 0.011263538151979446,
+        "iteration": 3
+      },
+      {
+        "cumulative_observation_count": 23040,
+        "dagger_beta": 0.0,
+        "full_dataset_mse": 0.007783463224768639,
+        "iteration": 4
+      }
+    ],
+    "iterations": 4,
+    "observation_count": 23040,
+    "observation_rms_count": 23040.0001,
+    "observation_rms_sha256": "63da5cdc0863049fbf76bf20bf52428f10d4b473063ba82e45928368efcf1f34",
+    "policy_state_sha256": "37fe8eea15f2df7f30e1236567c0c32c2cbca3a8b0e90d0aee7fca0d6e4338dc",
+    "teacher": "public-preparedness-curriculum-v3",
+    "teacher_version": "1.0.0",
+    "training_split_only": true,
+    "value_head_initialization": "zero_output_weight_and_bias"
+  },
+  "comparison": {
+    "diagnosis_required": true,
+    "gate_passed": false,
+    "minimum_solve_gain": 3,
+    "paired_outcomes": {
+      "both_solved": 0,
+      "discordant": 0,
+      "exact_two_sided_mcnemar_p": 1.0,
+      "neither": 40,
+      "risk_averse_only": 0,
+      "v3_equivalent_only": 0
+    },
+    "risk_averse_mean_resilience_auc_gain": -0.013317984,
+    "risk_averse_solved_gain": 0
+  },
+  "config": {
+    "batch_size": 500,
+    "clip_range": 0.2,
+    "ent_coef": 0.01,
+    "gamma": 0.99,
+    "learning_rate": "3e-4_linear_to_zero",
+    "log_std_init": -1.0,
+    "n_epochs": 10,
+    "n_steps_per_lane": 250,
+    "policy_seed": 37017,
+    "profiles": [
+      "v3_equivalent",
+      "risk_averse"
+    ],
+    "rollout_size": 5000,
+    "sde_sample_freq": 4,
+    "simulator_lanes": 20,
+    "transitions_per_profile": 200000,
+    "use_sde": true,
+    "vec_normalize": true
+  },
+  "elapsed_seconds": 272.619,
+  "final_split_used": false,
+  "initial_development": {
+    "case_count": 40,
+    "failure_reason_code_histogram": {
+      "assessment_tail_targets_met": 5,
+      "critical_service_day_cap_met": 3,
+      "resilience_auc_met": 5
+    },
+    "hard_violation_count": 0,
+    "maximum_conservation_residual": 0.0,
+    "mean_resilience_auc": 0.486101802,
+    "rows": [
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "resilience_auc_met",
+          "critical_service_day_cap_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.43035248,
+        "row_id": "v3_dev_river_flood:820000",
+        "solved": false,
+        "tail_minimum_services": [
+          0.56775456,
+          0.55354523,
+          0.55991286,
+          0.56039513,
+          0.55802596
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.47845441,
+        "row_id": "v3_dev_river_flood:820001",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60841475,
+          0.55487076,
+          0.6021184,
+          0.59846126,
+          0.58430596
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.50840952,
+        "row_id": "v3_dev_river_flood:820002",
+        "solved": true,
+        "tail_minimum_services": [
+          0.67387118,
+          0.58742014,
+          0.66976916,
+          0.67016598,
+          0.63375038
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.45688844,
+        "row_id": "v3_dev_river_flood:820003",
+        "solved": true,
+        "tail_minimum_services": [
+          0.56935885,
+          0.55516865,
+          0.56808372,
+          0.56877372,
+          0.56245343
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "resilience_auc_met",
+          "critical_service_day_cap_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.43474216,
+        "row_id": "v3_dev_river_flood:820004",
+        "solved": false,
+        "tail_minimum_services": [
+          0.62344616,
+          0.57790665,
+          0.60471751,
+          0.61190248,
+          0.60376932
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.51856253,
+        "row_id": "v3_dev_river_flood:820005",
+        "solved": true,
+        "tail_minimum_services": [
+          0.67878875,
+          0.5885965,
+          0.62965187,
+          0.65366997,
+          0.65769815
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.5280284,
+        "row_id": "v3_dev_river_flood:820006",
+        "solved": true,
+        "tail_minimum_services": [
+          0.68701058,
+          0.58712428,
+          0.64651861,
+          0.65161254,
+          0.60736533
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "assessment_tail_targets_met",
+          "resilience_auc_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.43047241,
+        "row_id": "v3_dev_river_flood:820007",
+        "solved": false,
+        "tail_minimum_services": [
+          0.54863306,
+          0.54046481,
+          0.54646771,
+          0.54737639,
+          0.5462864
+        ],
+        "target_met_by_service": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "assessment_tail_targets_met",
+          "resilience_auc_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.43634498,
+        "row_id": "v3_dev_industrial_outage:820000",
+        "solved": false,
+        "tail_minimum_services": [
+          0.54444712,
+          0.5425596,
+          0.54742355,
+          0.54800689,
+          0.54661621
+        ],
+        "target_met_by_service": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.45427794,
+        "row_id": "v3_dev_industrial_outage:820001",
+        "solved": true,
+        "tail_minimum_services": [
+          0.58652315,
+          0.58070812,
+          0.5998912,
+          0.65652822,
+          0.63047147
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.47469296,
+        "row_id": "v3_dev_industrial_outage:820002",
+        "solved": true,
+        "tail_minimum_services": [
+          0.59483288,
+          0.58693083,
+          0.59504108,
+          0.63003928,
+          0.62880782
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.45656873,
+        "row_id": "v3_dev_industrial_outage:820003",
+        "solved": true,
+        "tail_minimum_services": [
+          0.58338324,
+          0.58878396,
+          0.59146858,
+          0.64570821,
+          0.6363857
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.50107006,
+        "row_id": "v3_dev_industrial_outage:820004",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60817578,
+          0.59576245,
+          0.64146054,
+          0.72233803,
+          0.71036616
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.46131564,
+        "row_id": "v3_dev_industrial_outage:820005",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60072253,
+          0.60474991,
+          0.59433979,
+          0.65913023,
+          0.67918045
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.50471187,
+        "row_id": "v3_dev_industrial_outage:820006",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60924005,
+          0.59134126,
+          0.62895225,
+          0.70091932,
+          0.66707995
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.44838094,
+        "row_id": "v3_dev_industrial_outage:820007",
+        "solved": true,
+        "tail_minimum_services": [
+          0.56943304,
+          0.5684463,
+          0.56528962,
+          0.584428,
+          0.58782274
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.50934043,
+        "row_id": "v3_dev_logistics_strike:820000",
+        "solved": true,
+        "tail_minimum_services": [
+          0.61613609,
+          0.6062011,
+          0.704656,
+          0.67614205,
+          0.59360587
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.47236722,
+        "row_id": "v3_dev_logistics_strike:820001",
+        "solved": true,
+        "tail_minimum_services": [
+          0.56837441,
+          0.56106021,
+          0.59502451,
+          0.58737962,
+          0.55845678
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.46968249,
+        "row_id": "v3_dev_logistics_strike:820002",
+        "solved": true,
+        "tail_minimum_services": [
+          0.58528864,
+          0.57720377,
+          0.63817997,
+          0.6197523,
+          0.56384229
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.55715855,
+        "row_id": "v3_dev_logistics_strike:820003",
+        "solved": true,
+        "tail_minimum_services": [
+          0.64324414,
+          0.6447161,
+          0.79981488,
+          0.77199947,
+          0.63272357
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.54930532,
+        "row_id": "v3_dev_logistics_strike:820004",
+        "solved": true,
+        "tail_minimum_services": [
+          0.61219215,
+          0.62689935,
+          0.78053458,
+          0.74385569,
+          0.59359864
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.51784788,
+        "row_id": "v3_dev_logistics_strike:820005",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60430994,
+          0.60930729,
+          0.68161685,
+          0.63030272,
+          0.56269241
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.54547492,
+        "row_id": "v3_dev_logistics_strike:820006",
+        "solved": true,
+        "tail_minimum_services": [
+          0.65938904,
+          0.63428477,
+          0.78424624,
+          0.74688182,
+          0.6295798
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.53052299,
+        "row_id": "v3_dev_logistics_strike:820007",
+        "solved": true,
+        "tail_minimum_services": [
+          0.64882903,
+          0.62414292,
+          0.75263453,
+          0.72417976,
+          0.60900009
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.48595734,
+        "row_id": "v3_dev_seismic_cluster:820000",
+        "solved": true,
+        "tail_minimum_services": [
+          0.67051232,
+          0.58565706,
+          0.5951291,
+          0.60876388,
+          0.58297084
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "assessment_tail_targets_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.44493758,
+        "row_id": "v3_dev_seismic_cluster:820001",
+        "solved": false,
+        "tail_minimum_services": [
+          0.53545258,
+          0.51848212,
+          0.50525889,
+          0.51983569,
+          0.51374981
+        ],
+        "target_met_by_service": [
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.56341182,
+        "row_id": "v3_dev_seismic_cluster:820002",
+        "solved": true,
+        "tail_minimum_services": [
+          0.79218749,
+          0.71847974,
+          0.62812387,
+          0.71093052,
+          0.63822026
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.48073102,
+        "row_id": "v3_dev_seismic_cluster:820003",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60563292,
+          0.58389395,
+          0.55552683,
+          0.57530974,
+          0.56329732
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "assessment_tail_targets_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.4511002,
+        "row_id": "v3_dev_seismic_cluster:820004",
+        "solved": false,
+        "tail_minimum_services": [
+          0.55466387,
+          0.5471734,
+          0.52526115,
+          0.53534483,
+          0.52398945
+        ],
+        "target_met_by_service": [
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.45498043,
+        "row_id": "v3_dev_seismic_cluster:820005",
+        "solved": true,
+        "tail_minimum_services": [
+          0.66002419,
+          0.61232973,
+          0.58897827,
+          0.61650672,
+          0.59730694
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.46555949,
+        "row_id": "v3_dev_seismic_cluster:820006",
+        "solved": true,
+        "tail_minimum_services": [
+          0.61689295,
+          0.59187729,
+          0.56210287,
+          0.59044458,
+          0.56585078
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "assessment_tail_targets_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.48255456,
+        "row_id": "v3_dev_seismic_cluster:820007",
+        "solved": false,
+        "tail_minimum_services": [
+          0.55738319,
+          0.55167508,
+          0.53202114,
+          0.5326506,
+          0.53991081
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.54647106,
+        "row_id": "v3_dev_health_compound:820000",
+        "solved": true,
+        "tail_minimum_services": [
+          0.633319,
+          0.62114131,
+          0.64676166,
+          0.79910493,
+          0.64902561
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.44738637,
+        "row_id": "v3_dev_health_compound:820001",
+        "solved": true,
+        "tail_minimum_services": [
+          0.56532417,
+          0.56040232,
+          0.57663681,
+          0.59848328,
+          0.57218497
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.48729807,
+        "row_id": "v3_dev_health_compound:820002",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60219245,
+          0.59575672,
+          0.62442088,
+          0.69307986,
+          0.63005838
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.45903715,
+        "row_id": "v3_dev_health_compound:820003",
+        "solved": true,
+        "tail_minimum_services": [
+          0.57848507,
+          0.56804395,
+          0.57498632,
+          0.56924996,
+          0.56840319
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.50205561,
+        "row_id": "v3_dev_health_compound:820004",
+        "solved": true,
+        "tail_minimum_services": [
+          0.6012449,
+          0.60035248,
+          0.61568116,
+          0.71177756,
+          0.63561675
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.52559675,
+        "row_id": "v3_dev_health_compound:820005",
+        "solved": true,
+        "tail_minimum_services": [
+          0.60535411,
+          0.5905117,
+          0.63094935,
+          0.75233985,
+          0.64938724
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.54194995,
+        "row_id": "v3_dev_health_compound:820006",
+        "solved": true,
+        "tail_minimum_services": [
+          0.65247158,
+          0.66229933,
+          0.67837579,
+          0.82467726,
+          0.73028136
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+        "reason_codes": [
+          "resilience_auc_met",
+          "critical_service_day_cap_met"
+        ],
+        "recovery_targets": [
+          0.55,
+          0.55,
+          0.55,
+          0.55,
+          0.55
+        ],
+        "resilience_auc": 0.43007141,
+        "row_id": "v3_dev_health_compound:820007",
+        "solved": false,
+        "tail_minimum_services": [
+          0.57883539,
+          0.56454011,
+          0.58306886,
+          0.61700066,
+          0.5849274
+        ],
+        "target_met_by_service": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "solve_rate": 0.8,
+    "solved_count": 32
+  },
+  "initialization_match": {
+    "all_observation_rms_hashes_match": true,
+    "all_policy_hashes_match": true,
+    "all_return_rms_hashes_match": true,
+    "arms": {
+      "risk_averse": {
+        "observation_rms_sha256": "63da5cdc0863049fbf76bf20bf52428f10d4b473063ba82e45928368efcf1f34",
+        "policy_sha256": "37fe8eea15f2df7f30e1236567c0c32c2cbca3a8b0e90d0aee7fca0d6e4338dc",
+        "return_rms_sha256": "3fd67bc5b3ce298e0b68d7d0b1010fbc4edd62fa59f35862dd4c0a970d6cbae9"
+      },
+      "v3_equivalent": {
+        "observation_rms_sha256": "63da5cdc0863049fbf76bf20bf52428f10d4b473063ba82e45928368efcf1f34",
+        "policy_sha256": "37fe8eea15f2df7f30e1236567c0c32c2cbca3a8b0e90d0aee7fca0d6e4338dc",
+        "return_rms_sha256": "3fd67bc5b3ce298e0b68d7d0b1010fbc4edd62fa59f35862dd4c0a970d6cbae9"
+      }
+    }
+  },
+  "profiles": {
+    "risk_averse": {
+      "completed_transitions": 200000,
+      "development": {
+        "case_count": 40,
+        "failure_reason_code_histogram": {
+          "assessment_tail_targets_met": 40,
+          "critical_service_day_cap_met": 4,
+          "resilience_auc_met": 37
+        },
+        "hard_violation_count": 0,
+        "maximum_conservation_residual": 0.0,
+        "mean_resilience_auc": 0.4093085635,
+        "rows": [
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.37842232,
+            "row_id": "v3_dev_river_flood:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.37868216,
+              0.35943461,
+              0.45819855,
+              0.47952401,
+              0.38295275
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40671961,
+            "row_id": "v3_dev_river_flood:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40446204,
+              0.3337193,
+              0.4736872,
+              0.40864423,
+              0.34524729
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42246931,
+            "row_id": "v3_dev_river_flood:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.398661,
+              0.39913045,
+              0.55108304,
+              0.46558167,
+              0.41919646
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38946861,
+            "row_id": "v3_dev_river_flood:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38080815,
+              0.37599289,
+              0.4093056,
+              0.46839348,
+              0.37868105
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.3904703,
+            "row_id": "v3_dev_river_flood:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43028671,
+              0.39983663,
+              0.55593463,
+              0.47797947,
+              0.43239049
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42581556,
+            "row_id": "v3_dev_river_flood:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.41207427,
+              0.41478971,
+              0.4591393,
+              0.45873499,
+              0.40814218
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41040996,
+            "row_id": "v3_dev_river_flood:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39280173,
+              0.35155221,
+              0.42920946,
+              0.43158481,
+              0.33833119
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.37620922,
+            "row_id": "v3_dev_river_flood:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38998711,
+              0.32080879,
+              0.4349309,
+              0.53648342,
+              0.38662963
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38524536,
+            "row_id": "v3_dev_industrial_outage:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.3518247,
+              0.37717928,
+              0.38422089,
+              0.46541023,
+              0.35852707
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39355216,
+            "row_id": "v3_dev_industrial_outage:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39505826,
+              0.45938025,
+              0.4376125,
+              0.42419276,
+              0.4363103
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41073281,
+            "row_id": "v3_dev_industrial_outage:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40519813,
+              0.41234148,
+              0.47065176,
+              0.42185443,
+              0.38806439
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39685531,
+            "row_id": "v3_dev_industrial_outage:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40636055,
+              0.44065825,
+              0.45598588,
+              0.3859567,
+              0.43418619
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41743556,
+            "row_id": "v3_dev_industrial_outage:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38850485,
+              0.42861995,
+              0.50669644,
+              0.45755278,
+              0.46276653
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39851693,
+            "row_id": "v3_dev_industrial_outage:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.37697189,
+              0.47012627,
+              0.42459851,
+              0.39719008,
+              0.46362103
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41191645,
+            "row_id": "v3_dev_industrial_outage:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38697284,
+              0.41045446,
+              0.46483371,
+              0.43796373,
+              0.42357116
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39192312,
+            "row_id": "v3_dev_industrial_outage:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40855338,
+              0.43123189,
+              0.45980565,
+              0.45495361,
+              0.43469415
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4151058,
+            "row_id": "v3_dev_logistics_strike:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39328411,
+              0.42892766,
+              0.45666582,
+              0.44896613,
+              0.40889447
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40096996,
+            "row_id": "v3_dev_logistics_strike:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.36428592,
+              0.39381022,
+              0.395598,
+              0.43618656,
+              0.36479436
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40065641,
+            "row_id": "v3_dev_logistics_strike:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38841033,
+              0.37283253,
+              0.46258233,
+              0.41896426,
+              0.35093751
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.45884215,
+            "row_id": "v3_dev_logistics_strike:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.41457482,
+              0.47303466,
+              0.58270686,
+              0.45398998,
+              0.47708776
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44787763,
+            "row_id": "v3_dev_logistics_strike:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39039035,
+              0.43368115,
+              0.54827504,
+              0.45071504,
+              0.41551419
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4259117,
+            "row_id": "v3_dev_logistics_strike:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40538214,
+              0.40474617,
+              0.45052599,
+              0.39021278,
+              0.34612536
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.43995337,
+            "row_id": "v3_dev_logistics_strike:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.3849757,
+              0.4451078,
+              0.56625349,
+              0.4257263,
+              0.44025747
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.43393244,
+            "row_id": "v3_dev_logistics_strike:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.42668925,
+              0.47047634,
+              0.52661954,
+              0.46053621,
+              0.44928821
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41222913,
+            "row_id": "v3_dev_seismic_cluster:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.41132362,
+              0.42373924,
+              0.49245267,
+              0.36345252,
+              0.40497035
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38699337,
+            "row_id": "v3_dev_seismic_cluster:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.37938663,
+              0.34101809,
+              0.35514797,
+              0.41920885,
+              0.3468221
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.46541895,
+            "row_id": "v3_dev_seismic_cluster:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.45465881,
+              0.49696175,
+              0.54434036,
+              0.39867617,
+              0.46357847
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41705679,
+            "row_id": "v3_dev_seismic_cluster:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43768757,
+              0.42702089,
+              0.42352788,
+              0.39423126,
+              0.37467566
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38809417,
+            "row_id": "v3_dev_seismic_cluster:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.41901044,
+              0.33076801,
+              0.39500114,
+              0.38650075,
+              0.30645473
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39896384,
+            "row_id": "v3_dev_seismic_cluster:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43557915,
+              0.43459633,
+              0.54452964,
+              0.43745404,
+              0.46519711
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39833197,
+            "row_id": "v3_dev_seismic_cluster:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.4147863,
+              0.42577054,
+              0.40369793,
+              0.4053514,
+              0.39243985
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42201812,
+            "row_id": "v3_dev_seismic_cluster:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.41465996,
+              0.37090196,
+              0.41972739,
+              0.41454174,
+              0.33622286
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42509648,
+            "row_id": "v3_dev_health_compound:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.42470708,
+              0.45599045,
+              0.49183992,
+              0.39653131,
+              0.37989297
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38898479,
+            "row_id": "v3_dev_health_compound:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40941052,
+              0.45922852,
+              0.37614513,
+              0.3805086,
+              0.41318364
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40027818,
+            "row_id": "v3_dev_health_compound:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.45226418,
+              0.44761026,
+              0.52802487,
+              0.39914319,
+              0.41188682
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.3932534,
+            "row_id": "v3_dev_health_compound:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43382644,
+              0.38935548,
+              0.48016511,
+              0.30011936,
+              0.32623787
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42009563,
+            "row_id": "v3_dev_health_compound:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38745988,
+              0.40971996,
+              0.43330793,
+              0.42405563,
+              0.4031629
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41365262,
+            "row_id": "v3_dev_health_compound:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39573723,
+              0.35656978,
+              0.46803463,
+              0.42658775,
+              0.34966326
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.43440188,
+            "row_id": "v3_dev_health_compound:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38000919,
+              0.5147885,
+              0.48170511,
+              0.38891697,
+              0.48611153
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.37806117,
+            "row_id": "v3_dev_health_compound:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.37500147,
+              0.39876441,
+              0.44885781,
+              0.44857469,
+              0.3563084
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          }
+        ],
+        "solve_rate": 0.0,
+        "solved_count": 0
+      },
+      "elapsed_seconds": 102.911,
+      "policy_state_sha256": "9adbb8187bcf3bda4f89b51105aab36852ec729b19ddd1cea42bc721865e0154",
+      "reward_profile": "risk_averse",
+      "training_fps": 1943.435,
+      "vecnormalize": {
+        "clip_obs": 10.0,
+        "clip_reward": 10.0,
+        "epsilon": 1e-08,
+        "gamma": 0.99,
+        "norm_obs": true,
+        "norm_reward_during_evaluation": false,
+        "norm_reward_during_training": true,
+        "observation_rms_sha256": "958c27069947c07c25f7111f8b03c8866e57a2e018d03ba046ad182a43bc9440",
+        "return_rms_sha256": "88d7d5c890200ed39c8b1dc400c3a60452ab986871e6f3af547a96428e1d8127",
+        "training_during_evaluation": false
+      }
+    },
+    "v3_equivalent": {
+      "completed_transitions": 200000,
+      "development": {
+        "case_count": 40,
+        "failure_reason_code_histogram": {
+          "assessment_tail_targets_met": 40,
+          "critical_service_day_cap_met": 6,
+          "resilience_auc_met": 26,
+          "terminal_pending_within_capacity": 2
+        },
+        "hard_violation_count": 0,
+        "maximum_conservation_residual": 0.0,
+        "mean_resilience_auc": 0.4226265475,
+        "rows": [
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.3921986,
+            "row_id": "v3_dev_river_flood:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.4347036,
+              0.32523777,
+              0.50754414,
+              0.46473859,
+              0.40371885
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41503827,
+            "row_id": "v3_dev_river_flood:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.44449254,
+              0.34503185,
+              0.52879061,
+              0.42648289,
+              0.44967521
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4494294,
+            "row_id": "v3_dev_river_flood:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.48310407,
+              0.31462112,
+              0.60248167,
+              0.59141176,
+              0.53030499
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39082592,
+            "row_id": "v3_dev_river_flood:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.38389567,
+              0.31507414,
+              0.4749859,
+              0.46415438,
+              0.42362404
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41421743,
+            "row_id": "v3_dev_river_flood:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.53179557,
+              0.34973744,
+              0.6244377,
+              0.55725358,
+              0.54618722
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44669734,
+            "row_id": "v3_dev_river_flood:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.46079919,
+              0.3705057,
+              0.49724484,
+              0.54601324,
+              0.52475036
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44861536,
+            "row_id": "v3_dev_river_flood:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.40886981,
+              0.39830644,
+              0.49872314,
+              0.49611077,
+              0.43256587
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38268542,
+            "row_id": "v3_dev_river_flood:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39513863,
+              0.30627026,
+              0.52168025,
+              0.42914763,
+              0.39820386
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.37532801,
+            "row_id": "v3_dev_industrial_outage:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.34756492,
+              0.30582209,
+              0.44603258,
+              0.42878134,
+              0.42395025
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39898814,
+            "row_id": "v3_dev_industrial_outage:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.47971988,
+              0.34976492,
+              0.47893433,
+              0.49575888,
+              0.54334366
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42155691,
+            "row_id": "v3_dev_industrial_outage:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.45953189,
+              0.39253657,
+              0.50829651,
+              0.43701741,
+              0.52911636
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40837266,
+            "row_id": "v3_dev_industrial_outage:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.49898483,
+              0.33517116,
+              0.4936302,
+              0.48374418,
+              0.57550801
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44296954,
+            "row_id": "v3_dev_industrial_outage:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.50308046,
+              0.4063188,
+              0.55900023,
+              0.57702258,
+              0.58575038
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.41444135,
+            "row_id": "v3_dev_industrial_outage:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.52443717,
+              0.34250211,
+              0.46499273,
+              0.51112525,
+              0.62570334
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.443503,
+            "row_id": "v3_dev_industrial_outage:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.47553109,
+              0.41718307,
+              0.5300665,
+              0.56435826,
+              0.55759165
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              true,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38997006,
+            "row_id": "v3_dev_industrial_outage:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.46357782,
+              0.35483926,
+              0.48229804,
+              0.48103161,
+              0.49530519
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4248587,
+            "row_id": "v3_dev_logistics_strike:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43467032,
+              0.29955866,
+              0.52034663,
+              0.53334161,
+              0.49766104
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40462277,
+            "row_id": "v3_dev_logistics_strike:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39626453,
+              0.30460376,
+              0.42396076,
+              0.46357579,
+              0.44289017
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40669239,
+            "row_id": "v3_dev_logistics_strike:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.43045621,
+              0.3149818,
+              0.52243806,
+              0.49826988,
+              0.43073046
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "terminal_pending_within_capacity"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.47840622,
+            "row_id": "v3_dev_logistics_strike:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.56219373,
+              0.30200748,
+              0.6577875,
+              0.65000821,
+              0.61905401
+            ],
+            "target_met_by_service": [
+              true,
+              false,
+              true,
+              true,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.47783088,
+            "row_id": "v3_dev_logistics_strike:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.48731683,
+              0.3505679,
+              0.60439553,
+              0.60632992,
+              0.58121615
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.43333021,
+            "row_id": "v3_dev_logistics_strike:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.45699021,
+              0.30734969,
+              0.5217886,
+              0.41831732,
+              0.44488033
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.46404459,
+            "row_id": "v3_dev_logistics_strike:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.53911701,
+              0.32053531,
+              0.63338598,
+              0.63216681,
+              0.62109664
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44758127,
+            "row_id": "v3_dev_logistics_strike:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.48971174,
+              0.35843348,
+              0.59496951,
+              0.5915053,
+              0.5098123
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              true,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42017624,
+            "row_id": "v3_dev_seismic_cluster:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.50602979,
+              0.40495686,
+              0.53484652,
+              0.44969735,
+              0.47821426
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.37913703,
+            "row_id": "v3_dev_seismic_cluster:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39934662,
+              0.30421535,
+              0.4153423,
+              0.38713816,
+              0.35218619
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.46859287,
+            "row_id": "v3_dev_seismic_cluster:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.58838212,
+              0.30756209,
+              0.63021406,
+              0.5341039,
+              0.57443266
+            ],
+            "target_met_by_service": [
+              true,
+              false,
+              true,
+              false,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.39431098,
+            "row_id": "v3_dev_seismic_cluster:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.42244405,
+              0.30898416,
+              0.4166716,
+              0.36675578,
+              0.41388327
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38485791,
+            "row_id": "v3_dev_seismic_cluster:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39472082,
+              0.30374942,
+              0.45860012,
+              0.37547631,
+              0.33255839
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40608309,
+            "row_id": "v3_dev_seismic_cluster:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.56574468,
+              0.3571971,
+              0.58421967,
+              0.52643147,
+              0.54317696
+            ],
+            "target_met_by_service": [
+              true,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4028154,
+            "row_id": "v3_dev_seismic_cluster:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.46445273,
+              0.34439845,
+              0.41002286,
+              0.42913737,
+              0.43965593
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40973293,
+            "row_id": "v3_dev_seismic_cluster:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.39026085,
+              0.32704031,
+              0.44142198,
+              0.41017144,
+              0.42612115
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.48145114,
+            "row_id": "v3_dev_health_compound:820000",
+            "solved": false,
+            "tail_minimum_services": [
+              0.56098265,
+              0.46609789,
+              0.53957869,
+              0.48390048,
+              0.50059824
+            ],
+            "target_met_by_service": [
+              true,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38887117,
+            "row_id": "v3_dev_health_compound:820001",
+            "solved": false,
+            "tail_minimum_services": [
+              0.44958483,
+              0.3597753,
+              0.50029239,
+              0.39713164,
+              0.46879098
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.42720989,
+            "row_id": "v3_dev_health_compound:820002",
+            "solved": false,
+            "tail_minimum_services": [
+              0.52203204,
+              0.45730864,
+              0.55755012,
+              0.47884379,
+              0.52848392
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.40680325,
+            "row_id": "v3_dev_health_compound:820003",
+            "solved": false,
+            "tail_minimum_services": [
+              0.48170512,
+              0.39354164,
+              0.52773585,
+              0.37345729,
+              0.44267989
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.44339248,
+            "row_id": "v3_dev_health_compound:820004",
+            "solved": false,
+            "tail_minimum_services": [
+              0.45781282,
+              0.35620429,
+              0.50348384,
+              0.52158859,
+              0.53887283
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.45768916,
+            "row_id": "v3_dev_health_compound:820005",
+            "solved": false,
+            "tail_minimum_services": [
+              0.49629863,
+              0.45257674,
+              0.52518263,
+              0.50529774,
+              0.47732488
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "terminal_pending_within_capacity"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.4745705,
+            "row_id": "v3_dev_health_compound:820006",
+            "solved": false,
+            "tail_minimum_services": [
+              0.58271045,
+              0.39233429,
+              0.58854976,
+              0.54547651,
+              0.68122762
+            ],
+            "target_met_by_service": [
+              true,
+              false,
+              true,
+              false,
+              true
+            ]
+          },
+          {
+            "hard_violation_count": 0,
+            "max_conservation_residual": 0.0,
+            "reason_codes": [
+              "assessment_tail_targets_met",
+              "resilience_auc_met",
+              "critical_service_day_cap_met"
+            ],
+            "recovery_targets": [
+              0.55,
+              0.55,
+              0.55,
+              0.55,
+              0.55
+            ],
+            "resilience_auc": 0.38716342,
+            "row_id": "v3_dev_health_compound:820007",
+            "solved": false,
+            "tail_minimum_services": [
+              0.44383574,
+              0.37748575,
+              0.49193816,
+              0.47885843,
+              0.46194809
+            ],
+            "target_met_by_service": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ]
+          }
+        ],
+        "solve_rate": 0.0,
+        "solved_count": 0
+      },
+      "elapsed_seconds": 99.588,
+      "policy_state_sha256": "e61e59730d4ec2e51cbf7bd92ee1730505e28cd18a54d1782eed3af23e4e8578",
+      "reward_profile": "v3_equivalent",
+      "training_fps": 2008.266,
+      "vecnormalize": {
+        "clip_obs": 10.0,
+        "clip_reward": 10.0,
+        "epsilon": 1e-08,
+        "gamma": 0.99,
+        "norm_obs": true,
+        "norm_reward_during_evaluation": false,
+        "norm_reward_during_training": true,
+        "observation_rms_sha256": "0b16367dca111435cfd543df81726357fca17f3eae910d689c0779a4009dd461",
+        "return_rms_sha256": "9606d810b34000a998206b57ba8d85c41a3e5bfb97925a6cd91ee43e21750fdb",
+        "training_during_evaluation": false
+      }
+    }
+  },
+  "same_tapes": true,
+  "schema_version": 1,
+  "selects_or_exports_policy": false,
+  "split": "dev",
+  "status": "developmental_reward_smoke_nonauthorizing",
+  "tool": "smoke_train_v4.py",
+  "treatment": "reward_profile_only",
+  "uses_development_split_for_evaluation": true,
+  "uses_final_split": false,
+  "uses_training_split_for_learning": true
+}

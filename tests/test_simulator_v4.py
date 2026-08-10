@@ -21,7 +21,13 @@ def _fixture() -> tuple[object, int, list[object]]:
 def test_v4_optimization_preserves_the_frozen_v3_transition() -> None:
     scenario, seed, schedule = _fixture()
     frozen = CityRecoveryEnvV3(scenario, seed, schedule)
-    optimized = CityRecoveryEnvV4(scenario, seed, schedule, collect_evidence=True)
+    optimized = CityRecoveryEnvV4(
+        scenario,
+        seed,
+        schedule,
+        collect_evidence=True,
+        reward_profile="v3_equivalent",
+    )
     frozen_observation, frozen_info = frozen.reset(seed=seed)
     optimized_observation, optimized_info = optimized.reset(seed=seed)
     np.testing.assert_array_equal(frozen_observation, optimized_observation)
@@ -90,7 +96,7 @@ def test_v4_evidence_collection_does_not_change_numeric_trajectory() -> None:
                 "logistics",
             )
         }
-        assert len(training_day) <= (8 if training_step[2] else 6)
+        assert len(training_day) <= (10 if training_step[2] else 6)
         assert len(evidence_day) > 30
         terminated = evidence_step[2]
 
@@ -98,3 +104,77 @@ def test_v4_evidence_collection_does_not_change_numeric_trajectory() -> None:
         evidence_env.trajectory[-1]["absolute_outcome"]
         == training_env.trajectory[-1]["absolute_outcome"]
     )
+
+
+def test_risk_averse_daily_reward_is_the_registered_v3_delta() -> None:
+    scenario, seed, schedule = _fixture()
+    baseline = CityRecoveryEnvV4(
+        scenario,
+        seed,
+        schedule,
+        collect_evidence=True,
+        reward_profile="v3_equivalent",
+    )
+    risk_averse = CityRecoveryEnvV4(
+        scenario,
+        seed,
+        schedule,
+        collect_evidence=True,
+        reward_profile="risk_averse",
+    )
+    baseline.reset(seed=seed)
+    risk_averse.reset(seed=seed)
+    action = np.zeros(ACTION_SIZE_V3)
+    baseline_step = baseline.step(action)
+    risk_step = risk_averse.step(action)
+
+    np.testing.assert_array_equal(baseline_step[0], risk_step[0])
+    baseline_day = baseline_step[4]["day"]
+    risk_day = risk_step[4]["day"]
+    assert baseline_day["services_end"] == risk_day["services_end"]
+
+    end = np.asarray(risk_day["services_end"], dtype=np.float64)
+    targets = np.asarray(scenario.recovery_targets, dtype=np.float64)
+    shortfalls = np.maximum(0.0, targets - end)
+    expected_reward_delta = (
+        0.70 * float(np.mean(shortfalls))
+        - 2.50 * float(np.max(shortfalls))
+        + 0.60 * float(np.clip(np.min(end - targets), -0.10, 0.05))
+        - 8.00 * float(risk_day["preparedness_alignment_reward"])
+    )
+    np.testing.assert_allclose(
+        risk_step[1] - baseline_step[1],
+        expected_reward_delta,
+        rtol=0.0,
+        atol=1e-7,
+    )
+
+
+def test_risk_averse_terminal_signal_uses_the_frozen_tail_check() -> None:
+    scenario, seed, schedule = _fixture()
+    env = CityRecoveryEnvV4(
+        scenario,
+        seed,
+        schedule,
+        collect_evidence=True,
+        reward_profile="risk_averse",
+    )
+    env.reset(seed=seed)
+    terminated = False
+    while not terminated:
+        _, _, terminated, _, _ = env.step(np.zeros(ACTION_SIZE_V3))
+
+    terminal = env.trajectory[-1]
+    outcome = terminal["absolute_outcome"]
+    expected_margin = min(
+        realized - target
+        for realized, target in zip(
+            outcome["tail_minimum_services"],
+            outcome["recovery_targets"],
+            strict=True,
+        )
+    )
+    assert terminal["terminal_tail_targets_met"] is outcome["checks"][
+        "assessment_tail_targets_met"
+    ]
+    assert terminal["terminal_minimum_target_margin"] == round(expected_margin, 8)

@@ -31,6 +31,7 @@ OBSERVATION_ORDER_V4 = frozen_v3.OBSERVATION_ORDER_V3
 OBSERVATION_SIZE_V4 = frozen_v3.OBSERVATION_SIZE_V3
 ENGINE_V4_ID = "CityRecoveryEnv-v4"
 ENGINE_V4_VERSION = "4.0.0"
+REWARD_PROFILES_V4 = ("v3_equivalent", "risk_averse")
 
 ACTION_SIZE_V3 = frozen_v3.ACTION_SIZE_V3
 CONSERVATION_TOLERANCE_V3 = frozen_v3.CONSERVATION_TOLERANCE_V3
@@ -131,11 +132,17 @@ class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
         schedule: Sequence[frozen_v3.ShockV3] | None = None,
         *,
         collect_evidence: bool = True,
+        reward_profile: str = "risk_averse",
     ):
         if not isinstance(collect_evidence, bool):
             raise TypeError("collect_evidence must be a boolean")
+        if reward_profile not in REWARD_PROFILES_V4:
+            raise ValueError(
+                f"reward_profile must be one of {', '.join(REWARD_PROFILES_V4)}"
+            )
         super().__init__(scenario, shock_seed, schedule)
         self.collect_evidence = collect_evidence
+        self.reward_profile = reward_profile
 
     def reset(
         self,
@@ -357,30 +364,51 @@ class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
         resilience = float(self._normalized_priorities @ end)
         shocked_resilience = float(self._normalized_priorities @ context.shocked)
         critical_count = int(np.count_nonzero(end < CRITICAL_SERVICE_FLOOR))
-        target_gap = float(np.mean(np.maximum(0.0, context.recovery_targets - end)))
+        target_shortfalls = np.maximum(0.0, context.recovery_targets - end)
+        mean_target_gap = float(np.mean(target_shortfalls))
+        worst_target_gap = float(np.max(target_shortfalls))
+        target_margin = float(np.min(end - context.recovery_targets))
         critical_shortfall = float(
             np.mean(np.maximum(0.0, CRITICAL_SERVICE_FLOOR - end))
         )
         assessment_target_penalty = (
-            2.0 * target_gap if context.shock.assessment_tail else 0.0
+            2.0 * mean_target_gap if context.shock.assessment_tail else 0.0
         )
         expected_next_impact = SHOCK_IMPACTS.T @ context.public_risk_next
         preparedness_alignment = float(expected_next_impact @ preparedness_gain)
-        reward = (
-            1.50 * resilience
-            + 0.75 * (resilience - shocked_resilience)
-            - 0.35 * critical_count
-            - 1.00 * target_gap
-            - 1.20 * critical_shortfall
-            - assessment_target_penalty
-            - 0.25 * backlog_pressure
-            + 10.0 * preparedness_alignment
-            - 0.0001
-            * (
-                intervention.material_projection["distance"] / context.available_budget
-                + intervention.crew_projection["distance"] / context.available_crew
-            )
+        projection_cost = 0.0001 * (
+            intervention.material_projection["distance"] / context.available_budget
+            + intervention.crew_projection["distance"] / context.available_crew
         )
+        if self.reward_profile == "v3_equivalent":
+            reward = (
+                1.50 * resilience
+                + 0.75 * (resilience - shocked_resilience)
+                - 0.35 * critical_count
+                - 1.00 * mean_target_gap
+                - 1.20 * critical_shortfall
+                - assessment_target_penalty
+                - 0.25 * backlog_pressure
+                + 10.0 * preparedness_alignment
+                - projection_cost
+            )
+        else:
+            # CVaR_(1/5): with five services, the one-sector lower tail is the
+            # worst-served sector. Emergency recovery should protect that tail,
+            # not let surplus in one service average away another's shortfall.
+            reward = (
+                1.50 * resilience
+                + 0.75 * (resilience - shocked_resilience)
+                - 0.35 * critical_count
+                - 0.30 * mean_target_gap
+                - 2.50 * worst_target_gap
+                + 0.60 * float(np.clip(target_margin, -0.10, 0.05))
+                - 1.20 * critical_shortfall
+                - assessment_target_penalty
+                - 0.25 * backlog_pressure
+                + 2.00 * preparedness_alignment
+                - projection_cost
+            )
         conservation_residual = (
             context.stock_before
             + context.pending_arrivals
@@ -576,29 +604,64 @@ class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
                 self.scenario.recovery_targets,
                 self.scenario.assessment_tail_days,
             )
-            tail_shortfall = float(
-                np.sum(
-                    np.maximum(
-                        0.0,
-                        np.asarray(outcome["recovery_targets"])
-                        - np.asarray(outcome["tail_minimum_services"]),
+            if self.reward_profile == "v3_equivalent":
+                tail_shortfall = float(
+                    np.sum(
+                        np.maximum(
+                            0.0,
+                            np.asarray(outcome["recovery_targets"])
+                            - np.asarray(outcome["tail_minimum_services"]),
+                        )
                     )
                 )
-            )
             critical_excess = max(
                 0,
                 outcome["critical_service_days"] - outcome["critical_service_day_cap"],
             )
-            terminal_bonus = (
-                12.0
-                if outcome["solved"]
-                else -(
-                    8.0 * tail_shortfall
-                    + 0.20 * critical_excess
-                    + 5.0 * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
-                    + 1.5 * len(outcome["reason_codes"])
+            if self.reward_profile == "v3_equivalent":
+                terminal_bonus = (
+                    12.0
+                    if outcome["solved"]
+                    else -(
+                        8.0 * tail_shortfall
+                        + 0.20 * critical_excess
+                        + 5.0
+                        * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
+                        + 1.5 * len(outcome["reason_codes"])
+                    )
                 )
-            )
+            else:
+                realized_minimum_margin = float(
+                    np.min(
+                        np.asarray(outcome["tail_minimum_services"])
+                        - np.asarray(outcome["recovery_targets"])
+                    )
+                )
+                tail_targets_met = bool(
+                    outcome["checks"]["assessment_tail_targets_met"]
+                )
+                target_component = (
+                    12.0
+                    + 40.0 * float(np.clip(realized_minimum_margin, 0.0, 0.05))
+                    if tail_targets_met
+                    else -12.0
+                    - 40.0 * float(np.clip(-realized_minimum_margin, 0.0, 0.10))
+                )
+                non_target_failures = sum(
+                    reason != "assessment_tail_targets_met"
+                    for reason in outcome["reason_codes"]
+                )
+                terminal_bonus = (
+                    target_component
+                    - 0.20 * critical_excess
+                    - 5.0
+                    * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
+                    - 1.5 * non_target_failures
+                )
+                record["terminal_minimum_target_margin"] = round(
+                    realized_minimum_margin, 8
+                )
+                record["terminal_tail_targets_met"] = tail_targets_met
             reward += terminal_bonus
             record["terminal_bonus"] = round(float(terminal_bonus), 8)
             record["reward"] = round(float(reward), 8)
@@ -609,6 +672,7 @@ class CityRecoveryEnvV4(frozen_v3.CityRecoveryEnvV3):
             self._context = self._make_context()
             observation = self._observation()
         return observation, float(reward), self._terminated, False, {"day": record}
+
     def render(self) -> list[dict[str, Any]]:
         return list(self.trajectory)
 
@@ -621,6 +685,7 @@ class CyclingScenarioEnvV4(gym.Env[np.ndarray, np.ndarray]):
         scenarios: list[tuple[ScenarioV3, int]],
         *,
         collect_evidence: bool = True,
+        reward_profile: str = "risk_averse",
     ):
         if not scenarios:
             raise ValueError("at least one v4 training scenario is required")
@@ -642,6 +707,7 @@ class CyclingScenarioEnvV4(gym.Env[np.ndarray, np.ndarray]):
             first_seed,
             first_schedule,
             collect_evidence=collect_evidence,
+            reward_profile=reward_profile,
         )
         self.observation_space = self.inner.observation_space
         self.action_space = self.inner.action_space
@@ -677,6 +743,7 @@ def rollout_candidate_v4(
     schedule: Sequence[frozen_v3.ShockV3] | None = None,
     *,
     collect_evidence: bool = True,
+    reward_profile: str = "risk_averse",
 ) -> dict[str, Any]:
     shared_schedule = (
         frozen_v3.generate_disaster_tape_v3(scenario, seed)
@@ -688,6 +755,7 @@ def rollout_candidate_v4(
         seed,
         shared_schedule,
         collect_evidence=collect_evidence,
+        reward_profile=reward_profile,
     )
     observation, _ = env.reset(seed=seed)
     terminated = False
