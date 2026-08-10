@@ -1,8 +1,8 @@
 # Training deployment plan
 
-This document records the gated path from durable training checkpoints to a served model. It is a plan, not an authorization to run compute or publish a model. Stage 0 must be implemented and verified before the next owner-authorized training run; stages 1–5 start only after the owner identifies that run's completed receipt and explicitly authorizes checkpoint selection and deployment work.
+This document records the gated path from durable training checkpoints to a served model. It is a plan, not an authorization to run compute or publish a model. Stage 0 is a pre-training prerequisite that must be implemented and verified before the next owner-authorized training run. Stages 1–5 begin only after the owner identifies that run's completed receipt and explicitly authorizes checkpoint selection and deployment work.
 
-The phase has six ordered stages: make checkpoints durable, select on development cases, export the selected actor, prove SB3-to-ONNX parity, connect the selected artifact to the application, and pass the publication gates. Every performance decision in these stages uses the 40 development cases.
+The plan therefore has one pre-training stage and five ordered post-training stages: select on development cases, export the selected actor, prove SB3-to-ONNX parity, publish descriptive metadata, and connect the selected artifact to the application. Every performance decision in Stages 1–5 uses the 40 development cases.
 
 ## 0. Make milestone checkpoints durable before training
 
