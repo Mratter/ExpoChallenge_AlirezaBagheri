@@ -20,8 +20,6 @@ from backend.app.simulator_v3 import (
     ACTION_SIZE_V3,
     OBSERVATION_SIZE_V3,
     CityRecoveryEnvV3,
-    public_preparedness_curriculum_action_v3,
-    reactive_heuristic_action_v3,
 )
 
 
@@ -231,27 +229,6 @@ class SimulatorV3ContractTests(unittest.TestCase):
         )
         self.assertTrue(all(abs(value) <= 1e-9 for value in day["preparedness_gain"]))
         self.assertEqual(day["hard_violation_count"], 0)
-
-    def test_heuristic_uses_the_same_twenty_two_value_contract(self) -> None:
-        env = CityRecoveryEnvV3(self.scenario, self.seed)
-        observation, _ = env.reset(seed=self.seed)
-        action, evidence = reactive_heuristic_action_v3(observation)
-        self.assertEqual(action.shape, (ACTION_SIZE_V3,))
-        self.assertTrue(np.all(action >= -1.0) and np.all(action <= 1.0))
-        self.assertFalse(evidence["future_tape_visible"])
-        with self.assertRaises((TypeError, ValueError)):
-            reactive_heuristic_action_v3(env.current_context())
-
-    def test_curriculum_teacher_is_public_only_and_contract_compatible(self) -> None:
-        env = CityRecoveryEnvV3(self.scenario, self.seed)
-        observation, _ = env.reset(seed=self.seed)
-        action, evidence = public_preparedness_curriculum_action_v3(observation)
-        self.assertEqual(action.shape, (22,))
-        self.assertTrue(np.all(np.isfinite(action)))
-        self.assertTrue(np.all(action >= -1.0) and np.all(action <= 1.0))
-        self.assertEqual(evidence["teacher_id"], "public-preparedness-curriculum-v3")
-        self.assertTrue(evidence["uses_exact_public_observation"])
-        self.assertFalse(evidence["future_tape_visible"])
 
     def test_absolute_outcome_recomputes_from_trajectory(self) -> None:
         env = CityRecoveryEnvV3(self.scenario, self.seed)

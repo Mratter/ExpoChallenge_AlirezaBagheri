@@ -53,14 +53,15 @@ from backend.app.shared_evidence import (  # noqa: E402
     file_sha256,
     load_json_object,
 )
+from backend.app.city.optimizer import BASELINE_ID, ortools_proposal  # noqa: E402
+from backend.app.city.planners import (  # noqa: E402
+    tuned_rule_action,
+    weights_to_logits,
+)
 from backend.app.simulator_core import (  # noqa: E402
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
     SHOCKS,
-)
-from backend.app.simulator_v2 import (  # noqa: E402
-    BASELINE_V2_ID,
-    ortools_proposal_v2,
 )
 from backend.app.simulator_v3 import (  # noqa: E402
     ACTION_SIZE_V3,
@@ -68,10 +69,8 @@ from backend.app.simulator_v3 import (  # noqa: E402
     CRITICAL_SERVICE_FLOOR,
     OBSERVATION_SIZE_V3,
     ShockV3,
-    _weights_to_logits,
     _summarize_v3,
     generate_disaster_tape_v3,
-    reactive_heuristic_action_v3,
 )
 from backend.app.simulator_v4 import CityRecoveryEnvV4  # noqa: E402
 
@@ -268,18 +267,6 @@ def build_development_cases() -> list[HeadroomCase]:
     return cases
 
 
-def tuned_action(observation: np.ndarray) -> np.ndarray:
-    public = np.asarray(observation, dtype=np.float64).reshape(-1)
-    if public.shape != (OBSERVATION_SIZE_V3,):
-        raise HeadroomError("tuned rule requires the exact public observation")
-    action, _ = reactive_heuristic_action_v3(public)
-    preparedness = public[55:60]
-    expected_impact = SHOCK_IMPACTS.T @ public[68:73]
-    investment = np.clip(10.0 * expected_impact * (1.0 - preparedness), 0.0, 0.50)
-    action[17:22] = 2.0 * investment - 1.0
-    return np.asarray(action, dtype=np.float64)
-
-
 def _result_from_trajectory(
     trajectory: Sequence[dict[str, Any]], actions: np.ndarray
 ) -> PlannerResult:
@@ -359,7 +346,7 @@ def tuned_rollout(case: HeadroomCase) -> tuple[PlannerResult, np.ndarray]:
     actions: list[np.ndarray] = []
     terminated = False
     while not terminated:
-        action = tuned_action(observation)
+        action, _ = tuned_rule_action(observation)
         actions.append(action)
         observation, _, terminated, truncated, _ = environment.step(action)
         if truncated:
@@ -514,12 +501,12 @@ def _glop_seed(
         stock_ready=np.asarray(context.stock_ready, dtype=np.float64),
         throughput=np.asarray(context.throughput, dtype=np.float64),
     )
-    proposal, evidence = ortools_proposal_v2(adapter, priorities)
-    action = tuned_action(observation)
-    action[:5] = _weights_to_logits(proposal)
+    proposal, evidence = ortools_proposal(adapter, priorities)
+    action, _ = tuned_rule_action(observation)
+    action[:5] = weights_to_logits(proposal)
     action[5] = 1.0
     return action, {
-        "baseline_id": BASELINE_V2_ID,
+        "baseline_id": BASELINE_ID,
         "solver": evidence["solver"],
         "status": evidence["status"],
         "allocation_solution": evidence["allocation_solution"],
@@ -707,7 +694,7 @@ def _tuned_window(template: CityRecoveryEnvV4, horizon: int) -> np.ndarray:
     actions: list[np.ndarray] = []
     observation = environment._observation()
     for _ in range(horizon):
-        action = tuned_action(observation)
+        action, _ = tuned_rule_action(observation)
         actions.append(action)
         observation, _, terminated, _, _ = environment.step(action)
         if terminated:
@@ -1607,7 +1594,7 @@ def main() -> int:
         "planner_totals": totals,
         "mpc": {
             "method": "hybrid-glop-seeded-cem",
-            "baseline_v2_id": BASELINE_V2_ID,
+            "baseline_v2_id": BASELINE_ID,
             "future_tape_visible": False,
             "information": (
                 "current causal simulator state/history and exact public 73-value "

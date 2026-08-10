@@ -62,10 +62,10 @@ from backend.app.shared_evidence import (  # noqa: E402
     file_sha256,
     load_json_object as load_shared_json_object,
 )
+from backend.app.city.planners import preparedness_teacher_action  # noqa: E402
 from backend.app.simulator_v3 import (  # noqa: E402
     _summarize_v3,
     generate_disaster_tape_v3,
-    public_preparedness_curriculum_action_v3,
 )
 from backend.app.simulator_v4 import (  # noqa: E402
     ACTION_ORDER_V4,
@@ -754,7 +754,7 @@ def behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
         observation, _ = environment.reset(seed=tape_seed)
         terminated = False
         while not terminated:
-            action, evidence = public_preparedness_curriculum_action_v3(observation)
+            action, evidence = preparedness_teacher_action(observation)
             if evidence.get("future_tape_visible") is not False:
                 raise TrainingError("BC teacher exposed future tape information")
             observations.append(np.asarray(observation, dtype=np.float32).copy())
@@ -883,9 +883,7 @@ def policy_rollout_dataset(
         observation, _ = environment.reset(seed=tape_seed)
         terminated = False
         while not terminated:
-            teacher_action, evidence = public_preparedness_curriculum_action_v3(
-                observation
-            )
+            teacher_action, evidence = preparedness_teacher_action(observation)
             if (
                 evidence.get("teacher_id")
                 != "public-preparedness-curriculum-v3"

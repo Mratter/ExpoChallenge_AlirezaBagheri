@@ -28,18 +28,20 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.app.city.outcome import summarize_trajectory  # noqa: E402
+from backend.app.city.planners import (  # noqa: E402
+    preparedness_teacher_action,
+    reactive_heuristic_action,
+    tuned_rule_action,
+)
 from backend.app.city.scenarios import (  # noqa: E402
     DEVELOPMENT_FAMILIES,
     DEVELOPMENT_SEEDS,
     generate_disaster_tape,
 )
-from backend.app.simulator_core import SHOCK_IMPACTS  # noqa: E402
 from backend.app.simulator_v3 import (  # noqa: E402
     ACTION_ORDER_V3,
     OBSERVATION_ORDER_V3,
     CityRecoveryEnvV3,
-    public_preparedness_curriculum_action_v3,
-    reactive_heuristic_action_v3,
 )
 
 DEFAULT_ONNX_PATH = ROOT / "artifacts" / "city_recovery_ppo.v3.selected.onnx"
@@ -90,30 +92,6 @@ class ProbeRow:
     hard_violation_count: int
     max_conservation_residual: float
     trajectory_sha256: str
-
-
-def tuned_constant_action_v3(
-    observation: np.ndarray,
-) -> tuple[np.ndarray, dict[str, Any]]:
-    """Published public heuristic with the diagnosed preparedness constants."""
-
-    public = np.asarray(observation, dtype=np.float64).reshape(-1)
-    action, _ = reactive_heuristic_action_v3(public)
-    preparedness = public[55:60]
-    public_risk_next = public[68:73]
-    expected_impact = SHOCK_IMPACTS.T @ public_risk_next
-    preparedness_investment = np.clip(
-        10.0 * expected_impact * (1.0 - preparedness),
-        0.0,
-        0.50,
-    )
-    action[17:22] = 2.0 * preparedness_investment - 1.0
-    return np.asarray(action, dtype=np.float64), {
-        "planner_id": "tuned-constant-public-rule-v3",
-        "preparedness_multiplier": 10.0,
-        "preparedness_cap": 0.50,
-        "future_tape_visible": False,
-    }
 
 
 def _resolve_artifact_path(value: str) -> Path:
@@ -173,11 +151,11 @@ def _onnx_policy(path: Path) -> Policy:
 
 def resolve_policy(spec: str) -> Policy:
     if spec == "heuristic":
-        return Policy(spec, spec, reactive_heuristic_action_v3)
+        return Policy(spec, spec, reactive_heuristic_action)
     if spec == "teacher":
-        return Policy(spec, spec, public_preparedness_curriculum_action_v3)
+        return Policy(spec, spec, preparedness_teacher_action)
     if spec == "tuned":
-        return Policy(spec, spec, tuned_constant_action_v3)
+        return Policy(spec, spec, tuned_rule_action)
     if spec.startswith("onnx:"):
         value = spec.removeprefix("onnx:")
         if not value:
