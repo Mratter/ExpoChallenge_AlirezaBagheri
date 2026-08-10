@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from backend.app.models import ForcedShock, ScenarioV3 as ScenarioModel, ShockName
+from backend.app.models import ForcedShock, Scenario as ScenarioModel, ShockName
 from backend.app.city.physics import (
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,

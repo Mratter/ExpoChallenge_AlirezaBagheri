@@ -7,18 +7,20 @@ published reward used by the shipped model.
 """
 
 from __future__ import annotations
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 from backend.app.city.outcome import (
     CONSERVATION_TOLERANCE,
     CRITICAL_SERVICE_FLOOR,
+    SOLVED_DEFINITION,
     SOLVED_DEFINITION_SHA256,
     SOLVED_RAUC_FLOOR,
     absolute_outcome,
+    summarize_trajectory,
 )
 from backend.app.city.physics import (
     CONSTRAINT_TOLERANCE,
@@ -50,8 +52,12 @@ from backend.app.city.scenarios import (
     Shock,
     generate_disaster_tape,
 )
-from backend.app.models import ScenarioV3 as ScenarioModel
+from backend.app.city.planners import reactive_heuristic_action
+from backend.app.models import Scenario as ScenarioModel
 from backend.app.shared_evidence import canonical_hash
+
+if TYPE_CHECKING:
+    from model.policy import Policy
 
 ENGINE_ID = "CityRecoveryEnv-v3"
 ENGINE_VERSION = "3.0.0"
@@ -102,6 +108,13 @@ OBSERVATION_ORDER = (
     *(f"public_next_day_risk_{shock}" for shock in SHOCKS),
 )
 OBSERVATION_SIZE = len(OBSERVATION_ORDER)
+RAW_OBSERVATION_CONTRACT: dict[str, Any] = {
+    "source": "raw_environment_observation",
+    "input_name": "observation",
+    "dtype": "float32",
+    "shape": [OBSERVATION_SIZE],
+    "normalization": "embedded_in_onnx",
+}
 ENGINE_SPEC: dict[str, Any] = {
     "id": ENGINE_ID,
     "version": ENGINE_VERSION,
@@ -955,6 +968,134 @@ class CyclingScenarioEnv(gym.Env[np.ndarray, np.ndarray]):
         return self.inner.render()
 
 
+def rollout_policy(
+    scenario: ScenarioModel,
+    seed: int,
+    action_provider: Callable[[np.ndarray], np.ndarray],
+    schedule: Sequence[Shock] | None = None,
+) -> dict[str, Any]:
+    """Run one policy against a supplied or deterministically generated tape."""
+
+    shared_schedule = (
+        generate_disaster_tape(scenario, seed) if schedule is None else list(schedule)
+    )
+    environment = CityRecoveryEnv(scenario, seed, shared_schedule)
+    observation, _ = environment.reset(seed=seed)
+    terminated = False
+    while not terminated:
+        action = action_provider(observation)
+        observation, _, terminated, _, _ = environment.step(action)
+    return summarize_trajectory("onnx_policy", environment.trajectory, scenario)
+
+
+def rollout_baseline(
+    scenario: ScenarioModel,
+    seed: int,
+    schedule: Sequence[Shock] | None = None,
+) -> dict[str, Any]:
+    """Run the causal public-state baseline on the same environment contract."""
+
+    shared_schedule = (
+        generate_disaster_tape(scenario, seed) if schedule is None else list(schedule)
+    )
+    environment = CityRecoveryEnv(scenario, seed, shared_schedule)
+    observation, _ = environment.reset(seed=seed)
+    terminated = False
+    while not terminated:
+        action, evidence = reactive_heuristic_action(observation)
+        observation, _, terminated, _, _ = environment.step_with_evidence(
+            action, evidence
+        )
+    return summarize_trajectory(
+        "reactive_public_state_heuristic", environment.trajectory, scenario
+    )
+
+
+def policy_identity(policy: "Policy") -> dict[str, Any]:
+    """Describe the exact artifact and inference contract used for a rollout."""
+
+    return {
+        "id": policy.path.stem,
+        "path_stem": policy.path.stem,
+        "artifact_type": "onnx_policy",
+        "runtime": "ONNX Runtime CPUExecutionProvider",
+        "sha256": policy.sha256,
+        "observation_contract": dict(RAW_OBSERVATION_CONTRACT),
+    }
+
+
+def compare(
+    scenario: ScenarioModel,
+    seed: int,
+    policy: "Policy",
+) -> dict[str, Any]:
+    """Compare one ONNX policy and the baseline on one immutable shared tape."""
+
+    schedule = generate_disaster_tape(scenario, seed)
+    schedule_payload = [asdict(shock) for shock in schedule]
+    baseline = rollout_baseline(scenario, seed, schedule)
+    candidate = rollout_policy(scenario, seed, policy.predict, schedule)
+    candidate_shocks = [day["shock"] for day in candidate["trajectory"]]
+    baseline_shocks = [day["shock"] for day in baseline["trajectory"]]
+    if candidate_shocks != schedule_payload or baseline_shocks != schedule_payload:
+        raise RuntimeError("planners did not consume the same precomputed tape")
+
+    candidate_solved = bool(candidate["absolute_outcome"]["solved"])
+    baseline_solved = bool(baseline["absolute_outcome"]["solved"])
+    if candidate_solved and baseline_solved:
+        outcome_pair = "both_solved"
+    elif candidate_solved:
+        outcome_pair = "ppo_only"
+    elif baseline_solved:
+        outcome_pair = "heuristic_only"
+    else:
+        outcome_pair = "neither"
+
+    return {
+        "schema_version": RESULT_SCHEMA,
+        "engine_version": "city-recovery-env-v3",
+        "environment": {
+            "id": ENGINE_ID,
+            "version": ENGINE_VERSION,
+            "observation_count": OBSERVATION_SIZE,
+            "action_count": ACTION_SIZE,
+            "spec_sha256": ENGINE_SPEC_SHA256,
+        },
+        "engine_spec": ENGINE_SPEC,
+        "engine_spec_sha256": ENGINE_SPEC_SHA256,
+        "outcome_definition": SOLVED_DEFINITION,
+        "outcome_definition_sha256": SOLVED_DEFINITION_SHA256,
+        "seed": seed,
+        "generator": "numpy.PCG64",
+        "scenario": scenario.model_dump(mode="json"),
+        "services": list(SERVICES),
+        "observation_order": list(OBSERVATION_ORDER),
+        "action_order": list(ACTION_ORDER),
+        "shock_schedule": schedule_payload,
+        "shock_schedule_sha256": canonical_hash(schedule_payload),
+        "policy": policy_identity(policy),
+        "baseline_spec": {
+            "id": "reactive-public-state-heuristic-v3",
+            "version": "3.0.0",
+            "uses_same_observation_contract": True,
+            "uses_same_action_contract": True,
+            "uses_public_risk_signal": True,
+            "future_tape_visible": False,
+        },
+        "baseline": baseline,
+        "candidate": candidate,
+        "comparison": {
+            "primary_metric": "independent_absolute_disaster_solved",
+            "candidate_solved": candidate_solved,
+            "baseline_solved": baseline_solved,
+            "absolute_outcome_pair": outcome_pair,
+            "secondary_rauc_candidate_minus_baseline": round(
+                candidate["rauc"] - baseline["rauc"], 8
+            ),
+        },
+    }
+
+
 __all__ = (
     "ACTION_GROUPS",
     "ACTION_ORDER",
@@ -969,6 +1110,11 @@ __all__ = (
     "Intervention",
     "OBSERVATION_ORDER",
     "OBSERVATION_SIZE",
+    "RAW_OBSERVATION_CONTRACT",
     "RESULT_SCHEMA",
+    "compare",
     "decode_action",
+    "policy_identity",
+    "rollout_baseline",
+    "rollout_policy",
 )

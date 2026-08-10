@@ -12,7 +12,7 @@ from backend.app.city.physics import (
     DEPOT_CAPACITY,
     round_vector,
 )
-from backend.app.models import ScenarioV3 as ScenarioModel
+from backend.app.models import Scenario as ScenarioModel
 from backend.app.shared_evidence import canonical_hash
 
 SOLVED_RAUC_FLOOR = 0.44

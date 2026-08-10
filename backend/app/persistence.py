@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from backend.app.simulator_core import canonical_hash, canonical_json_bytes
+from backend.app.shared_evidence import canonical_bytes, canonical_hash, fsync_parent
 
 RESULT_ID_PATTERN = re.compile(r"[0-9a-f]{64}")
 _WRITE_LOCK = threading.Lock()
@@ -28,31 +28,19 @@ def default_state_directory() -> Path:
 
 
 def result_identity(result: dict[str, Any]) -> str:
-    if result.get("engine_version") == "city-recovery-env-v3":
-        return canonical_hash(
-            {
-                "schema_version": result["schema_version"],
-                "engine_version": result["engine_version"],
-                "engine_spec_sha256": result["engine_spec_sha256"],
-                "outcome_definition_sha256": result[
-                    "outcome_definition_sha256"
-                ],
-                "seed": result["seed"],
-                "scenario": result["scenario"],
-                "policy_sha256": result["policy"]["sha256"],
-                "baseline_id": result["baseline_spec"]["id"],
-                "baseline_version": result["baseline_spec"]["version"],
-            }
-        )
-    # Preserve the shipped V2 identity formula byte-for-byte so old canonical
-    # results remain independently readable after V3 becomes primary.
+    """Bind a result ID to every scientific treatment in the comparison."""
+
     return canonical_hash(
         {
             "schema_version": result["schema_version"],
+            "engine_version": result["engine_version"],
+            "engine_spec_sha256": result["engine_spec_sha256"],
+            "outcome_definition_sha256": result["outcome_definition_sha256"],
             "seed": result["seed"],
             "scenario": result["scenario"],
             "policy_sha256": result["policy"]["sha256"],
             "baseline_id": result["baseline_spec"]["id"],
+            "baseline_version": result["baseline_spec"]["version"],
         }
     )
 
@@ -71,7 +59,7 @@ class RunStore:
             "idempotent": True,
             "result_id": result_id,
         }
-        payload = canonical_json_bytes(persisted)
+        payload = canonical_bytes(persisted)
         destination = self.runs / f"{result_id}.json"
         temporary = self.runs / f".{result_id}.tmp"
         try:
@@ -79,6 +67,7 @@ class RunStore:
                 self.runs.mkdir(parents=True, exist_ok=True)
                 temporary.write_bytes(payload)
                 os.replace(temporary, destination)
+                fsync_parent(destination)
         except OSError as exc:
             try:
                 temporary.unlink(missing_ok=True)
@@ -105,7 +94,7 @@ class RunStore:
             raise PersistenceError("persisted result identity is invalid")
         if result_identity(result) != result_id:
             raise PersistenceError("persisted result content does not match its identity")
-        if canonical_json_bytes(result) != payload:
+        if canonical_bytes(result) != payload:
             raise PersistenceError("persisted result is not canonical JSON")
         return result
 
@@ -123,15 +112,7 @@ class RunStore:
             result = self.load(path.stem)
             stored_engine = result.get("engine_version")
             if not isinstance(stored_engine, str):
-                environment = result.get("environment")
-                environment_id = (
-                    environment.get("id") if isinstance(environment, dict) else None
-                )
-                stored_engine = (
-                    "city-recovery-env-v3"
-                    if environment_id == "CityRecoveryEnv-v3"
-                    else "city-recovery-env-v2"
-                )
+                raise PersistenceError("persisted result engine version is invalid")
             if engine_version is not None and stored_engine != engine_version:
                 continue
             comparison = result.get("comparison")
