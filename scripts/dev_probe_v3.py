@@ -30,8 +30,6 @@ if str(ROOT) not in sys.path:
 from backend.app.scenarios_v3 import (  # noqa: E402
     DEVELOPMENT_FAMILIES_V3,
     DEVELOPMENT_SEEDS_V3,
-    FINAL_FAMILIES_V3,
-    FINAL_SEEDS_V3,
 )
 from backend.app.simulator_core import SHOCK_IMPACTS  # noqa: E402
 from backend.app.simulator_v3 import (  # noqa: E402
@@ -88,6 +86,7 @@ class ProbeRow:
     status: str
     reason_codes: tuple[str, ...]
     resilience_auc: float
+    minimum_tail_margin: float
     critical_service_days: int
     hard_violation_count: int
     max_conservation_residual: float
@@ -200,6 +199,9 @@ def build_cases(split: str) -> list[ProbeCase]:
     if split == "dev":
         families, seeds = DEVELOPMENT_FAMILIES_V3, DEVELOPMENT_SEEDS_V3
     elif split == "final":
+        # Keep the single-use final contract out of development-only imports.
+        from backend.app.scenarios_v3 import FINAL_FAMILIES_V3, FINAL_SEEDS_V3
+
         families, seeds = FINAL_FAMILIES_V3, FINAL_SEEDS_V3
     else:  # Defensive for callers that bypass argparse.
         raise ProbeError(f"unsupported split: {split}")
@@ -243,6 +245,12 @@ def rollout(case: ProbeCase, policy: Policy) -> ProbeRow:
             raise ProbeError(f"unexpected truncated episode for {case.row_id}")
     summary = _summarize_v3(policy.label, env.trajectory, case.scenario)
     outcome = summary["absolute_outcome"]
+    minimum_tail_margin = float(
+        np.min(
+            np.asarray(outcome["tail_minimum_services"], dtype=np.float64)
+            - np.asarray(outcome["recovery_targets"], dtype=np.float64)
+        )
+    )
     return ProbeRow(
         row_id=case.row_id,
         family_id=case.family_id,
@@ -252,6 +260,7 @@ def rollout(case: ProbeCase, policy: Policy) -> ProbeRow:
         status=str(outcome["status"]),
         reason_codes=tuple(outcome["reason_codes"]),
         resilience_auc=float(summary["rauc"]),
+        minimum_tail_margin=minimum_tail_margin,
         critical_service_days=int(summary["critical_service_days"]),
         hard_violation_count=int(summary["hard_violation_count"]),
         max_conservation_residual=float(
@@ -290,6 +299,9 @@ def aggregate(rows: Sequence[ProbeRow]) -> dict[str, Any]:
         "solved_count": sum(row.solved for row in rows),
         "solve_rate": sum(row.solved for row in rows) / len(rows),
         "mean_resilience_auc": round(fmean(row.resilience_auc for row in rows), 10),
+        "mean_minimum_tail_margin": round(
+            fmean(row.minimum_tail_margin for row in rows), 10
+        ),
         "hard_violation_count": sum(row.hard_violation_count for row in rows),
         "maximum_conservation_residual": max(
             row.max_conservation_residual for row in rows

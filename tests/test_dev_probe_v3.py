@@ -13,6 +13,7 @@ def _row(row_id: str, solved: bool) -> ProbeRow:
         status="solved" if solved else "failed",
         reason_codes=() if solved else ("assessment_tail_targets_met",),
         resilience_auc=0.5,
+        minimum_tail_margin=0.01,
         critical_service_days=0,
         hard_violation_count=0,
         max_conservation_residual=0.0,
