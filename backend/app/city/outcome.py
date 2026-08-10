@@ -46,7 +46,7 @@ def absolute_outcome(
     """Apply the six-check absolute success definition to one trajectory."""
 
     if not trajectory:
-        raise ValueError("v3 outcome requires a nonempty trajectory")
+        raise ValueError("outcome requires a nonempty trajectory")
     targets = np.asarray(recovery_targets, dtype=np.float64)
     services = np.asarray(
         [day["services_end"] for day in trajectory], dtype=np.float64
@@ -55,11 +55,11 @@ def absolute_outcome(
         [day["resilience"] for day in trajectory], dtype=np.float64
     )
     if assessment_tail_days != 3 or len(trajectory) < assessment_tail_days:
-        raise ValueError("v3 outcome requires the frozen three-day assessment tail")
+        raise ValueError("outcome requires the canonical three-day assessment tail")
     if targets.shape != (5,) or services.shape != (len(trajectory), 5):
-        raise ValueError("v3 outcome service vectors must contain exactly five values")
+        raise ValueError("outcome service vectors must contain exactly five values")
     if not np.all(np.isfinite(targets)) or not np.all(np.isfinite(services)):
-        raise ValueError("v3 outcome inputs must be finite")
+        raise ValueError("outcome inputs must be finite")
     hard_violations = int(sum(day["hard_violation_count"] for day in trajectory))
     max_residual = max(
         abs(value)
@@ -75,7 +75,7 @@ def absolute_outcome(
         trajectory[-1]["logistics"]["pending_next_day"], dtype=np.float64
     )
     if terminal_pending.shape != (5,) or not np.all(np.isfinite(terminal_pending)):
-        raise ValueError("v3 terminal pending vector must contain five finite values")
+        raise ValueError("terminal pending vector must contain five finite values")
     target_met_by_service = np.all(
         tail >= targets - CONSTRAINT_TOLERANCE, axis=0
     )

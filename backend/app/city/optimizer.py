@@ -136,7 +136,7 @@ def ortools_proposal(
     solver.Maximize(sum(objective_terms))
     status = solver.Solve()
     if status != pywraplp.Solver.OPTIMAL:
-        raise RuntimeError(f"OR-Tools v2 baseline failed with status {status}")
+        raise RuntimeError(f"OR-Tools baseline failed with status {status}")
     diminishing_return_proposal = np.array(
         [variable.solution_value() for variable in allocations]
     )
@@ -184,7 +184,7 @@ def ortools_proposal(
     single_status = single_solver.Solve()
     if single_status != pywraplp.Solver.OPTIMAL:
         raise RuntimeError(
-            f"OR-Tools v2 single-slope baseline failed with status {single_status}"
+            f"OR-Tools single-slope baseline failed with status {single_status}"
         )
     single_slope_proposal = np.array(
         [variable.solution_value() for variable in single_allocations]

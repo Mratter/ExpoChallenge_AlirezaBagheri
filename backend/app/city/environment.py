@@ -506,7 +506,7 @@ class CityRecoveryEnv(gym.Env[np.ndarray, np.ndarray]):
             )
         )
         if values.shape != (OBSERVATION_SIZE,):
-            raise RuntimeError("v3 observation assembly drifted")
+            raise RuntimeError("observation assembly drifted")
         return np.asarray(np.clip(values, 0.0, 1.0), dtype=np.float32)
 
     def current_context(self) -> DayContext:

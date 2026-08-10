@@ -1,10 +1,4 @@
-"""Shared evidence helpers for mutable v4 and development tooling.
-
-The shipped v3 release cryptographically pins several modules that contain
-older local copies of these helpers.  Those copies are intentional immutable
-validation boundaries and must not import this module.  All non-frozen code
-uses the implementations here instead.
-"""
+"""Provide canonical hashing, JSON validation, and statistical evidence helpers."""
 
 from __future__ import annotations
 

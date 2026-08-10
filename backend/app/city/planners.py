@@ -28,7 +28,7 @@ def reactive_heuristic_action(
     public = np.asarray(observation, dtype=np.float64).reshape(-1)
     if public.shape != (_PUBLIC_OBSERVATION_SIZE,) or not np.all(np.isfinite(public)):
         raise ValueError(
-            "v3 heuristic requires the same 73 finite public inputs as PPO"
+            "heuristic requires the same 73 finite public inputs as PPO"
         )
     shocked = public[0:5]
     supplied_priorities = public[5:10] * 2.0
