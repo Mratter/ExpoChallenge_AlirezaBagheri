@@ -84,18 +84,10 @@ class CompareRequest(StrictModel):
     scenario: Scenario = Field(default_factory=Scenario)
 
 
-# Temporary source-compatibility aliases for legacy modules awaiting deletion.
-# New code must import the neutral names above.
-ScenarioV3 = Scenario
-CompareRequestV3 = CompareRequest
-
-
 __all__ = (
     "CompareRequest",
-    "CompareRequestV3",
     "ForcedShock",
     "Scenario",
-    "ScenarioV3",
     "ServiceName",
     "ShockName",
 )

@@ -1,10 +1,10 @@
+"""Integrity checks for the retained development-only evidence table."""
+
 from __future__ import annotations
 
 import hashlib
 import json
 from pathlib import Path
-
-from scripts import assemble_dev_baselines_v4 as assembly
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,7 +18,7 @@ RECEIPT = (
 MARKDOWN = ROOT / "benchmarks" / "v4" / "development-baselines.md"
 
 
-def test_committed_step6_receipt_has_all_planners_and_exact_pairings() -> None:
+def test_step6_receipt_preserves_registered_results_and_pairings() -> None:
     payload = json.loads(RECEIPT.read_text(encoding="utf-8"))
     solved = {
         planner["planner_id"]: planner["solved_count"]
@@ -58,29 +58,10 @@ def test_committed_step6_receipt_has_all_planners_and_exact_pairings() -> None:
         ) == expected
 
 
-def test_markdown_is_hash_bound_and_discloses_privileged_oracle() -> None:
+def test_step6_markdown_is_bound_to_receipt_and_labels_the_oracle() -> None:
     payload = json.loads(RECEIPT.read_text(encoding="utf-8"))
     markdown_bytes = MARKDOWN.read_bytes()
     assert hashlib.sha256(markdown_bytes).hexdigest() == payload["markdown"]["sha256"]
     markdown = markdown_bytes.decode("utf-8")
     assert "privileged and clairvoyant" in markdown
     assert "not a submission baseline" in markdown
-    assert "v4 PPO vs shipped v3 PPO" in markdown
-
-
-def test_cli_refuses_to_overwrite_outputs(tmp_path: Path) -> None:
-    receipt = tmp_path / "exists.json"
-    markdown = tmp_path / "exists.md"
-    receipt.write_text("existing", encoding="utf-8")
-    assert (
-        assembly.main(
-            [
-                "--developmental-nonauthorizing",
-                "--receipt",
-                str(receipt),
-                "--markdown",
-                str(markdown),
-            ]
-        )
-        == 2
-    )

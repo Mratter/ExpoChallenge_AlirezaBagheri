@@ -17,13 +17,12 @@ from backend.app.shared_evidence import (
     split_contract,
     wilson_interval,
 )
-from backend.app.simulator_core import canonical_hash as frozen_v3_canonical_hash
-
-
-def test_canonical_hash_matches_frozen_v3_contract() -> None:
+def test_canonical_hash_matches_the_published_serialization_contract() -> None:
     value = {"z": [3, 2, 1], "ascii": "yes", "finite": 0.25}
     assert canonical_bytes(value) == b'{"ascii":"yes","finite":0.25,"z":[3,2,1]}'
-    assert canonical_hash(value) == frozen_v3_canonical_hash(value)
+    assert canonical_hash(value) == (
+        "ccc1f14287eca7669052691932dbe00f4b315f78d28e4f3b79c295732e817a8b"
+    )
 
 
 def test_file_and_json_helpers_validate_bytes_and_root(tmp_path: Path) -> None:

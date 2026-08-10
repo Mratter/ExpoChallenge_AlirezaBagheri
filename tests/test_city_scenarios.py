@@ -9,31 +9,10 @@ from backend.app.city.scenarios import (
     FINAL_SEEDS,
     TRAINING_FAMILIES,
     TRAINING_SEEDS,
-    ScenarioFamily,
     generate_disaster_tape,
 )
-from backend.app.scenarios_v3 import (
-    DEVELOPMENT_FAMILIES_V3,
-    DEVELOPMENT_SEEDS_V3,
-    FINAL_FAMILIES_V3,
-    FINAL_SEEDS_V3,
-    TRAINING_FAMILIES_V3,
-    TRAINING_SEEDS_V3,
-    ScenarioFamilyV3,
-)
+from backend.app.models import ForcedShock
 from backend.app.shared_evidence import canonical_hash
-from backend.app.simulator_v3 import generate_disaster_tape_v3
-
-
-def test_legacy_scenario_exports_are_identity_aliases() -> None:
-    assert ScenarioFamilyV3 is ScenarioFamily
-    assert TRAINING_FAMILIES_V3 is TRAINING_FAMILIES
-    assert DEVELOPMENT_FAMILIES_V3 is DEVELOPMENT_FAMILIES
-    assert FINAL_FAMILIES_V3 is FINAL_FAMILIES
-    assert TRAINING_SEEDS_V3 is TRAINING_SEEDS
-    assert DEVELOPMENT_SEEDS_V3 is DEVELOPMENT_SEEDS
-    assert FINAL_SEEDS_V3 is FINAL_SEEDS
-    assert generate_disaster_tape_v3 is generate_disaster_tape
 
 
 def test_family_ids_and_tape_salt_remain_stable() -> None:
@@ -69,3 +48,52 @@ def test_canonical_tape_matches_the_frozen_golden_hash() -> None:
     assert canonical_hash([asdict(shock) for shock in tape]) == (
         "cdade263357aeebff3d9c9274e04b14306c941efca579b3c79b6c73ba79511ae"
     )
+
+
+def test_split_seed_ranges_are_disjoint_and_tapes_are_independent() -> None:
+    assert not set(TRAINING_SEEDS) & set(DEVELOPMENT_SEEDS)
+    assert not set(TRAINING_SEEDS) & set(FINAL_SEEDS)
+    assert not set(DEVELOPMENT_SEEDS) & set(FINAL_SEEDS)
+
+    for families, seeds in (
+        (DEVELOPMENT_FAMILIES, DEVELOPMENT_SEEDS),
+        (FINAL_FAMILIES, FINAL_SEEDS),
+    ):
+        derived = {family.tape_seed(seed) for family in families for seed in seeds}
+        assert len(derived) == len(families) * len(seeds)
+
+
+def test_assessment_tail_is_shock_free() -> None:
+    seed = TRAINING_SEEDS[0]
+    scenario = TRAINING_FAMILIES[0].build(seed)
+    tape = generate_disaster_tape(scenario, seed)
+    tail = tape[-scenario.assessment_tail_days :]
+    assert all(item.assessment_tail for item in tail)
+    assert all(item.type is None and item.severity == 0.0 for item in tail)
+
+
+def test_future_forced_type_cannot_change_prior_public_tape() -> None:
+    seed = TRAINING_SEEDS[0]
+    scenario = TRAINING_FAMILIES[0].build(seed)
+    original_forced = scenario.forced_shocks[0]
+    alternate_type = "epidemic" if original_forced.type != "epidemic" else "utility"
+    changed = scenario.model_copy(
+        update={
+            "forced_shocks": [
+                ForcedShock(
+                    day=original_forced.day,
+                    type=alternate_type,
+                    severity=original_forced.severity,
+                )
+            ]
+        }
+    )
+    original = generate_disaster_tape(scenario, seed)
+    alternate = generate_disaster_tape(changed, seed)
+    prefix_length = original_forced.day - 1
+    assert [item.public_risk_next for item in original[:prefix_length]] == [
+        item.public_risk_next for item in alternate[:prefix_length]
+    ]
+    assert [(item.type, item.severity) for item in original[:prefix_length]] == [
+        (item.type, item.severity) for item in alternate[:prefix_length]
+    ]

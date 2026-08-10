@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from backend.app.city.environment import CityRecoveryEnv
 from backend.app.city.planners import (
     preparedness_teacher_action,
     reactive_heuristic_action,
@@ -15,7 +16,6 @@ from backend.app.city.planners import (
 )
 from backend.app.city.scenarios import TRAINING_FAMILIES, TRAINING_SEEDS
 from backend.app.shared_evidence import canonical_hash
-from backend.app.simulator_v3 import CityRecoveryEnvV3
 
 Planner = Callable[[np.ndarray], tuple[np.ndarray, dict[str, Any]]]
 
@@ -23,7 +23,7 @@ Planner = Callable[[np.ndarray], tuple[np.ndarray, dict[str, Any]]]
 def _training_observation() -> np.ndarray:
     seed = TRAINING_SEEDS[0]
     scenario = TRAINING_FAMILIES[0].build(seed)
-    environment = CityRecoveryEnvV3(scenario, seed)
+    environment = CityRecoveryEnv(scenario, seed)
     observation, _ = environment.reset(seed=seed)
     assert canonical_hash(observation.tolist()) == (
         "8cb560551a9ccb608aecdaac60bb157551afded868a44b1248325cdca7cb6030"

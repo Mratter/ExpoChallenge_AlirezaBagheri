@@ -4,25 +4,13 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from backend.app import simulator_core, simulator_core_v4, simulator_v2, simulator_v3
 from backend.app.city.physics import (
     Transfer,
     apply_depot_damage,
     deterministic_transfer,
     land_capped,
-    project_capped_simplex,
     throughput_factors,
 )
-
-
-def test_legacy_modules_reexport_the_canonical_physics_implementations() -> None:
-    assert simulator_core.project_capped_simplex is project_capped_simplex
-    assert simulator_core_v4.project_capped_simplex is project_capped_simplex
-    assert simulator_v2.TransferV2 is Transfer
-    assert simulator_v2.apply_depot_damage_v2 is apply_depot_damage
-    assert simulator_v2.deterministic_transfer_v2 is deterministic_transfer
-    assert simulator_v2.throughput_factors_v2 is throughput_factors
-    assert simulator_v3.land_capped is land_capped
 
 
 def test_depot_damage_and_throughput_preserve_registered_physics() -> None:
