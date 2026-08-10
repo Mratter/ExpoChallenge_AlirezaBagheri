@@ -27,17 +27,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.app.scenarios_v3 import (  # noqa: E402
-    DEVELOPMENT_FAMILIES_V3,
-    DEVELOPMENT_SEEDS_V3,
+from backend.app.city.outcome import summarize_trajectory  # noqa: E402
+from backend.app.city.scenarios import (  # noqa: E402
+    DEVELOPMENT_FAMILIES,
+    DEVELOPMENT_SEEDS,
+    generate_disaster_tape,
 )
 from backend.app.simulator_core import SHOCK_IMPACTS  # noqa: E402
 from backend.app.simulator_v3 import (  # noqa: E402
     ACTION_ORDER_V3,
     OBSERVATION_ORDER_V3,
     CityRecoveryEnvV3,
-    _summarize_v3,
-    generate_disaster_tape_v3,
     public_preparedness_curriculum_action_v3,
     reactive_heuristic_action_v3,
 )
@@ -196,12 +196,12 @@ def resolve_policy(spec: str) -> Policy:
 
 def build_cases(split: str) -> list[ProbeCase]:
     if split == "dev":
-        families, seeds = DEVELOPMENT_FAMILIES_V3, DEVELOPMENT_SEEDS_V3
+        families, seeds = DEVELOPMENT_FAMILIES, DEVELOPMENT_SEEDS
     elif split == "final":
         # Keep the single-use final contract out of development-only imports.
-        from backend.app.scenarios_v3 import FINAL_FAMILIES_V3, FINAL_SEEDS_V3
+        from backend.app.city.scenarios import FINAL_FAMILIES, FINAL_SEEDS
 
-        families, seeds = FINAL_FAMILIES_V3, FINAL_SEEDS_V3
+        families, seeds = FINAL_FAMILIES, FINAL_SEEDS
     else:  # Defensive for callers that bypass argparse.
         raise ProbeError(f"unsupported split: {split}")
     cases: list[ProbeCase] = []
@@ -209,7 +209,7 @@ def build_cases(split: str) -> list[ProbeCase]:
         for case_seed in seeds:
             scenario = family.build(case_seed)
             tape_seed = family.tape_seed(case_seed)
-            schedule = tuple(generate_disaster_tape_v3(scenario, tape_seed))
+            schedule = tuple(generate_disaster_tape(scenario, tape_seed))
             cases.append(
                 ProbeCase(
                     row_id=f"{family.id}:{case_seed}",
@@ -242,7 +242,7 @@ def rollout(case: ProbeCase, policy: Policy) -> ProbeRow:
             )
         if truncated:
             raise ProbeError(f"unexpected truncated episode for {case.row_id}")
-    summary = _summarize_v3(policy.label, env.trajectory, case.scenario)
+    summary = summarize_trajectory(policy.label, env.trajectory, case.scenario)
     outcome = summary["absolute_outcome"]
     minimum_tail_margin = float(
         np.min(

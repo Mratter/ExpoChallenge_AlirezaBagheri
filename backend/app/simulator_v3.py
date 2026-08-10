@@ -10,6 +10,17 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from backend.app.city.outcome import (
+    CONSERVATION_TOLERANCE,
+    CRITICAL_SERVICE_FLOOR,
+    CRITICAL_SERVICE_RATE_CAP as CRITICAL_SERVICE_RATE_CAP,
+    SOLVED_DEFINITION,
+    SOLVED_DEFINITION_SHA256,
+    SOLVED_RAUC_FLOOR,
+    TERMINAL_PENDING_CAPACITY_MULTIPLIER as TERMINAL_PENDING_CAPACITY_MULTIPLIER,
+    absolute_outcome,
+    summarize_trajectory,
+)
 from backend.app.city.physics import (
     CONSTRAINT_TOLERANCE,
     DELTA,
@@ -20,9 +31,7 @@ from backend.app.city.physics import (
     IMMEDIATE_DELIVERY_FRACTION,
     RESERVE_DRAW_FRACTION,
     SERVICES,
-    SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
-    SHOCK_TYPE_PROBABILITIES,
     SHOCKS,
     Transfer,
     action_to_proposal,
@@ -33,6 +42,14 @@ from backend.app.city.physics import (
     project_capped_simplex,
     round_vector as _round_vector,
     throughput_factors,
+)
+from backend.app.city.scenarios import (
+    PUBLIC_RISK_EVENT_PULSE,
+    PUBLIC_RISK_NOISE,
+    PUBLIC_RISK_PERSISTENCE,
+    PUBLIC_RISK_TOTAL_CAP,
+    Shock,
+    generate_disaster_tape,
 )
 from backend.app.models import ScenarioV3
 from backend.app.shared_evidence import canonical_hash
@@ -58,15 +75,7 @@ ACTION_ORDER_V3 = (
 )
 ACTION_SIZE_V3 = len(ACTION_ORDER_V3)
 CREW_PRODUCTIVITY = np.array([1.18, 1.02, 1.20, 1.28, 1.08], dtype=np.float64)
-PUBLIC_RISK_PERSISTENCE = 0.72
-PUBLIC_RISK_NOISE = 0.012
-PUBLIC_RISK_EVENT_PULSE = 0.055
-PUBLIC_RISK_TOTAL_CAP = 0.48
-SOLVED_RAUC_FLOOR = 0.44
-CRITICAL_SERVICE_FLOOR = 0.30
-CRITICAL_SERVICE_RATE_CAP = 0.08
-CONSERVATION_TOLERANCE_V3 = 1e-6
-TERMINAL_PENDING_CAPACITY_MULTIPLIER = 1.0
+CONSERVATION_TOLERANCE_V3 = CONSERVATION_TOLERANCE
 PREPAREDNESS_DECAY = 0.92
 PREPAREDNESS_SHOCK_REDUCTION = 0.85
 PREPAREDNESS_SHOCK_CONSUMPTION = 0.45
@@ -97,19 +106,12 @@ OBSERVATION_ORDER_V3 = (
 )
 OBSERVATION_SIZE_V3 = len(OBSERVATION_ORDER_V3)
 
-SOLVED_DEFINITION_V3: dict[str, Any] = {
-    "id": "city-recovery-solved-v3",
-    "version": "1.0.0",
-    "assessment_tail_days": 3,
-    "all_services_meet_public_targets_for_entire_tail": True,
-    "resilience_auc_floor": SOLVED_RAUC_FLOOR,
-    "critical_service_floor": CRITICAL_SERVICE_FLOOR,
-    "critical_service_day_rate_cap": CRITICAL_SERVICE_RATE_CAP,
-    "hard_violation_count": 0,
-    "max_conservation_residual": CONSERVATION_TOLERANCE_V3,
-    "terminal_pending_at_most_capacity_multiplier": TERMINAL_PENDING_CAPACITY_MULTIPLIER,
-}
-SOLVED_DEFINITION_V3_SHA256 = canonical_hash(SOLVED_DEFINITION_V3)
+SOLVED_DEFINITION_V3 = SOLVED_DEFINITION
+SOLVED_DEFINITION_V3_SHA256 = SOLVED_DEFINITION_SHA256
+ShockV3 = Shock
+generate_disaster_tape_v3 = generate_disaster_tape
+absolute_outcome_v3 = absolute_outcome
+_summarize_v3 = summarize_trajectory
 
 ENGINE_V3_SPEC: dict[str, Any] = {
     "id": ENGINE_V3_ID,
@@ -162,21 +164,6 @@ ENGINE_V3_SPEC_SHA256 = canonical_hash(ENGINE_V3_SPEC)
 
 
 @dataclass(frozen=True)
-class ShockV3:
-    day: int
-    type: str | None
-    severity: float
-    impact: list[float]
-    budget_factor: float
-    forced: bool
-    occurrence_probability: float
-    occurrence_draw: float
-    public_risk_before: list[float]
-    public_risk_next: list[float]
-    assessment_tail: bool
-
-
-@dataclass(frozen=True)
 class InterventionV3:
     material: np.ndarray
     crew: np.ndarray
@@ -224,104 +211,6 @@ class DayContextV3:
     previous_resilience: float
     preparedness_before: np.ndarray
     preparedness_after_hazard: np.ndarray
-
-
-def _bounded_risk(values: np.ndarray) -> np.ndarray:
-    risk = np.clip(np.asarray(values, dtype=np.float64), 0.0, 0.22)
-    total = float(risk.sum())
-    if total > PUBLIC_RISK_TOTAL_CAP:
-        risk *= PUBLIC_RISK_TOTAL_CAP / total
-    return risk
-
-
-def generate_disaster_tape_v3(scenario: ScenarioV3, seed: int) -> list[ShockV3]:
-    """Precompute a shared tape from public causal risk signals and hidden draws.
-
-    The risk vector published after day ``d`` is the probability input used to
-    sample day ``d+1``. It is not derived by looking at the sampled future event.
-    """
-
-    forced_by_day: dict[int, Any] = {}
-    if scenario.forced_shock is not None:
-        forced_by_day[scenario.forced_shock.day] = scenario.forced_shock
-    for forced in scenario.forced_shocks:
-        forced_by_day[forced.day] = forced
-
-    rng = np.random.Generator(np.random.PCG64(seed ^ 0xC17E_C0DE))
-    base_risk = scenario.shock_probability * SHOCK_TYPE_PROBABILITIES
-    initial_noise = scenario.shock_probability * rng.uniform(-0.03, 0.03, size=5)
-    risk = _bounded_risk(base_risk + initial_noise)
-    schedule: list[ShockV3] = []
-    tail_start = scenario.horizon_days - scenario.assessment_tail_days + 1
-    for day in range(1, scenario.horizon_days + 1):
-        risk_before = risk.copy()
-        occurrence_draw = float(rng.random())
-        type_draw = float(rng.random())
-        severity_draw = scenario.severity_min + (
-            scenario.severity_max - scenario.severity_min
-        ) * float(rng.beta(2.0, 4.5))
-        risk_noise = scenario.shock_probability * rng.uniform(
-            -PUBLIC_RISK_NOISE,
-            PUBLIC_RISK_NOISE,
-            size=5,
-        )
-        assessment_tail = day >= tail_start
-        forced = forced_by_day.get(day)
-        occurrence_probability = 0.0 if assessment_tail else float(risk_before.sum())
-
-        shock_type: str | None = None
-        forced_flag = False
-        if not assessment_tail and forced is not None:
-            shock_type = forced.type
-            severity = float(forced.severity)
-            forced_flag = True
-        elif not assessment_tail and occurrence_draw < occurrence_probability:
-            cumulative = np.cumsum(risk_before / max(occurrence_probability, 1e-12))
-            shock_index = int(np.searchsorted(cumulative, type_draw, side="right"))
-            shock_type = SHOCKS[min(shock_index, len(SHOCKS) - 1)]
-            severity = float(round(severity_draw, 8))
-        else:
-            severity = 0.0
-
-        if shock_type is None:
-            impact = np.zeros(5, dtype=np.float64)
-            budget_factor = 0.0
-        else:
-            shock_index = SHOCKS.index(shock_type)
-            impact = SHOCK_IMPACTS[shock_index]
-            budget_factor = float(SHOCK_BUDGET_FACTORS[shock_index])
-
-        next_risk = (
-            base_risk + PUBLIC_RISK_PERSISTENCE * (risk_before - base_risk) + risk_noise
-        )
-        if shock_type is not None:
-            shock_index = SHOCKS.index(shock_type)
-            next_risk[shock_index] += PUBLIC_RISK_EVENT_PULSE
-            if shock_type == "aftershock":
-                next_risk[0] += 0.035
-            elif shock_type in ("weather", "utility"):
-                next_risk[1] += 0.015
-        if day + 1 >= tail_start:
-            next_risk = np.zeros(5, dtype=np.float64)
-        else:
-            next_risk = _bounded_risk(next_risk)
-        risk = next_risk
-        schedule.append(
-            ShockV3(
-                day=day,
-                type=shock_type,
-                severity=severity,
-                impact=_round_vector(impact),
-                budget_factor=budget_factor,
-                forced=forced_flag,
-                occurrence_probability=float(round(occurrence_probability, 8)),
-                occurrence_draw=float(round(occurrence_draw, 8)),
-                public_risk_before=_round_vector(risk_before),
-                public_risk_next=_round_vector(next_risk),
-                assessment_tail=assessment_tail,
-            )
-        )
-    return schedule
 
 
 def decode_action_v3(action: np.ndarray, context: DayContextV3) -> InterventionV3:
@@ -383,80 +272,6 @@ def decode_action_v3(action: np.ndarray, context: DayContextV3) -> InterventionV
         material_projection=material_projection,
         crew_projection=crew_projection,
     )
-
-
-def absolute_outcome_v3(
-    trajectory: Sequence[dict[str, Any]],
-    recovery_targets: Sequence[float],
-    assessment_tail_days: int,
-) -> dict[str, Any]:
-    if not trajectory:
-        raise ValueError("v3 outcome requires a nonempty trajectory")
-    targets = np.asarray(recovery_targets, dtype=np.float64)
-    services = np.asarray([day["services_end"] for day in trajectory], dtype=np.float64)
-    resilience = np.asarray([day["resilience"] for day in trajectory], dtype=np.float64)
-    if assessment_tail_days != 3 or len(trajectory) < assessment_tail_days:
-        raise ValueError("v3 outcome requires the frozen three-day assessment tail")
-    if targets.shape != (5,) or services.shape != (len(trajectory), 5):
-        raise ValueError("v3 outcome service vectors must contain exactly five values")
-    if not np.all(np.isfinite(targets)) or not np.all(np.isfinite(services)):
-        raise ValueError("v3 outcome inputs must be finite")
-    hard_violations = int(sum(day["hard_violation_count"] for day in trajectory))
-    max_residual = max(
-        abs(value)
-        for day in trajectory
-        for value in day["logistics"]["conservation_residual"]
-    )
-    critical_service_days = int(np.count_nonzero(services < CRITICAL_SERVICE_FLOOR))
-    critical_cap = int(np.floor(CRITICAL_SERVICE_RATE_CAP * services.size))
-    tail = services[-assessment_tail_days:]
-    terminal_pending = np.asarray(
-        trajectory[-1]["logistics"]["pending_next_day"], dtype=np.float64
-    )
-    if terminal_pending.shape != (5,) or not np.all(np.isfinite(terminal_pending)):
-        raise ValueError("v3 terminal pending vector must contain five finite values")
-    target_met_by_service = np.all(tail >= targets - CONSTRAINT_TOLERANCE, axis=0)
-    tail_targets_met = bool(np.all(target_met_by_service))
-    rauc = float(np.mean(resilience))
-    checks = {
-        "zero_hard_violations": hard_violations == 0,
-        "conservation_verified": max_residual <= CONSERVATION_TOLERANCE_V3,
-        "assessment_tail_targets_met": tail_targets_met,
-        "resilience_auc_met": rauc >= SOLVED_RAUC_FLOOR,
-        "critical_service_day_cap_met": critical_service_days <= critical_cap,
-        "terminal_pending_within_capacity": bool(
-            np.all(
-                terminal_pending
-                <= DEPOT_CAPACITY * TERMINAL_PENDING_CAPACITY_MULTIPLIER
-                + CONSTRAINT_TOLERANCE
-            )
-        ),
-    }
-    solved = all(checks.values())
-    return {
-        "definition_id": SOLVED_DEFINITION_V3["id"],
-        "definition_sha256": SOLVED_DEFINITION_V3_SHA256,
-        "solved": solved,
-        "status": "solved" if solved else "failed",
-        "checks": checks,
-        "recovery_targets": _round_vector(targets),
-        "target_met_by_service": [
-            bool(value) for value in target_met_by_service.tolist()
-        ],
-        "assessment_tail_days": assessment_tail_days,
-        "tail_minimum_services": _round_vector(np.min(tail, axis=0)),
-        "resilience_auc": round(rauc, 8),
-        "resilience_auc_floor": SOLVED_RAUC_FLOOR,
-        "critical_service_days": critical_service_days,
-        "critical_service_day_cap": critical_cap,
-        "hard_violation_count": hard_violations,
-        "max_conservation_residual": round(float(max_residual), 10),
-        "terminal_pending_arrivals": _round_vector(terminal_pending),
-        "terminal_pending_capacity": _round_vector(
-            DEPOT_CAPACITY * TERMINAL_PENDING_CAPACITY_MULTIPLIER
-        ),
-        "reason_codes": [name for name, passed in checks.items() if not passed],
-    }
 
 
 class CityRecoveryEnvV3(gym.Env[np.ndarray, np.ndarray]):
@@ -1226,68 +1041,6 @@ def public_preparedness_curriculum_action_v3(
         "future_tape_visible": False,
         "expected_public_impact": _round_vector(expected_impact),
         "preparedness_targets": _round_vector(preparedness_investment),
-    }
-
-
-def _summarize_v3(
-    planner: str,
-    trajectory: list[dict[str, Any]],
-    scenario: ScenarioV3,
-) -> dict[str, Any]:
-    resilience = np.asarray([day["resilience"] for day in trajectory], dtype=np.float64)
-    normalized_priorities = np.asarray(scenario.priorities, dtype=np.float64)
-    normalized_priorities /= normalized_priorities.sum()
-    before_resilience = np.asarray(
-        [
-            normalized_priorities @ np.asarray(day["services_before"])
-            for day in trajectory
-        ]
-    )
-    shocked_resilience = np.asarray(
-        [
-            normalized_priorities @ np.asarray(day["services_after_shock"])
-            for day in trajectory
-        ]
-    )
-    largest_loss_index = int(np.argmax(before_resilience - shocked_resilience))
-    recovery_target = float(before_resilience[largest_loss_index])
-    recovery_day = len(trajectory) + 1
-    for index in range(largest_loss_index, len(trajectory)):
-        if resilience[index] >= recovery_target - CONSTRAINT_TOLERANCE:
-            recovery_day = index - largest_loss_index
-            break
-    outcome = absolute_outcome_v3(
-        trajectory, scenario.recovery_targets, scenario.assessment_tail_days
-    )
-    max_residual = max(
-        abs(value)
-        for day in trajectory
-        for value in day["logistics"]["conservation_residual"]
-    )
-    return {
-        "planner": planner,
-        "rauc": round(float(np.mean(resilience)), 8),
-        "final_resilience": round(float(resilience[-1]), 8),
-        "minimum_resilience": round(float(np.min(resilience)), 8),
-        "post_shock_recovery_shortfall_auc": round(
-            float(
-                np.mean(
-                    np.maximum(0.0, recovery_target - resilience[largest_loss_index:])
-                )
-            ),
-            8,
-        ),
-        "days_to_pre_shock_recovery_after_largest_loss": recovery_day,
-        "largest_shock_loss_day": largest_loss_index + 1,
-        "critical_service_days": outcome["critical_service_days"],
-        "hard_violation_count": outcome["hard_violation_count"],
-        "constraint_violations": outcome["hard_violation_count"],
-        "max_logistics_conservation_residual": round(float(max_residual), 10),
-        "final_depot_stock": trajectory[-1]["logistics"]["depot_stock_end"],
-        "final_pending_arrivals": trajectory[-1]["logistics"]["pending_next_day"],
-        "absolute_outcome": outcome,
-        "trajectory_sha256": canonical_hash(trajectory),
-        "trajectory": trajectory,
     }
 
 

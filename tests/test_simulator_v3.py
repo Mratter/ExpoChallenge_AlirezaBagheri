@@ -4,22 +4,22 @@ import unittest
 
 import numpy as np
 
-from backend.app.models import ForcedShock
-from backend.app.scenarios_v3 import (
-    DEVELOPMENT_FAMILIES_V3,
-    DEVELOPMENT_SEEDS_V3,
-    FINAL_FAMILIES_V3,
-    FINAL_SEEDS_V3,
-    TRAINING_FAMILIES_V3,
-    TRAINING_SEEDS_V3,
+from backend.app.city.outcome import absolute_outcome
+from backend.app.city.scenarios import (
+    DEVELOPMENT_FAMILIES,
+    DEVELOPMENT_SEEDS,
+    FINAL_FAMILIES,
+    FINAL_SEEDS,
+    TRAINING_FAMILIES,
+    TRAINING_SEEDS,
+    generate_disaster_tape,
 )
+from backend.app.models import ForcedShock
 from backend.app.simulator_core import canonical_hash
 from backend.app.simulator_v3 import (
     ACTION_SIZE_V3,
     OBSERVATION_SIZE_V3,
     CityRecoveryEnvV3,
-    absolute_outcome_v3,
-    generate_disaster_tape_v3,
     public_preparedness_curriculum_action_v3,
     reactive_heuristic_action_v3,
 )
@@ -27,18 +27,18 @@ from backend.app.simulator_v3 import (
 
 class SimulatorV3ContractTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.seed = TRAINING_SEEDS_V3[0]
-        self.scenario = TRAINING_FAMILIES_V3[0].build(self.seed)
+        self.seed = TRAINING_SEEDS[0]
+        self.scenario = TRAINING_FAMILIES[0].build(self.seed)
 
     def test_split_seed_ranges_are_disjoint(self) -> None:
-        self.assertFalse(set(TRAINING_SEEDS_V3) & set(DEVELOPMENT_SEEDS_V3))
-        self.assertFalse(set(TRAINING_SEEDS_V3) & set(FINAL_SEEDS_V3))
-        self.assertFalse(set(DEVELOPMENT_SEEDS_V3) & set(FINAL_SEEDS_V3))
+        self.assertFalse(set(TRAINING_SEEDS) & set(DEVELOPMENT_SEEDS))
+        self.assertFalse(set(TRAINING_SEEDS) & set(FINAL_SEEDS))
+        self.assertFalse(set(DEVELOPMENT_SEEDS) & set(FINAL_SEEDS))
 
     def test_each_registered_case_has_an_independent_tape_seed(self) -> None:
         for families, seeds in (
-            (DEVELOPMENT_FAMILIES_V3, DEVELOPMENT_SEEDS_V3),
-            (FINAL_FAMILIES_V3, FINAL_SEEDS_V3),
+            (DEVELOPMENT_FAMILIES, DEVELOPMENT_SEEDS),
+            (FINAL_FAMILIES, FINAL_SEEDS),
         ):
             derived = {family.tape_seed(seed) for family in families for seed in seeds}
             self.assertEqual(len(derived), len(families) * len(seeds))
@@ -61,7 +61,7 @@ class SimulatorV3ContractTests(unittest.TestCase):
             env.step(bad)
 
     def test_assessment_tail_is_shock_free(self) -> None:
-        tape = generate_disaster_tape_v3(self.scenario, self.seed)
+        tape = generate_disaster_tape(self.scenario, self.seed)
         tail = tape[-self.scenario.assessment_tail_days :]
         self.assertTrue(all(item.assessment_tail for item in tail))
         self.assertTrue(
@@ -82,8 +82,8 @@ class SimulatorV3ContractTests(unittest.TestCase):
                 ]
             }
         )
-        original = generate_disaster_tape_v3(self.scenario, self.seed)
-        alternate = generate_disaster_tape_v3(changed, self.seed)
+        original = generate_disaster_tape(self.scenario, self.seed)
+        alternate = generate_disaster_tape(changed, self.seed)
         prefix_length = original_forced.day - 1
         self.assertEqual(
             [item.public_risk_next for item in original[:prefix_length]],
@@ -259,7 +259,7 @@ class SimulatorV3ContractTests(unittest.TestCase):
         terminated = False
         while not terminated:
             _, _, terminated, _, _ = env.step(np.zeros(ACTION_SIZE_V3))
-        outcome = absolute_outcome_v3(
+        outcome = absolute_outcome(
             env.trajectory,
             self.scenario.recovery_targets,
             self.scenario.assessment_tail_days,

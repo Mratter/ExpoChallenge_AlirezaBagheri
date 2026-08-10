@@ -6,14 +6,16 @@ from dataclasses import asdict
 
 import numpy as np
 
-from backend.app.scenarios_v3 import TRAINING_FAMILIES_V3, TRAINING_SEEDS_V3
+from backend.app.city.outcome import SOLVED_DEFINITION_SHA256, summarize_trajectory
+from backend.app.city.scenarios import (
+    TRAINING_FAMILIES,
+    TRAINING_SEEDS,
+    generate_disaster_tape,
+)
 from backend.app.simulator_core import canonical_hash
 from backend.app.simulator_v3 import (
     ACTION_SIZE_V3,
     ENGINE_V3_SPEC_SHA256,
-    SOLVED_DEFINITION_V3_SHA256,
-    _summarize_v3,
-    generate_disaster_tape_v3,
 )
 from backend.app.simulator_v4 import CityRecoveryEnvV4
 
@@ -27,14 +29,14 @@ EXPECTED_ENGINE_SPEC_SHA256 = (
 
 
 def test_scientific_contract_value_hashes_are_stable() -> None:
-    assert SOLVED_DEFINITION_V3_SHA256 == EXPECTED_SOLVED_DEFINITION_SHA256
+    assert SOLVED_DEFINITION_SHA256 == EXPECTED_SOLVED_DEFINITION_SHA256
     assert ENGINE_V3_SPEC_SHA256 == EXPECTED_ENGINE_SPEC_SHA256
 
 
 def test_full_evidence_training_trajectory_is_byte_stable() -> None:
-    seed = TRAINING_SEEDS_V3[0]
-    scenario = TRAINING_FAMILIES_V3[0].build(seed)
-    schedule = generate_disaster_tape_v3(scenario, seed)
+    seed = TRAINING_SEEDS[0]
+    scenario = TRAINING_FAMILIES[0].build(seed)
+    schedule = generate_disaster_tape(scenario, seed)
     assert canonical_hash([asdict(item) for item in schedule]) == (
         "cdade263357aeebff3d9c9274e04b14306c941efca579b3c79b6c73ba79511ae"
     )
@@ -54,7 +56,7 @@ def test_full_evidence_training_trajectory_is_byte_stable() -> None:
         _, _, terminated, truncated, _ = environment.step(action)
         assert not truncated
 
-    summary = _summarize_v3("golden", environment.trajectory, scenario)
+    summary = summarize_trajectory("golden", environment.trajectory, scenario)
     assert canonical_hash(environment.trajectory) == (
         "4be368fb957b480b1273989f17a1b80c2fa8520e86911628bfdd0e69692cf8d6"
     )

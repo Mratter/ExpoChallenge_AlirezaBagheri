@@ -2,20 +2,23 @@ from __future__ import annotations
 
 import numpy as np
 
-from backend.app.scenarios_v3 import TRAINING_FAMILIES_V3, TRAINING_SEEDS_V3
+from backend.app.city.scenarios import (
+    TRAINING_FAMILIES,
+    TRAINING_SEEDS,
+    generate_disaster_tape,
+)
 from backend.app.simulator_core import canonical_hash
 from backend.app.simulator_v3 import (
     ACTION_SIZE_V3,
     CityRecoveryEnvV3,
-    generate_disaster_tape_v3,
 )
 from backend.app.simulator_v4 import CityRecoveryEnvV4
 
 
 def _fixture() -> tuple[object, int, list[object]]:
-    seed = TRAINING_SEEDS_V3[0]
-    scenario = TRAINING_FAMILIES_V3[0].build(seed)
-    return scenario, seed, generate_disaster_tape_v3(scenario, seed)
+    seed = TRAINING_SEEDS[0]
+    scenario = TRAINING_FAMILIES[0].build(seed)
+    return scenario, seed, generate_disaster_tape(scenario, seed)
 
 
 def test_v4_optimization_preserves_the_frozen_v3_transition() -> None:
