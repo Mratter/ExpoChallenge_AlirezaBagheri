@@ -26,9 +26,11 @@ Evaluate every complete candidate checkpoint from the authorized training run on
 Rank checkpoints by:
 
 1. development cases solved out of 40;
-2. mean resilience AUC if solve counts tie;
-3. mean minimum assessment-tail margin if the first two values tie; and
-4. earlier transition count if every measured performance value ties.
+2. earlier active transition count if solve counts tie; and
+3. lower registered policy seed if both solve count and transition count tie.
+
+Resilience AUC and minimum assessment-tail margin remain descriptive diagnostics;
+neither may affect checkpoint selection.
 
 Write one selection record containing the complete checkpoint score table and, for the winner and runner-up:
 

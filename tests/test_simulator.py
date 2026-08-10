@@ -68,6 +68,58 @@ def test_same_actions_and_tape_replay_exactly() -> None:
     assert hashes[0] == hashes[1]
 
 
+def test_reward_treatments_change_only_rewards_for_fixed_actions() -> None:
+    scenario, seed, schedule = _fixture()
+    actions = [np.linspace(-1.0, 1.0, ACTION_SIZE) for _ in range(30)]
+    environments = {
+        "default": CityRecoveryEnv(scenario, seed, schedule),
+        "v3_equivalent": CityRecoveryEnv(
+            scenario, seed, schedule, reward_profile="v3_equivalent"
+        ),
+        "risk_averse": CityRecoveryEnv(
+            scenario, seed, schedule, reward_profile="risk_averse"
+        ),
+        "alignment_2": CityRecoveryEnv(
+            scenario,
+            seed,
+            schedule,
+            reward_profile="v3_equivalent",
+            preparedness_alignment_coefficient=2.0,
+        ),
+    }
+    for environment in environments.values():
+        environment.reset(seed=seed)
+        for action in actions:
+            environment.step(action)
+
+    reference = environments["default"].trajectory
+    assert reference == environments["v3_equivalent"].trajectory
+    for treatment in ("risk_averse", "alignment_2"):
+        trajectory = environments[treatment].trajectory
+        assert [row["services_end"] for row in trajectory] == [
+            row["services_end"] for row in reference
+        ]
+        assert trajectory[-1]["absolute_outcome"] == reference[-1][
+            "absolute_outcome"
+        ]
+        assert [row["reward"] for row in trajectory] != [
+            row["reward"] for row in reference
+        ]
+
+
+def test_reward_treatment_arguments_fail_closed() -> None:
+    scenario, seed, schedule = _fixture()
+    with pytest.raises(ValueError, match="reward_profile"):
+        CityRecoveryEnv(scenario, seed, schedule, reward_profile="unknown")
+    with pytest.raises(ValueError, match="alignment"):
+        CityRecoveryEnv(
+            scenario,
+            seed,
+            schedule,
+            preparedness_alignment_coefficient=float("nan"),
+        )
+
+
 def test_decoder_conserves_material_crew_and_inventory() -> None:
     scenario, seed, schedule = _fixture()
     random = np.random.Generator(np.random.PCG64(918273))

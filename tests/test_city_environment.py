@@ -38,8 +38,12 @@ def _actions(seed: int, count: int) -> list[np.ndarray]:
 
 
 def test_environment_preserves_golden_contract_and_trajectory() -> None:
-    assert "reward_profile" not in signature(CityRecoveryEnv).parameters
-    assert "reward_profile" not in signature(CyclingScenarioEnv).parameters
+    assert signature(CityRecoveryEnv).parameters["reward_profile"].default == (
+        "v3_equivalent"
+    )
+    assert signature(CyclingScenarioEnv).parameters[
+        "reward_profile"
+    ].default == "v3_equivalent"
     assert ENGINE_SPEC_SHA256 == EXPECTED_ENGINE_SPEC_SHA256
     assert SOLVED_DEFINITION_SHA256 == EXPECTED_SOLVED_DEFINITION_SHA256
 

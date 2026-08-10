@@ -2,8 +2,9 @@
 
 The environment combines the stable city physics with the exact breakpoint
 allocation projection introduced for efficient training. It exposes one
-73-value observation contract, one 22-value action contract, and the original
-published reward used by the shipped model.
+73-value observation contract, one 22-value action contract, and an explicit
+training-reward treatment while keeping the original reward as the runtime
+default.
 """
 
 from __future__ import annotations
@@ -84,6 +85,7 @@ PREPAREDNESS_DECAY = 0.92
 PREPAREDNESS_SHOCK_REDUCTION = 0.85
 PREPAREDNESS_SHOCK_CONSUMPTION = 0.45
 PREPAREDNESS_DAILY_GAIN_CAP = 0.4
+REWARD_PROFILES = ("v3_equivalent", "risk_averse")
 OBSERVATION_ORDER = (
     *(f"service_{name}" for name in SERVICES),
     *(f"priority_{name}" for name in SERVICES),
@@ -287,11 +289,29 @@ class CityRecoveryEnv(gym.Env[np.ndarray, np.ndarray]):
         schedule: Sequence[Shock] | None = None,
         *,
         collect_evidence: bool = True,
+        reward_profile: str = "v3_equivalent",
+        preparedness_alignment_coefficient: float | None = None,
     ):
         if not isinstance(collect_evidence, bool):
             raise TypeError("collect_evidence must be a boolean")
+        if reward_profile not in REWARD_PROFILES:
+            raise ValueError(
+                f"reward_profile must be one of {', '.join(REWARD_PROFILES)}"
+            )
+        default_alignment = 10.0 if reward_profile == "v3_equivalent" else 2.0
+        alignment_coefficient = (
+            default_alignment
+            if preparedness_alignment_coefficient is None
+            else float(preparedness_alignment_coefficient)
+        )
+        if not np.isfinite(alignment_coefficient) or alignment_coefficient < 0.0:
+            raise ValueError(
+                "preparedness_alignment_coefficient must be finite and nonnegative"
+            )
         super().__init__()
         self.collect_evidence = collect_evidence
+        self.reward_profile = reward_profile
+        self.preparedness_alignment_coefficient = alignment_coefficient
         self.observation_space = spaces.Box(
             low=np.zeros(OBSERVATION_SIZE, dtype=np.float32),
             high=np.ones(OBSERVATION_SIZE, dtype=np.float32),
@@ -677,6 +697,8 @@ class CityRecoveryEnv(gym.Env[np.ndarray, np.ndarray]):
         critical_count = int(np.count_nonzero(end < CRITICAL_SERVICE_FLOOR))
         target_shortfalls = np.maximum(0.0, context.recovery_targets - end)
         mean_target_gap = float(np.mean(target_shortfalls))
+        worst_target_gap = float(np.max(target_shortfalls))
+        target_margin = float(np.min(end - context.recovery_targets))
         critical_shortfall = float(
             np.mean(np.maximum(0.0, CRITICAL_SERVICE_FLOOR - end))
         )
@@ -689,17 +711,34 @@ class CityRecoveryEnv(gym.Env[np.ndarray, np.ndarray]):
             intervention.material_projection["distance"] / context.available_budget
             + intervention.crew_projection["distance"] / context.available_crew
         )
-        reward = (
-            1.5 * resilience
-            + 0.75 * (resilience - shocked_resilience)
-            - 0.35 * critical_count
-            - 1.0 * mean_target_gap
-            - 1.2 * critical_shortfall
-            - assessment_target_penalty
-            - 0.25 * backlog_pressure
-            + 10.0 * preparedness_alignment
-            - projection_cost
-        )
+        if self.reward_profile == "v3_equivalent":
+            reward = (
+                1.5 * resilience
+                + 0.75 * (resilience - shocked_resilience)
+                - 0.35 * critical_count
+                - 1.0 * mean_target_gap
+                - 1.2 * critical_shortfall
+                - assessment_target_penalty
+                - 0.25 * backlog_pressure
+                + self.preparedness_alignment_coefficient
+                * preparedness_alignment
+                - projection_cost
+            )
+        else:
+            reward = (
+                1.5 * resilience
+                + 0.75 * (resilience - shocked_resilience)
+                - 0.35 * critical_count
+                - 0.30 * mean_target_gap
+                - 2.50 * worst_target_gap
+                + 0.60 * float(np.clip(target_margin, -0.10, 0.05))
+                - 1.20 * critical_shortfall
+                - assessment_target_penalty
+                - 0.25 * backlog_pressure
+                + self.preparedness_alignment_coefficient
+                * preparedness_alignment
+                - projection_cost
+            )
         conservation_residual = (
             context.stock_before
             + context.pending_arrivals
@@ -883,29 +922,62 @@ class CityRecoveryEnv(gym.Env[np.ndarray, np.ndarray]):
                 self.scenario.recovery_targets,
                 self.scenario.assessment_tail_days,
             )
-            tail_shortfall = float(
-                np.sum(
-                    np.maximum(
-                        0.0,
-                        np.asarray(outcome["recovery_targets"])
-                        - np.asarray(outcome["tail_minimum_services"]),
-                    )
-                )
-            )
             critical_excess = max(
                 0,
                 outcome["critical_service_days"] - outcome["critical_service_day_cap"],
             )
-            terminal_bonus = (
-                12.0
-                if outcome["solved"]
-                else -(
-                    8.0 * tail_shortfall
-                    + 0.2 * critical_excess
-                    + 5.0 * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
-                    + 1.5 * len(outcome["reason_codes"])
+            if self.reward_profile == "v3_equivalent":
+                tail_shortfall = float(
+                    np.sum(
+                        np.maximum(
+                            0.0,
+                            np.asarray(outcome["recovery_targets"])
+                            - np.asarray(outcome["tail_minimum_services"]),
+                        )
+                    )
                 )
-            )
+                terminal_bonus = (
+                    12.0
+                    if outcome["solved"]
+                    else -(
+                        8.0 * tail_shortfall
+                        + 0.2 * critical_excess
+                        + 5.0
+                        * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
+                        + 1.5 * len(outcome["reason_codes"])
+                    )
+                )
+            else:
+                realized_minimum_margin = float(
+                    np.min(
+                        np.asarray(outcome["tail_minimum_services"])
+                        - np.asarray(outcome["recovery_targets"])
+                    )
+                )
+                tail_targets_met = bool(
+                    outcome["checks"]["assessment_tail_targets_met"]
+                )
+                target_component = (
+                    12.0
+                    + 40.0 * float(np.clip(realized_minimum_margin, 0.0, 0.05))
+                    if tail_targets_met
+                    else -12.0
+                    - 40.0 * float(np.clip(-realized_minimum_margin, 0.0, 0.10))
+                )
+                non_target_failures = sum(
+                    reason != "assessment_tail_targets_met"
+                    for reason in outcome["reason_codes"]
+                )
+                terminal_bonus = (
+                    target_component
+                    - 0.2 * critical_excess
+                    - 5.0 * max(0.0, SOLVED_RAUC_FLOOR - outcome["resilience_auc"])
+                    - 1.5 * non_target_failures
+                )
+                record["terminal_minimum_target_margin"] = round(
+                    realized_minimum_margin, 8
+                )
+                record["terminal_tail_targets_met"] = tail_targets_met
             reward += terminal_bonus
             record["terminal_bonus"] = round(float(terminal_bonus), 8)
             record["reward"] = round(float(reward), 8)
@@ -929,6 +1001,8 @@ class CyclingScenarioEnv(gym.Env[np.ndarray, np.ndarray]):
         scenarios: list[tuple[ScenarioModel, int]],
         *,
         collect_evidence: bool = True,
+        reward_profile: str = "v3_equivalent",
+        preparedness_alignment_coefficient: float | None = None,
     ):
         if not scenarios:
             raise ValueError("at least one training scenario is required")
@@ -943,6 +1017,10 @@ class CyclingScenarioEnv(gym.Env[np.ndarray, np.ndarray]):
             first_seed,
             first_schedule,
             collect_evidence=collect_evidence,
+            reward_profile=reward_profile,
+            preparedness_alignment_coefficient=(
+                preparedness_alignment_coefficient
+            ),
         )
         self.observation_space = self.inner.observation_space
         self.action_space = self.inner.action_space
@@ -1111,6 +1189,7 @@ __all__ = (
     "OBSERVATION_ORDER",
     "OBSERVATION_SIZE",
     "RAW_OBSERVATION_CONTRACT",
+    "REWARD_PROFILES",
     "RESULT_SCHEMA",
     "compare",
     "decode_action",

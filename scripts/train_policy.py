@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
+import platform
 import random
 import sys
 import time
@@ -68,6 +70,10 @@ from backend.app.city.scenarios import (  # noqa: E402
     generate_disaster_tape,
 )
 from backend.app.shared_evidence import canonical_hash  # noqa: E402
+from scripts.training_artifacts import (  # noqa: E402
+    TrainingArtifactError,
+    persist_checkpoint_bundle,
+)
 
 TOOL_ID = "train_policy.py"
 DEFAULT_TRANSITIONS = 8_000_000
@@ -79,6 +85,8 @@ DEFAULT_BC_EPOCHS = 15
 DEFAULT_LEARNING_RATE = 7.5e-5
 DEFAULT_TARGET_KL = 0.02
 DEFAULT_ENT_COEF = 0.003
+DEFAULT_REWARD_PROFILE = "v3_equivalent"
+DEFAULT_PREPAREDNESS_ALIGNMENT_COEFFICIENT = 10.0
 DEFAULT_CRITIC_WARMUP_MIN_TRANSITIONS = 50_000
 DEFAULT_CRITIC_WARMUP_MAX_TRANSITIONS = 100_000
 CRITIC_EXPLAINED_VARIANCE_GATE = 0.5
@@ -209,11 +217,33 @@ def training_roster_and_tapes_contract() -> dict[str, Any]:
     }
 
 
+def runtime_versions() -> dict[str, str]:
+    """Record the libraries and operating system used for training."""
+
+    packages = (
+        "numpy",
+        "torch",
+        "stable-baselines3",
+        "gymnasium",
+        "onnx",
+        "onnxruntime",
+    )
+    return {
+        "python": platform.python_version(),
+        "operating_system": platform.platform(),
+        **{name: importlib.metadata.version(name) for name in packages},
+    }
+
+
 @dataclass(frozen=True)
 class TrainingLaneFactory:
     """Create one spawn-safe lane over a deterministic roster rotation."""
 
     lane: int
+    reward_profile: str = DEFAULT_REWARD_PROFILE
+    preparedness_alignment_coefficient: float = (
+        DEFAULT_PREPAREDNESS_ALIGNMENT_COEFFICIENT
+    )
 
     def __call__(self) -> CyclingScenarioEnv:
         for variable in (
@@ -229,14 +259,36 @@ class TrainingLaneFactory:
         scenarios = training_scenarios()
         offset = self.lane % len(scenarios)
         rotated = scenarios[offset:] + scenarios[:offset]
-        return CyclingScenarioEnv(rotated, collect_evidence=False)
+        return CyclingScenarioEnv(
+            rotated,
+            collect_evidence=False,
+            reward_profile=self.reward_profile,
+            preparedness_alignment_coefficient=(
+                self.preparedness_alignment_coefficient
+            ),
+        )
 
 
-def spawn_environment(lanes: int, seed: int) -> SubprocVecEnv:
+def spawn_environment(
+    lanes: int,
+    seed: int,
+    *,
+    reward_profile: str = DEFAULT_REWARD_PROFILE,
+    preparedness_alignment_coefficient: float = (
+        DEFAULT_PREPAREDNESS_ALIGNMENT_COEFFICIENT
+    ),
+) -> SubprocVecEnv:
     """Start deterministic subprocess lanes for on-policy training."""
 
     factories: list[Callable[[], CyclingScenarioEnv]] = [
-        TrainingLaneFactory(lane) for lane in range(lanes)
+        TrainingLaneFactory(
+            lane,
+            reward_profile=reward_profile,
+            preparedness_alignment_coefficient=(
+                preparedness_alignment_coefficient
+            ),
+        )
+        for lane in range(lanes)
     ]
     environment = SubprocVecEnv(factories, start_method="spawn")
     environment.seed(seed)
@@ -450,6 +502,8 @@ def normalize_observations(
 def policy_rollout_dataset(
     model: PPO,
     observation_rms: dict[str, Any],
+    *,
+    normalize_observation: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Label states visited by the current actor with the public teacher."""
 
@@ -469,11 +523,15 @@ def policy_rollout_dataset(
                 raise TrainingError("DAgger teacher exposed future tape information")
             observations.append(np.asarray(observation, dtype=np.float32).copy())
             targets.append(np.asarray(teacher_action, dtype=np.float32).copy())
-            normalized = normalize_observations(
-                np.asarray(observation, dtype=np.float32).reshape(1, -1),
-                observation_rms,
-            )[0]
-            rollout_action, _ = model.predict(normalized, deterministic=True)
+            policy_observation = np.asarray(observation, dtype=np.float32)
+            if normalize_observation:
+                policy_observation = normalize_observations(
+                    policy_observation.reshape(1, -1),
+                    observation_rms,
+                )[0]
+            rollout_action, _ = model.predict(
+                policy_observation, deterministic=True
+            )
             observation, _, terminated, _, _ = environment.step(rollout_action)
 
     observation_array = np.asarray(observations, dtype=np.float32)
@@ -497,6 +555,7 @@ def behavior_clone_policy(
     learning_rate: float,
     target_kl: float,
     ent_coef: float,
+    normalize_observation: bool = True,
 ) -> tuple[dict[str, torch.Tensor], dict[str, Any], dict[str, Any]]:
     """Fit the actor through BC/DAgger while leaving the critic untouched."""
 
@@ -541,18 +600,23 @@ def behavior_clone_policy(
                 next_observations, next_targets = policy_rollout_dataset(
                     model,
                     rms_state(observation_rms),
+                    normalize_observation=normalize_observation,
                 )
             observation_rms.update(next_observations)
             observation_batches.append(next_observations)
             target_batches.append(next_targets)
             cumulative_observations = np.concatenate(observation_batches)
             cumulative_targets = np.concatenate(target_batches)
-            normalized_observations = normalize_observations(
-                cumulative_observations,
-                rms_state(observation_rms),
+            policy_observations = (
+                normalize_observations(
+                    cumulative_observations,
+                    rms_state(observation_rms),
+                )
+                if normalize_observation
+                else cumulative_observations
             )
             observation_tensor = torch.as_tensor(
-                normalized_observations,
+                policy_observations,
                 dtype=torch.float32,
             )
             target_tensor = torch.as_tensor(
@@ -625,10 +689,49 @@ def behavior_clone_policy(
                 cumulative_targets,
             ),
             "policy_state_sha256": state_digest(state),
-            "observation_normalization": True,
+            "observation_normalization": normalize_observation,
             "observation_rms_sha256": rms_digest(observation_rms_state),
             "observation_rms_count": observation_rms_state["count"],
             "critic_unchanged_during_actor_only_imitation": True,
+        }
+    finally:
+        environment.close()
+
+
+def untrained_policy_state(
+    *,
+    seed: int,
+    n_steps: int,
+    batch_size: int,
+    learning_rate: float,
+    target_kl: float,
+    ent_coef: float,
+) -> dict[str, torch.Tensor]:
+    """Build the byte-defined random initialization used by the no-BC ablation."""
+
+    scenario, tape_seed = training_scenarios()[0]
+    environment = DummyVecEnv(
+        [
+            lambda: CityRecoveryEnv(
+                scenario,
+                tape_seed,
+                collect_evidence=False,
+            )
+        ]
+    )
+    try:
+        model = build_model(
+            environment,
+            seed=seed,
+            n_steps=n_steps,
+            batch_size=min(batch_size, n_steps),
+            learning_rate=learning_rate,
+            target_kl=target_kl,
+            ent_coef=ent_coef,
+        )
+        return {
+            name: value.detach().cpu().clone()
+            for name, value in model.policy.state_dict().items()
         }
     finally:
         environment.close()
@@ -864,7 +967,7 @@ def return_rms_continuity_valid(
     before_count = float(warmup["return_rms_before_count"])
     after_count = float(warmup["return_rms_after_count"])
     final_count = float(final["return_rms_count"])
-    return (
+    return bool(
         warmup["return_rms_before_sha256"] == initial_return_rms_sha256
         and before_count < after_count <= final_count
         and np.isclose(
@@ -924,6 +1027,33 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--target-kl", type=float, default=DEFAULT_TARGET_KL)
     parser.add_argument("--ent-coef", type=float, default=DEFAULT_ENT_COEF)
     parser.add_argument(
+        "--reward-profile",
+        choices=("v3_equivalent", "risk_averse"),
+        default=DEFAULT_REWARD_PROFILE,
+        help="training reward treatment; runtime physics and outcome stay fixed",
+    )
+    parser.add_argument(
+        "--preparedness-alignment-coefficient",
+        type=float,
+        default=None,
+        help=(
+            "override preparedness alignment reward weight; defaults to 10.0 "
+            "for v3_equivalent and 2.0 for risk_averse"
+        ),
+    )
+    parser.add_argument(
+        "--bc-warm-start",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="initialize the actor from BC/DAgger rather than random weights",
+    )
+    parser.add_argument(
+        "--vec-normalize",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="apply VecNormalize observation and reward transforms",
+    )
+    parser.add_argument(
         "--critic-warmup-min-transitions",
         type=int,
         default=DEFAULT_CRITIC_WARMUP_MIN_TRANSITIONS,
@@ -949,6 +1079,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=Path,
         required=True,
         help="new receipt path; existing files are never overwritten",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=Path,
+        help=(
+            "new directory for atomic milestone bundles; defaults beside the "
+            "receipt"
+        ),
     )
     return parser.parse_args(argv)
 
@@ -1010,16 +1148,88 @@ def validate_runtime_config(args: argparse.Namespace) -> int:
         or args.target_kl <= 0.0
         or not np.isfinite(args.ent_coef)
         or args.ent_coef < 0.0
+        or (
+            args.preparedness_alignment_coefficient is not None
+            and (
+                not np.isfinite(args.preparedness_alignment_coefficient)
+                or args.preparedness_alignment_coefficient < 0.0
+            )
+        )
     ):
         raise TrainingError("optimizer or critic warm-up arguments are invalid")
     output = _resolve_output_path(args.json_output)
     if output.exists():
         raise TrainingError(f"refusing to overwrite training receipt: {output}")
+    checkpoint_directory = resolve_checkpoint_directory(args)
+    if checkpoint_directory.exists():
+        raise TrainingError(
+            "refusing to reuse checkpoint directory: "
+            f"{checkpoint_directory}"
+        )
     return rollout_size
 
 
 def _resolve_output_path(path: Path) -> Path:
     return path.resolve() if path.is_absolute() else (ROOT / path).resolve()
+
+
+def resolve_checkpoint_directory(args: argparse.Namespace) -> Path:
+    """Resolve the create-new checkpoint root associated with a receipt."""
+
+    if args.checkpoint_dir is not None:
+        return _resolve_output_path(args.checkpoint_dir)
+    receipt = _resolve_output_path(args.json_output)
+    return receipt.with_name(f"{receipt.stem}-checkpoints")
+
+
+def resolved_training_config(
+    args: argparse.Namespace,
+    *,
+    rollout_size: int,
+    preparedness_alignment_coefficient: float,
+) -> dict[str, Any]:
+    """Build the single config object shared by bundles and the receipt."""
+
+    return {
+        "active_actor_critic_transitions": args.transitions,
+        "critic_warmup_min_transitions": args.critic_warmup_min_transitions,
+        "critic_warmup_max_transitions": args.critic_warmup_max_transitions,
+        "critic_explained_variance_threshold": args.critic_ev_threshold,
+        "lanes": args.lanes,
+        "n_steps_per_lane": args.n_steps,
+        "rollout_size": rollout_size,
+        "batch_size": args.batch_size,
+        "n_epochs": 5,
+        "learning_rate": args.learning_rate,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "clip_range": 0.15,
+        "ent_coef": args.ent_coef,
+        "reward_profile": args.reward_profile,
+        "preparedness_alignment_coefficient": (
+            preparedness_alignment_coefficient
+        ),
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+        "log_std_init": -1.5,
+        "target_kl": args.target_kl,
+        "target_kl_semantics": (
+            "Stable-Baselines3 early-stops the remaining epoch loop after "
+            "observing an update above the target"
+        ),
+        "use_sde": False,
+        "vec_normalize": args.vec_normalize,
+        "freeze_observation_rms": (
+            args.freeze_observation_rms or not args.vec_normalize
+        ),
+        "policy_seed": args.policy_seed,
+        "bc_epochs": args.bc_epochs,
+        "bc_warm_start": args.bc_warm_start,
+        "evaluation_milestones": learning_milestones(
+            args.transitions,
+            rollout_size,
+        ),
+    }
 
 
 def _stdout_summary(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1044,6 +1254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     rollout_size = validate_runtime_config(args)
     receipt_path = _resolve_output_path(args.json_output)
+    checkpoint_directory = resolve_checkpoint_directory(args)
 
     torch.set_num_threads(min(12, os.cpu_count() or 1))
     torch.set_num_interop_threads(1)
@@ -1051,6 +1262,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     reset_policy_seed(args.policy_seed)
 
     started = time.perf_counter()
+    preparedness_alignment_coefficient = (
+        10.0
+        if args.reward_profile == "v3_equivalent"
+        else 2.0
+    )
+    if args.preparedness_alignment_coefficient is not None:
+        preparedness_alignment_coefficient = float(
+            args.preparedness_alignment_coefficient
+        )
+    training_config = resolved_training_config(
+        args,
+        rollout_size=rollout_size,
+        preparedness_alignment_coefficient=(
+            preparedness_alignment_coefficient
+        ),
+    )
     observations, targets = behavior_cloning_dataset()
     initial_state, initial_observation_rms, bc_receipt = behavior_clone_policy(
         observations,
@@ -1062,25 +1289,51 @@ def main(argv: Sequence[str] | None = None) -> int:
         learning_rate=args.learning_rate,
         target_kl=args.target_kl,
         ent_coef=args.ent_coef,
+        normalize_observation=args.vec_normalize,
     )
+    if not args.bc_warm_start:
+        initial_state = untrained_policy_state(
+            seed=args.policy_seed,
+            n_steps=args.n_steps,
+            batch_size=args.batch_size,
+            learning_rate=args.learning_rate,
+            target_kl=args.target_kl,
+            ent_coef=args.ent_coef,
+        )
+        bc_receipt = {
+            **bc_receipt,
+            "actor_warm_start_applied": False,
+            "counterfactual_untrained_policy_state_sha256": state_digest(
+                initial_state
+            ),
+        }
+    else:
+        bc_receipt = {**bc_receipt, "actor_warm_start_applied": True}
     training_contract = training_roster_and_tapes_contract()
 
     raw_environment: SubprocVecEnv | None = None
     environment: VecNormalize | None = None
     try:
         reset_policy_seed(args.policy_seed)
-        raw_environment = spawn_environment(args.lanes, args.policy_seed)
+        raw_environment = spawn_environment(
+            args.lanes,
+            args.policy_seed,
+            reward_profile=args.reward_profile,
+            preparedness_alignment_coefficient=(
+                preparedness_alignment_coefficient
+            ),
+        )
         environment = VecNormalize(
             raw_environment,
             training=True,
-            norm_obs=True,
-            norm_reward=True,
+            norm_obs=args.vec_normalize,
+            norm_reward=args.vec_normalize,
             clip_obs=10.0,
             clip_reward=10.0,
             gamma=0.99,
             epsilon=1e-8,
         )
-        if args.freeze_observation_rms:
+        if args.freeze_observation_rms or not args.vec_normalize:
             fixed_observation_rms = FreezableRunningMeanStd(
                 shape=(len(OBSERVATION_ORDER),)
             )
@@ -1107,11 +1360,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             "return_rms_sha256": rms_digest(rms_state(environment.ret_rms)),
         }
         if (
-            initial_hashes["policy_sha256"] != bc_receipt["policy_state_sha256"]
-            or initial_hashes["observation_rms_sha256"]
-            != bc_receipt["observation_rms_sha256"]
+            args.bc_warm_start
+            and initial_hashes["policy_sha256"]
+            != bc_receipt["policy_state_sha256"]
         ):
             raise TrainingError("BC initialization changed during PPO construction")
+        if (
+            initial_hashes["observation_rms_sha256"]
+            != bc_receipt["observation_rms_sha256"]
+        ):
+            raise TrainingError("observation RMS changed during PPO construction")
         if model.policy.optimizer.state:
             raise TrainingError("PPO optimizer must start with empty state")
 
@@ -1175,6 +1433,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         active_completed = 0
         active_metrics: list[dict[str, Any]] = []
         milestone_states: dict[str, dict[str, Any]] = {}
+        checkpoint_bundles: dict[str, dict[str, Any]] = {}
         if critic_gate_passed:
             unfreeze_policy(model)
             model.set_diagnostic_phase("actor_critic_training")
@@ -1207,6 +1466,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ),
                     "return_rms_count": rms_state(environment.ret_rms)["count"],
                 }
+                checkpoint_id = f"seed-{args.policy_seed}-ppo-{milestone}"
+                try:
+                    checkpoint_bundles[str(milestone)] = (
+                        persist_checkpoint_bundle(
+                            checkpoint_directory / f"ppo-{milestone}",
+                            model=model,
+                            normalizer=environment,
+                            training_config=training_config,
+                            seed=args.policy_seed,
+                            milestone=milestone,
+                            checkpoint_id=checkpoint_id,
+                            active_actor_critic_transitions=milestone,
+                        )
+                    )
+                except TrainingArtifactError as exc:
+                    raise TrainingError(
+                        f"durable checkpoint publication failed: {checkpoint_id}"
+                    ) from exc
             active_metrics = model.training_iterations[active_metric_start:]
 
         final_key = (
@@ -1218,11 +1495,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         observation_rms_final = rms_state(environment.obs_rms)
         return_rms_final = rms_state(environment.ret_rms)
         normalization = {
-            "norm_obs": True,
-            "norm_reward_during_training": True,
+            "norm_obs": args.vec_normalize,
+            "norm_reward_during_training": args.vec_normalize,
             "norm_reward_during_evaluation": False,
             "training_during_evaluation": False,
-            "observation_rms_frozen": args.freeze_observation_rms,
+            "observation_rms_frozen": (
+                args.freeze_observation_rms or not args.vec_normalize
+            ),
             "observation_rms_sha256": rms_digest(observation_rms_final),
             "observation_rms_count": observation_rms_final["count"],
             "return_rms_sha256": rms_digest(return_rms_final),
@@ -1282,7 +1561,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             active_transitions=active_completed,
         )
         observation_rms_continuous = (
-            not args.freeze_observation_rms
+            not (args.freeze_observation_rms or not args.vec_normalize)
             or critic_warmup["observation_rms_before_sha256"]
             == critic_warmup["observation_rms_after_sha256"]
             == normalization["observation_rms_sha256"]
@@ -1300,6 +1579,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             and return_rms_continuous
             and observation_rms_continuous
             and telemetry_complete
+            and len(checkpoint_bundles)
+            == len(training_config["evaluation_milestones"])
         )
         elapsed = time.perf_counter() - started
         payload: dict[str, Any] = {
@@ -1319,43 +1600,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "deterministic_development_evaluation",
                 "create_new_receipt",
             ],
-            "config": {
-                "active_actor_critic_transitions": args.transitions,
-                "critic_warmup_min_transitions": (
-                    args.critic_warmup_min_transitions
-                ),
-                "critic_warmup_max_transitions": (
-                    args.critic_warmup_max_transitions
-                ),
-                "critic_explained_variance_threshold": args.critic_ev_threshold,
-                "lanes": args.lanes,
-                "n_steps_per_lane": args.n_steps,
-                "rollout_size": rollout_size,
-                "batch_size": args.batch_size,
-                "n_epochs": 5,
-                "learning_rate": args.learning_rate,
-                "gamma": 0.99,
-                "gae_lambda": 0.95,
-                "clip_range": 0.15,
-                "ent_coef": args.ent_coef,
-                "vf_coef": 0.5,
-                "max_grad_norm": 0.5,
-                "log_std_init": -1.5,
-                "target_kl": args.target_kl,
-                "target_kl_semantics": (
-                    "Stable-Baselines3 early-stops the remaining epoch loop "
-                    "after observing an update above the target"
-                ),
-                "use_sde": False,
-                "vec_normalize": True,
-                "freeze_observation_rms": args.freeze_observation_rms,
-                "policy_seed": args.policy_seed,
-                "bc_epochs": args.bc_epochs,
-                "evaluation_milestones": learning_milestones(
-                    args.transitions,
-                    rollout_size,
-                ),
-            },
+            "config": training_config,
             "transition_counts": {
                 "critic_warmup": warmup_completed,
                 "active_actor_critic": active_completed,
@@ -1369,6 +1614,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "development_curve": development_curve,
             "development": final_evaluation,
             "milestone_states": milestone_states,
+            "checkpoint_bundles": checkpoint_bundles,
             "training_roster_and_tapes": training_contract,
             "checks": {
                 "actor_unchanged_during_critic_warmup": (
@@ -1390,7 +1636,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ),
                 "development_only_no_final_split_used": True,
                 "training_complete": training_complete,
+                "all_registered_checkpoints_persisted": (
+                    len(checkpoint_bundles)
+                    == len(training_config["evaluation_milestones"])
+                ),
             },
+            "runtime_versions": runtime_versions(),
             "elapsed_seconds": round(elapsed, 3),
             "training_fps": round(
                 (warmup_completed + active_completed) / elapsed,

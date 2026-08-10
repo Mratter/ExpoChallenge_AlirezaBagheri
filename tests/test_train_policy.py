@@ -20,6 +20,7 @@ from scripts.train_policy import (
     DEFAULT_LANES,
     DEFAULT_LEARNING_RATE,
     DEFAULT_POLICY_SEED,
+    DEFAULT_REWARD_PROFILE,
     DEFAULT_TARGET_KL,
     DEFAULT_TRANSITIONS,
     TrainingError,
@@ -55,6 +56,10 @@ def test_canonical_defaults_match_the_adopted_optimizer_regime(
     assert args.learning_rate == DEFAULT_LEARNING_RATE == 7.5e-5
     assert args.target_kl == DEFAULT_TARGET_KL == 0.02
     assert args.ent_coef == DEFAULT_ENT_COEF == 0.003
+    assert args.reward_profile == DEFAULT_REWARD_PROFILE == "v3_equivalent"
+    assert args.preparedness_alignment_coefficient is None
+    assert args.bc_warm_start is True
+    assert args.vec_normalize is True
     assert (
         args.critic_warmup_min_transitions
         == DEFAULT_CRITIC_WARMUP_MIN_TRANSITIONS
@@ -190,7 +195,7 @@ def test_return_rms_continues_without_reset_across_training_phases() -> None:
         "initial",
         warmup_transitions=50_000,
         active_transitions=1_000_000,
-    )
+    ) is True
 
     result["normalization"]["return_rms_count"] = 1_000_000.0001
     assert not return_rms_continuity_valid(
@@ -261,5 +266,5 @@ def test_trainer_uses_only_neutral_modules_and_never_accesses_final_split() -> N
     } == expected_app_imports
     assert "FINAL_FAMILIES" not in source
     assert "FINAL_SEEDS" not in source
-    assert "reward_profile" not in source
+    assert 'choices=("v3_equivalent", "risk_averse")' in source
     assert "--gate-mode" not in source
