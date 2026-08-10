@@ -1,9 +1,0 @@
-{
-  "cases": 64,
-  "max_action_absolute_error": 1.7881393432617188e-06,
-  "onnx_sha256": "830dae7c6e0a758671019b8c30a29f24e24b085538c21ae3da8f3363a8fb9f38",
-  "passed": true,
-  "providers": [
-    "CPUExecutionProvider"
-  ]
-}

@@ -31,6 +31,15 @@ try {
         -Condition (-not (Test-CityRecoveryPythonAppExecutionAlias -Path 'C:\Users\Demo\AppData\Local\Programs\Python\Python312\python.exe')) `
         -Message 'A real per-user Python installation was misclassified as a Store alias.'
 
+    $LongRoot = Join-Path $TemporaryRoot (('nested-' * 28).TrimEnd('-'))
+    $ShortPathContext = Get-CityRecoveryEnvironmentContext -Root $LongRoot
+    Assert-True `
+        -Condition ($ShortPathContext.Mode -eq 'short-path') `
+        -Message 'A long repository path did not select the loader-safe environment.'
+    Assert-True `
+        -Condition ($ShortPathContext.EnvironmentPath -like '*\Innoverse\city-recovery\py312-*') `
+        -Message 'The loader-safe environment path still exposes a retired release name.'
+
     $OriginalPath = $env:Path
     try {
         # Reproduce a stale parent shell: neither the newly installed Python

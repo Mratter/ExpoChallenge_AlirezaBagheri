@@ -28,7 +28,7 @@ function Get-CityRecoveryEnvironmentContext {
             throw 'LOCALAPPDATA is unavailable, so a Windows-loader-safe Python environment cannot be created.'
         }
         $RootHash = Get-CityRecoveryRootHash -Value $CanonicalRoot.ToUpperInvariant()
-        $EnvironmentPath = Join-Path $env:LOCALAPPDATA "Innoverse\city-recovery-ppo-v3\py312-$($RootHash.Substring(0, 16))"
+        $EnvironmentPath = Join-Path $env:LOCALAPPDATA "Innoverse\city-recovery\py312-$($RootHash.Substring(0, 16))"
         $EnvironmentPath = [IO.Path]::GetFullPath($EnvironmentPath)
         $Mode = 'short-path'
     }

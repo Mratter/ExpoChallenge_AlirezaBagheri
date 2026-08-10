@@ -97,7 +97,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Python package installation failed. Check the internet connection and rerun setup.ps1.'
     }
-    & $Context.PythonPath -c 'import fastapi, gymnasium, numpy, onnx, onnxruntime, ortools, pydantic, uvicorn'
+    & $Context.PythonPath -c 'import backend.app.city.environment, backend.app.city.optimizer, fastapi, gymnasium, model.policy, numpy, onnx, onnxruntime, ortools, pydantic, uvicorn'
     if ($LASTEXITCODE -ne 0) { throw 'The installed Python runtime failed its import check.' }
     Assert-CityRecoveryNativePathBudget -Context $Context
 
@@ -111,12 +111,19 @@ try {
     & $NpmCommand run build --prefix frontend
     if ($LASTEXITCODE -ne 0) { throw 'The frontend production build failed.' }
 
-    Write-Host '[setup] Verifying the signed V3-only PPO release'
-    & (Join-Path $PSScriptRoot 'preflight.ps1') -Profile $Profile -SkipPortCheck
-    if ($LASTEXITCODE -ne 0) { throw 'PPO-v3 release preflight failed.' }
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:INNOVERSE_POLICY_PATH)) {
+        Write-Host '[setup] Verifying the configured ONNX policy and runtime'
+        & (Join-Path $PSScriptRoot 'preflight.ps1') -Profile $Profile -SkipPortCheck
+        if ($LASTEXITCODE -ne 0) { throw 'Runtime preflight failed.' }
+    }
+    else {
+        Write-Host '[setup] Runtime installed; no policy is selected yet.'
+        Write-Host '[setup] Set INNOVERSE_POLICY_PATH to an ONNX policy before running the Toolbox.'
+    }
 
     Write-Host ''
     Write-Host '[setup] COMPLETE'
+    Write-Host '[setup] Configure: $env:INNOVERSE_POLICY_PATH = ''C:\path\to\policy.onnx'''
     Write-Host '[setup] Start the Toolbox with: powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1'
 }
 finally {
