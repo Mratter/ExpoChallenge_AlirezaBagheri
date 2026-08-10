@@ -54,6 +54,7 @@ DEFAULT_POLICIES = (
     "teacher",
     f"onnx:{DEFAULT_ONNX_PATH.relative_to(ROOT).as_posix()}",
 )
+EXPECTED_SPLIT_CASES = 200
 
 PolicyFn = Callable[[np.ndarray], tuple[np.ndarray, dict[str, Any]]]
 
@@ -177,8 +178,11 @@ def build_cases(split: str) -> list[ProbeCase]:
                     schedule=schedule,
                 )
             )
-    if len(cases) != 40:
-        raise ProbeError(f"{split} split produced {len(cases)} cases, expected 40")
+    if len(cases) != EXPECTED_SPLIT_CASES:
+        raise ProbeError(
+            f"{split} split produced {len(cases)} cases, "
+            f"expected {EXPECTED_SPLIT_CASES}"
+        )
     return cases
 
 
@@ -315,6 +319,7 @@ def run_probe(split: str, policies: Sequence[Policy]) -> dict[str, Any]:
         "tool": "evaluate",
         "authorizing": False,
         "split": split,
+        "case_count": len(cases),
         "same_tapes": True,
         "policies": {
             policy.label: aggregate(rows_by_policy[policy.label])
@@ -331,7 +336,7 @@ def serializable_result(result: dict[str, Any]) -> dict[str, Any]:
 
 def print_human(result: dict[str, Any]) -> None:
     print(
-        f"evaluate split={result['split']} cases=40 "
+        f"evaluate split={result['split']} cases={result['case_count']} "
         f"authorizing={str(result['authorizing']).lower()} same_tapes=true"
     )
     for label, metrics in result["policies"].items():

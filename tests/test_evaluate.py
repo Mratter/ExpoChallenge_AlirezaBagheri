@@ -6,7 +6,9 @@ from pathlib import Path
 from scripts.evaluate import (
     DEFAULT_ONNX_PATH,
     DEFAULT_POLICIES,
+    EXPECTED_SPLIT_CASES,
     ProbeRow,
+    build_cases,
     exact_mcnemar_p,
     paired_contingency,
     resolve_policy,
@@ -26,6 +28,16 @@ def test_default_model_is_the_explicit_legacy_fixture() -> None:
     policy = resolve_policy(DEFAULT_POLICIES[-1])
     assert policy.label == DEFAULT_POLICIES[-1]
     assert policy.kind == "onnx"
+
+
+def test_development_probe_uses_the_exact_200_case_split() -> None:
+    cases = build_cases("dev")
+
+    assert EXPECTED_SPLIT_CASES == 200
+    assert len(cases) == 200
+    assert len({case.row_id for case in cases}) == 200
+    assert cases[0].row_id == "v3_dev_river_flood:820000"
+    assert cases[-1].row_id == "v3_dev_health_compound:820039"
 
 
 def test_legacy_report_is_retained_byte_for_byte() -> None:

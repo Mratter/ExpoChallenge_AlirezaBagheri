@@ -18,6 +18,7 @@ from backend.app.city.scenarios import (
     generate_disaster_tape,
 )
 from backend.app.shared_evidence import canonical_hash
+from scripts.evaluate import DEFAULT_POLICIES, resolve_policy, run_probe
 
 
 EXPECTED_SOLVED_DEFINITION_SHA256 = (
@@ -26,6 +27,11 @@ EXPECTED_SOLVED_DEFINITION_SHA256 = (
 EXPECTED_ENGINE_SPEC_SHA256 = (
     "34168cdf6a761dfd3be4ab7af8a4ef895561d4af1b3976c232c28502386b731e"
 )
+EXPECTED_LEGACY_FINAL_SOLVES = {
+    "heuristic": 72,
+    "teacher": 139,
+    "onnx:tests/fixtures/legacy_policy.onnx": 125,
+}
 
 
 def test_scientific_contract_value_hashes_are_stable() -> None:
@@ -73,3 +79,28 @@ def test_full_evidence_training_trajectory_is_byte_stable() -> None:
         0.38715337,
         0.34079291,
     ]
+
+
+def test_authorized_legacy_final_200_case_regression_gate() -> None:
+    assert DEFAULT_POLICIES == (
+        "heuristic",
+        "teacher",
+        "onnx:tests/fixtures/legacy_policy.onnx",
+    )
+    result = run_probe(
+        "final",
+        [resolve_policy(specification) for specification in DEFAULT_POLICIES],
+    )
+
+    assert result["case_count"] == 200
+    assert result["same_tapes"] is True
+    assert {
+        label: metrics["solved_count"]
+        for label, metrics in result["policies"].items()
+    } == EXPECTED_LEGACY_FINAL_SOLVES
+    assert all(
+        metrics["case_count"] == 200
+        and metrics["hard_violation_count"] == 0
+        and metrics["maximum_conservation_residual"] == 0.0
+        for metrics in result["policies"].values()
+    )

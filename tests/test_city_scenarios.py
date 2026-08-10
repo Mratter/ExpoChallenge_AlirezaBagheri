@@ -51,6 +51,12 @@ def test_canonical_tape_matches_the_frozen_golden_hash() -> None:
 
 
 def test_split_seed_ranges_are_disjoint_and_tapes_are_independent() -> None:
+    assert TRAINING_SEEDS == tuple(range(810000, 810032))
+    assert DEVELOPMENT_SEEDS == tuple(range(820000, 820040))
+    assert FINAL_SEEDS == tuple(range(830000, 830040))
+    assert len(TRAINING_FAMILIES) * len(TRAINING_SEEDS) == 192
+    assert len(DEVELOPMENT_FAMILIES) * len(DEVELOPMENT_SEEDS) == 200
+    assert len(FINAL_FAMILIES) * len(FINAL_SEEDS) == 200
     assert not set(TRAINING_SEEDS) & set(DEVELOPMENT_SEEDS)
     assert not set(TRAINING_SEEDS) & set(FINAL_SEEDS)
     assert not set(DEVELOPMENT_SEEDS) & set(FINAL_SEEDS)
