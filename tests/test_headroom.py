@@ -1,32 +1,32 @@
 from __future__ import annotations
 
 import ast
+import copy
 import itertools
 import json
-import copy
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-import scripts.headroom_probe_v4 as headroom
-from scripts.headroom_probe_v4 import (
-    DEFAULT_PRIOR_SUMMARY,
+import scripts.headroom as headroom
+from backend.app.city.environment import CityRecoveryEnv
+from scripts.headroom import (
     HeadroomError,
-    PlannerResult,
     MPCConfig,
+    PlannerResult,
+    _antithetic_samples,
     build_development_cases,
     capture_public_snapshot,
     classify_case,
     lexicographic_key,
+    load_prior_evidence,
     plan_mpc_action,
     rollout_actions,
     select_best_mpc_k,
-    select_prior_evidence,
     tuned_rollout,
     write_new_receipt,
 )
-from backend.app.simulator_v4 import CityRecoveryEnvV4
 
 
 def _result(
@@ -45,13 +45,12 @@ def _result(
     )
 
 
-def test_build_development_cases_is_the_frozen_ordered_40_case_split() -> None:
+def test_build_development_cases_is_the_ordered_40_case_split() -> None:
     cases = build_development_cases()
 
     assert len(cases) == 40
     assert len({case.row_id for case in cases}) == 40
     assert [case.case_seed for case in cases[:8]] == list(range(820000, 820008))
-    assert all(case.family_id.startswith("v3_dev_") for case in cases)
     assert all(case.row_id == f"{case.family_id}:{case.case_seed}" for case in cases)
     assert all(case.tape_seed != case.case_seed for case in cases)
     assert all(len(case.schedule) == case.scenario.horizon_days == 30 for case in cases)
@@ -69,6 +68,20 @@ def test_lexicographic_key_prioritizes_solved_then_margin_then_auc() -> None:
 
     assert ordered == [candidates[0], candidates[1], candidates[2], candidates[3]]
     assert max(candidates, key=lexicographic_key) is candidates[3]
+
+
+def test_antithetic_samples_are_bounded_and_paired() -> None:
+    samples = _antithetic_samples(
+        np.random.Generator(np.random.PCG64(11)),
+        np.zeros((2, 3), dtype=np.float64),
+        np.ones((2, 3), dtype=np.float64),
+        population=4,
+    )
+
+    assert samples.shape == (4, 2, 3)
+    assert np.max(np.abs(samples)) <= 1.0
+    np.testing.assert_array_equal(samples[0], -samples[2])
+    np.testing.assert_array_equal(samples[1], -samples[3])
 
 
 def test_compact_rollout_and_full_evidence_replay_match_exactly() -> None:
@@ -93,22 +106,20 @@ def test_compact_rollout_and_full_evidence_replay_match_exactly() -> None:
 
 def test_mpc_first_action_is_invariant_to_unseen_future_tape() -> None:
     case = build_development_cases()[0]
-    original = CityRecoveryEnvV4(
+    original = CityRecoveryEnv(
         case.scenario,
         case.tape_seed,
         list(case.schedule),
         collect_evidence=False,
-        reward_profile="v3_equivalent",
     )
     observation, _ = original.reset(seed=case.tape_seed)
     mutated_schedule = list(case.schedule)
     mutated_schedule[1:] = list(reversed(copy.deepcopy(mutated_schedule[1:])))
-    mutated = CityRecoveryEnvV4(
+    mutated = CityRecoveryEnv(
         case.scenario,
         case.tape_seed,
         mutated_schedule,
         collect_evidence=False,
-        reward_profile="v3_equivalent",
     )
     mutated_observation, _ = mutated.reset(seed=case.tape_seed)
     np.testing.assert_array_equal(observation, mutated_observation)
@@ -141,58 +152,82 @@ def test_mpc_first_action_is_invariant_to_unseen_future_tape() -> None:
     np.testing.assert_array_equal(plan, mutated_plan)
 
 
-def test_select_prior_evidence_hash_validates_and_selects_attempt_09() -> None:
-    row_ids = [case.row_id for case in build_development_cases()]
-
-    evidence = select_prior_evidence(DEFAULT_PRIOR_SUMMARY, row_ids)
-
-    assert evidence["attempt"] == 9
-    assert evidence["receipt_path"].endswith(
-        "ppo-learning-gate-200k-seed-37017-attempt-09.json"
-    )
-    assert evidence["checkpoint_available"] is False
-    assert evidence["selected_or_exported_policy"] is False
-    assert list(evidence["bc"]) == row_ids
-    assert list(evidence["ppo"]) == row_ids
-    assert sum(result.solved for result in evidence["bc"].values()) == 32
-    assert sum(result.solved for result in evidence["ppo"].values()) == 33
+def _prior_row(row_id: str, *, solved: bool) -> dict[str, object]:
+    return {
+        "row_id": row_id,
+        "solved": solved,
+        "recovery_targets": [0.5] * 5,
+        "tail_minimum_services": [0.6 if solved else 0.4] * 5,
+        "resilience_auc": 0.5,
+        "reason_codes": [] if solved else ["assessment_tail_targets_met"],
+        "hard_violation_count": 0,
+        "max_conservation_residual": 0.0,
+    }
 
 
-def test_select_prior_evidence_binds_policy_seed() -> None:
-    row_ids = [case.row_id for case in build_development_cases()]
-
-    with pytest.raises(HeadroomError, match="not valid dev-only evidence"):
-        select_prior_evidence(
-            DEFAULT_PRIOR_SUMMARY, row_ids, expected_policy_seed=37018
-        )
-
-
-def test_select_prior_evidence_refuses_a_receipt_hash_mismatch(
-    tmp_path: Path,
-) -> None:
-    receipt_path = tmp_path / "attempt-09.json"
-    receipt_path.write_text("{}\n", encoding="utf-8")
-    summary = {
+def _write_prior_receipt(path: Path, row_ids: list[str]) -> None:
+    receipt = {
         "authorizing": False,
         "split": "dev",
         "final_split_used": False,
-        "reward_profile": "v3_equivalent",
-        "policy_seed": 37017,
-        "attempts": [
-            {
-                "attempt": 9,
-                "receipt": receipt_path.name,
-                "receipt_sha256": "0" * 64,
-                "solved_curve": [32, 33],
-                "final_mean_resilience_auc": 0.489036433,
+        "selects_or_exports_policy": False,
+        "config": {"policy_seed": 73},
+        "profiles": {
+            "published_reward": {
+                "development_curve": {
+                    "bc_initialization": {
+                        "active_actor_critic_transitions": 0,
+                        "rows": [
+                            _prior_row(row_id, solved=False) for row_id in row_ids
+                        ],
+                    },
+                    "actor_critic_100_transitions": {
+                        "active_actor_critic_transitions": 100,
+                        "rows": [
+                            _prior_row(row_id, solved=False) for row_id in row_ids
+                        ],
+                    },
+                    "actor_critic_200_transitions": {
+                        "active_actor_critic_transitions": 200,
+                        "rows": [
+                            _prior_row(row_id, solved=True) for row_id in row_ids
+                        ],
+                    },
+                }
             }
-        ],
+        },
     }
-    summary_path = tmp_path / "summary.json"
-    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    path.write_text(json.dumps(receipt), encoding="utf-8")
 
-    with pytest.raises(HeadroomError, match="prior receipt hash mismatch"):
-        select_prior_evidence(summary_path, [])
+
+def test_load_prior_evidence_accepts_one_receipt_and_uses_latest_stage(
+    tmp_path: Path,
+) -> None:
+    row_ids = ["case-a", "case-b"]
+    receipt_path = tmp_path / "prior.json"
+    _write_prior_receipt(receipt_path, row_ids)
+
+    evidence = load_prior_evidence(
+        receipt_path, row_ids, expected_policy_seed=73
+    )
+
+    assert evidence["actor_critic_stage"] == "actor_critic_200_transitions"
+    assert evidence["active_actor_critic_transitions"] == 200
+    assert evidence["treatment_profile"] == "published_reward"
+    assert list(evidence["bc"]) == row_ids
+    assert list(evidence["ppo"]) == row_ids
+    assert not any(result.solved for result in evidence["bc"].values())
+    assert all(result.solved for result in evidence["ppo"].values())
+
+
+def test_load_prior_evidence_binds_policy_seed(tmp_path: Path) -> None:
+    receipt_path = tmp_path / "prior.json"
+    _write_prior_receipt(receipt_path, ["case-a"])
+
+    with pytest.raises(HeadroomError, match="policy seed does not match"):
+        load_prior_evidence(
+            receipt_path, ["case-a"], expected_policy_seed=74
+        )
 
 
 def test_select_best_mpc_k_uses_one_global_lexicographic_winner() -> None:
@@ -265,12 +300,24 @@ def test_classify_case_has_explicit_residual_and_exhaustive_partitions() -> None
         "decision_partition": "ppo_solved",
     }
 
+    without_prior = classify_case(
+        {
+            "tuned_rule": _result(False),
+            "mpc": _result(False),
+            "oracle": _result(True),
+        }
+    )
+    assert without_prior == {
+        "literal_taxonomy": "contested",
+        "decision_partition": "contested",
+    }
+
 
 def test_write_new_receipt_is_atomic_create_new_and_refuses_overwrite(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(headroom, "ROOT", tmp_path)
-    target = tmp_path / "internal" / "developmental_runs" / "v4" / "probe.json"
+    target = tmp_path / "internal" / "developmental_runs" / "probe.json"
     original = {"status": "first", "rows": [1, 2, 3]}
 
     write_new_receipt(target, original)
@@ -285,7 +332,7 @@ def test_write_new_receipt_is_atomic_create_new_and_refuses_overwrite(
     assert target.read_bytes() == first_bytes
 
 
-def test_headroom_probe_does_not_import_final_split_symbols() -> None:
+def test_headroom_does_not_import_final_split_or_legacy_simulators() -> None:
     source_path = Path(headroom.__file__)
     source = source_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
@@ -298,3 +345,5 @@ def test_headroom_probe_does_not_import_final_split_symbols() -> None:
 
     assert not {name for name in imported_names if name.startswith("FINAL_")}
     assert "FINAL_" not in source
+    assert "simulator_v" not in source
+    assert "scenarios_v" not in source

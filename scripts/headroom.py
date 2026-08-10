@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Privileged, development-only headroom analysis for the frozen v4 simulator.
+"""Measure achievable policy headroom on the development scenarios.
 
 This tool does not select or export a policy and cannot authorize training or
-final-split evaluation.  It compares recorded Step-3 policy outcomes with a
+final-split evaluation. It can compare imported policy outcomes with a
 causal receding-horizon planner and an explicitly clairvoyant anytime CEM
 search.  The latter establishes only an achieved lower bound, never a proof of
 the true optimum or of physical infeasibility.
@@ -44,72 +44,49 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.app.scenarios_v3 import (  # noqa: E402
-    DEVELOPMENT_FAMILIES_V3,
-    DEVELOPMENT_SEEDS_V3,
-)
 from backend.app.shared_evidence import (  # noqa: E402
     canonical_hash,
     file_sha256,
     load_json_object,
 )
+from backend.app.city.environment import (  # noqa: E402
+    ACTION_SIZE,
+    ENGINE_ID,
+    OBSERVATION_SIZE,
+    CityRecoveryEnv,
+)
 from backend.app.city.optimizer import BASELINE_ID, ortools_proposal  # noqa: E402
+from backend.app.city.outcome import (  # noqa: E402
+    CRITICAL_SERVICE_FLOOR,
+    summarize_trajectory,
+)
 from backend.app.city.planners import (  # noqa: E402
     tuned_rule_action,
     weights_to_logits,
 )
-from backend.app.simulator_core import (  # noqa: E402
+from backend.app.city.physics import (  # noqa: E402
+    CONSTRAINT_TOLERANCE,
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
     SHOCKS,
 )
-from backend.app.simulator_v3 import (  # noqa: E402
-    ACTION_SIZE_V3,
-    CONSTRAINT_TOLERANCE,
-    CRITICAL_SERVICE_FLOOR,
-    OBSERVATION_SIZE_V3,
-    ShockV3,
-    _summarize_v3,
-    generate_disaster_tape_v3,
+from backend.app.city.scenarios import (  # noqa: E402
+    DEVELOPMENT_FAMILIES,
+    DEVELOPMENT_SEEDS,
+    Shock,
+    generate_disaster_tape,
 )
-from backend.app.simulator_v4 import CityRecoveryEnvV4  # noqa: E402
 
-TOOL_ID = "headroom_probe_v4.py"
+TOOL_ID = "headroom.py"
 SCHEMA_VERSION = 1
-DEFAULT_POLICY_SEED = 37017
-DEFAULT_PRIOR_SUMMARY = (
-    ROOT
-    / "internal"
-    / "developmental_runs"
-    / "v4"
-    / "ppo-learning-gate-summary-seed-37017.json"
-)
 DEFAULT_OUTPUT = (
-    ROOT / "internal" / "developmental_runs" / "v4" / "headroom-probe-v4-dev.json"
+    ROOT / "internal" / "developmental_runs" / "headroom-dev.json"
 )
 MPC_HORIZONS = (1, 3, 5)
 MPC_FIXED_SEVERITY_RANGE = (0.10, 0.35)
 MPC_FORECAST_ID = "constant-announced-risk-crn-v1"
-WORKER_AFFINITY_ENV = "HEADROOM_V4_WORKER_AFFINITY_MASK"
-WORKER_PRIORITY_ENV = "HEADROOM_V4_WORKER_PRIORITY"
-PROTECTED_V3_PATHS = (
-    ".python-version",
-    "requirements.txt",
-    "backend/app/models.py",
-    "backend/app/scenarios_v3.py",
-    "backend/app/simulator_core.py",
-    "backend/app/simulator_v2.py",
-    "backend/app/simulator_v3.py",
-    "model/ppo_v3.py",
-    "scripts/train_policy_v3.py",
-    "scripts/select_policy_v3.py",
-    "scripts/evaluate_policy_v3.py",
-    "training/v3",
-    "artifacts/city_recovery_ppo.v3.selected.onnx",
-    "artifacts/model_manifest.v3.selected.json",
-    "internal/training_runs/v3",
-    "benchmarks/v3/final-40.json",
-)
+WORKER_AFFINITY_ENV = "HEADROOM_WORKER_AFFINITY_MASK"
+WORKER_PRIORITY_ENV = "HEADROOM_WORKER_PRIORITY"
 
 
 class HeadroomError(RuntimeError):
@@ -123,7 +100,7 @@ class HeadroomCase:
     case_seed: int
     tape_seed: int
     scenario: Any
-    schedule: tuple[ShockV3, ...]
+    schedule: tuple[Shock, ...]
 
 
 @dataclass(frozen=True)
@@ -156,7 +133,7 @@ class PlannerResult:
 class PublicSnapshot:
     """Current causal simulator state with the tape and tape seed omitted."""
 
-    scenario_payload: dict[str, Any]
+    scenario: Any
     trajectory: tuple[dict[str, Any], ...]
     state: dict[str, Any]
     context: Any
@@ -244,10 +221,8 @@ def action_sequence_sha256(actions: np.ndarray) -> str:
 
 def build_development_cases() -> list[HeadroomCase]:
     cases: list[HeadroomCase] = []
-    for family in DEVELOPMENT_FAMILIES_V3:
-        if not family.id.startswith("v3_dev_"):
-            raise HeadroomError("non-development family entered headroom probe")
-        for case_seed in DEVELOPMENT_SEEDS_V3:
+    for family in DEVELOPMENT_FAMILIES:
+        for case_seed in DEVELOPMENT_SEEDS:
             scenario = family.build(case_seed)
             tape_seed = family.tape_seed(case_seed)
             cases.append(
@@ -257,12 +232,12 @@ def build_development_cases() -> list[HeadroomCase]:
                     case_seed=case_seed,
                     tape_seed=tape_seed,
                     scenario=scenario,
-                    schedule=tuple(generate_disaster_tape_v3(scenario, tape_seed)),
+                    schedule=tuple(generate_disaster_tape(scenario, tape_seed)),
                 )
             )
     if len(cases) != 40 or len({case.row_id for case in cases}) != 40:
         raise HeadroomError("development contract must contain 40 unique cases")
-    if tuple(DEVELOPMENT_SEEDS_V3) != tuple(range(820000, 820008)):
+    if tuple(DEVELOPMENT_SEEDS) != tuple(range(820000, 820008)):
         raise HeadroomError("development seed contract drifted")
     return cases
 
@@ -271,7 +246,7 @@ def _result_from_trajectory(
     trajectory: Sequence[dict[str, Any]], actions: np.ndarray
 ) -> PlannerResult:
     if not trajectory or "absolute_outcome" not in trajectory[-1]:
-        raise HeadroomError("rollout did not reach the frozen terminal outcome")
+        raise HeadroomError("rollout did not reach the terminal outcome")
     outcome = trajectory[-1]["absolute_outcome"]
     margin = float(
         np.min(
@@ -297,14 +272,13 @@ def rollout_actions(
     collect_evidence: bool,
 ) -> PlannerResult:
     sequence = np.asarray(actions, dtype=np.float64)
-    if sequence.shape != (case.scenario.horizon_days, ACTION_SIZE_V3):
+    if sequence.shape != (case.scenario.horizon_days, ACTION_SIZE):
         raise HeadroomError(f"{case.row_id} action sequence has shape {sequence.shape}")
-    environment = CityRecoveryEnvV4(
+    environment = CityRecoveryEnv(
         case.scenario,
         case.tape_seed,
         list(case.schedule),
         collect_evidence=collect_evidence,
-        reward_profile="v3_equivalent",
     )
     environment.reset(seed=case.tape_seed)
     terminated = False
@@ -317,7 +291,7 @@ def rollout_actions(
     compact = _result_from_trajectory(environment.trajectory, sequence)
     if not collect_evidence:
         return compact
-    summary = _summarize_v3("headroom_probe_v4", environment.trajectory, case.scenario)
+    summary = summarize_trajectory(TOOL_ID, environment.trajectory, case.scenario)
     evidence = PlannerResult(
         solved=bool(summary["absolute_outcome"]["solved"]),
         minimum_tail_margin=compact.minimum_tail_margin,
@@ -335,12 +309,11 @@ def rollout_actions(
 
 
 def tuned_rollout(case: HeadroomCase) -> tuple[PlannerResult, np.ndarray]:
-    environment = CityRecoveryEnvV4(
+    environment = CityRecoveryEnv(
         case.scenario,
         case.tape_seed,
         list(case.schedule),
         collect_evidence=False,
-        reward_profile="v3_equivalent",
     )
     observation, _ = environment.reset(seed=case.tape_seed)
     actions: list[np.ndarray] = []
@@ -392,99 +365,89 @@ def _prior_result(row: dict[str, Any]) -> PlannerResult:
     )
 
 
-def select_prior_evidence(
-    summary_path: Path,
+def load_prior_evidence(
+    receipt_path: Path,
     expected_row_ids: Sequence[str],
-    expected_policy_seed: int = DEFAULT_POLICY_SEED,
+    expected_policy_seed: int | None = None,
 ) -> dict[str, Any]:
-    summary = load_json_object(
-        summary_path,
-        "prior learning summary",
-        error_type=HeadroomError,
-    )
-    if (
-        summary.get("authorizing") is not False
-        or summary.get("split") != "dev"
-        or summary.get("final_split_used") is not False
-        or summary.get("reward_profile") != "v3_equivalent"
-        or int(summary.get("policy_seed", -1)) != expected_policy_seed
-    ):
-        raise HeadroomError("prior learning summary is not valid dev-only evidence")
-    attempts = summary.get("attempts")
-    if not isinstance(attempts, list) or not attempts:
-        raise HeadroomError("prior learning summary contains no attempts")
-    base = summary_path.parent
-    for attempt in attempts:
-        path = base / str(attempt["receipt"])
-        if not path.is_file() or file_sha256(path) != attempt["receipt_sha256"]:
-            raise HeadroomError(f"prior receipt hash mismatch: {path}")
-    maximum_solved = max(int(item["solved_curve"][-1]) for item in attempts)
-    finalists = [
-        item for item in attempts if int(item["solved_curve"][-1]) == maximum_solved
-    ]
-    selected = max(
-        finalists,
-        key=lambda item: (
-            float(item["final_mean_resilience_auc"]),
-            -int(item["attempt"]),
-        ),
-    )
-    receipt_path = base / str(selected["receipt"])
+    """Load one nonauthorizing dev receipt for optional BC/PPO context.
+
+    Headroom search is meaningful without this input.  When a receipt is
+    supplied, its ordered per-case rows let the report distinguish policy
+    failures from cases already solved by another causal policy.  The loader
+    deliberately does not select among attempts or validate historical source
+    trees; experiment selection belongs outside this diagnostic.
+    """
+
     receipt = load_json_object(
         receipt_path,
-        "selected prior receipt",
+        "prior policy receipt",
         error_type=HeadroomError,
     )
     if (
         receipt.get("authorizing") is not False
         or receipt.get("split") != "dev"
-        or receipt.get("final_split_used") is not False
+        or receipt.get(
+            "final_split_used", receipt.get("uses_final_split")
+        )
+        is not False
         or receipt.get("selects_or_exports_policy") is not False
-        or int(receipt.get("config", {}).get("policy_seed", -1)) != expected_policy_seed
     ):
-        raise HeadroomError("selected prior receipt is not nonauthorizing dev evidence")
-    profile = receipt["profiles"]["v3_equivalent"]
-    curve = profile["development_curve"]
-    bc_rows = curve["bc_initialization"]["rows"]
-    ppo_rows = curve["active_actor_critic_200000_transitions"]["rows"]
+        raise HeadroomError("prior receipt is not nonauthorizing dev evidence")
+    configured_seed = receipt.get("config", {}).get("policy_seed")
+    if configured_seed is None:
+        configured_seed = receipt.get("policy_seed")
+    if expected_policy_seed is not None:
+        if configured_seed is None or int(configured_seed) != expected_policy_seed:
+            raise HeadroomError("prior receipt policy seed does not match")
+
+    profiles = receipt.get("profiles")
+    if not isinstance(profiles, dict) or len(profiles) != 1:
+        raise HeadroomError("prior receipt must contain exactly one treatment profile")
+    profile_id, profile = next(iter(profiles.items()))
+    if not isinstance(profile, dict):
+        raise HeadroomError("prior receipt treatment profile must be an object")
+    curve = profile.get("development_curve")
+    if not isinstance(curve, dict):
+        raise HeadroomError("prior receipt has no development curve")
+    bc_stage = curve.get("bc_initialization")
+    if not isinstance(bc_stage, dict) or not isinstance(bc_stage.get("rows"), list):
+        raise HeadroomError("prior receipt has no BC initialization rows")
+    actor_stages = [
+        (int(stage.get("active_actor_critic_transitions", 0)), name, stage)
+        for name, stage in curve.items()
+        if isinstance(stage, dict)
+        and isinstance(stage.get("rows"), list)
+        and int(stage.get("active_actor_critic_transitions", 0)) > 0
+    ]
+    if not actor_stages:
+        raise HeadroomError("prior receipt has no actor-critic evaluation rows")
+    actor_transitions, actor_stage_name, actor_stage = max(actor_stages)
+    bc_rows = bc_stage["rows"]
+    ppo_rows = actor_stage["rows"]
     expected = list(expected_row_ids)
     if [row["row_id"] for row in bc_rows] != expected:
         raise HeadroomError("BC prior rows do not match the ordered dev cases")
     if [row["row_id"] for row in ppo_rows] != expected:
         raise HeadroomError("PPO prior rows do not match the ordered dev cases")
+    try:
+        display_path = str(receipt_path.relative_to(ROOT)).replace("\\", "/")
+    except ValueError:
+        display_path = str(receipt_path)
     return {
-        "summary_path": str(summary_path.relative_to(ROOT)).replace("\\", "/"),
-        "summary_sha256": file_sha256(summary_path),
-        "receipt_path": str(receipt_path.relative_to(ROOT)).replace("\\", "/"),
+        "receipt_path": display_path,
         "receipt_sha256": file_sha256(receipt_path),
-        "attempt": int(selected["attempt"]),
-        "policy_seed": expected_policy_seed,
-        "selection_rule": (
-            "retrospective diagnostic tie-break: maximum final solved count, "
-            "then maximum final mean resilience AUC, then earliest attempt"
-        ),
+        "policy_seed": None if configured_seed is None else int(configured_seed),
+        "treatment_profile": str(profile_id),
+        "actor_critic_stage": str(actor_stage_name),
+        "active_actor_critic_transitions": actor_transitions,
         "selected_or_exported_policy": False,
-        "checkpoint_available": False,
         "limitation": (
-            "BC and PPO rows are imported from a hash-validated v4 receipt; "
-            "Step 3 persisted neither replayable weights nor VecNormalize state"
+            "BC and PPO rows are imported outcomes, not executions in this "
+            "process; this diagnostic does not select or export their policy"
         ),
         "bc": {row["row_id"]: _prior_result(row) for row in bc_rows},
         "ppo": {row["row_id"]: _prior_result(row) for row in ppo_rows},
-    }
-
-
-def protected_v3_snapshot() -> dict[str, str]:
-    files: set[Path] = set()
-    for relative in PROTECTED_V3_PATHS:
-        path = ROOT / relative
-        if path.is_file():
-            files.add(path)
-        elif path.is_dir():
-            files.update(item for item in path.rglob("*") if item.is_file())
-    return {
-        str(path.relative_to(ROOT)).replace("\\", "/"): file_sha256(path)
-        for path in sorted(files)
     }
 
 
@@ -512,13 +475,13 @@ def _glop_seed(
         "allocation_solution": evidence["allocation_solution"],
         "scope": (
             "GLOP supplies only the current-day material seed; bounded raw "
-            "logits still pass through v4 projection and short CEM optimizes "
+            "logits still pass through exact projection and short CEM optimizes "
             "the complete nonlinear action window"
         ),
     }
 
 
-def capture_public_snapshot(environment: CityRecoveryEnvV4) -> PublicSnapshot:
+def capture_public_snapshot(environment: CityRecoveryEnv) -> PublicSnapshot:
     context = environment.current_context()
     # The copied scenario is stripped of every authored future-shock channel.
     scenario = environment.scenario.model_copy(
@@ -548,7 +511,7 @@ def capture_public_snapshot(environment: CityRecoveryEnvV4) -> PublicSnapshot:
         "_terminated",
     )
     return PublicSnapshot(
-        scenario_payload=scenario.model_dump(mode="json"),
+        scenario=scenario,
         trajectory=tuple(copy.deepcopy(environment.trajectory)),
         state={name: copy.deepcopy(getattr(environment, name)) for name in state_names},
         context=copy.deepcopy(context),
@@ -556,8 +519,8 @@ def capture_public_snapshot(environment: CityRecoveryEnvV4) -> PublicSnapshot:
     )
 
 
-def _dummy_shock(day: int, *, assessment_tail: bool) -> ShockV3:
-    return ShockV3(
+def _dummy_shock(day: int, *, assessment_tail: bool) -> Shock:
+    return Shock(
         day=day,
         type=None,
         severity=0.0,
@@ -588,9 +551,9 @@ def _fantasy_schedule(
     observation: np.ndarray,
     horizon: int,
     branch: int,
-) -> list[ShockV3]:
-    total_days = int(snapshot.scenario_payload["horizon_days"])
-    tail_days = int(snapshot.scenario_payload["assessment_tail_days"])
+) -> list[Shock]:
+    total_days = int(snapshot.scenario.horizon_days)
+    tail_days = int(snapshot.scenario.assessment_tail_days)
     tail_start = total_days - tail_days + 1
     schedule = [
         _dummy_shock(day, assessment_tail=day >= tail_start)
@@ -621,7 +584,7 @@ def _fantasy_schedule(
             impact = np.asarray(SHOCK_IMPACTS[shock_index], dtype=np.float64)
             budget_factor = float(SHOCK_BUDGET_FACTORS[shock_index])
         next_risk = np.zeros(5, dtype=np.float64) if day + 1 >= tail_start else risk
-        schedule[day - 1] = ShockV3(
+        schedule[day - 1] = Shock(
             day=day,
             type=shock_type,
             severity=float(round(severity, 8)),
@@ -639,24 +602,20 @@ def _fantasy_schedule(
 
 def _template_from_snapshot(
     snapshot: PublicSnapshot,
-    schedule: Sequence[ShockV3],
+    schedule: Sequence[Shock],
     *,
     include_history: bool,
-) -> CityRecoveryEnvV4:
-    from backend.app.models import ScenarioV3
-
-    scenario = ScenarioV3.model_validate(snapshot.scenario_payload)
-    environment = CityRecoveryEnvV4(
-        scenario,
+) -> CityRecoveryEnv:
+    environment = CityRecoveryEnv(
+        snapshot.scenario,
         0,
         list(schedule),
         collect_evidence=False,
-        reward_profile="v3_equivalent",
     )
     environment.reset(seed=0)
     # The transition state is fully represented by the explicit fields below.
     # Past records are needed only when this window reaches termination and
-    # absolute_outcome_v3 must score the full 30-day trajectory.  Avoiding the
+    # the terminal outcome must score the full 30-day trajectory. Avoiding the
     # nested history copy on preterminal candidate rollouts is a large, exact
     # performance win and does not change dynamics.
     environment.trajectory = (
@@ -673,7 +632,7 @@ def _template_from_snapshot(
     return environment
 
 
-def _restore_planning_template(environment: CityRecoveryEnvV4) -> None:
+def _restore_planning_template(environment: CityRecoveryEnv) -> None:
     snapshot: PublicSnapshot = environment._headroom_snapshot
     include_history: bool = environment._headroom_include_history
     environment.trajectory = (
@@ -688,7 +647,7 @@ def _restore_planning_template(environment: CityRecoveryEnvV4) -> None:
     environment._context = copy.deepcopy(snapshot.context)
 
 
-def _tuned_window(template: CityRecoveryEnvV4, horizon: int) -> np.ndarray:
+def _tuned_window(template: CityRecoveryEnv, horizon: int) -> np.ndarray:
     environment = template
     _restore_planning_template(environment)
     actions: list[np.ndarray] = []
@@ -703,7 +662,7 @@ def _tuned_window(template: CityRecoveryEnvV4, horizon: int) -> np.ndarray:
 
 
 def _mpc_candidate_score(
-    templates: Sequence[CityRecoveryEnvV4], actions: np.ndarray
+    templates: Sequence[CityRecoveryEnv], actions: np.ndarray
 ) -> tuple[float, ...]:
     terminal = False
     solved: list[float] = []
@@ -820,7 +779,7 @@ def plan_mpc_action(
     previous_plan: np.ndarray | None,
     config: MPCConfig,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
-    remaining = int(snapshot.scenario_payload["horizon_days"]) - snapshot.day_index
+    remaining = int(snapshot.scenario.horizon_days) - snapshot.day_index
     effective_horizon = min(horizon, remaining)
     branch_count = 1 if effective_horizon == 1 else config.fantasies
     schedules = [
@@ -885,7 +844,7 @@ def plan_mpc_action(
             }
         )
     evidence = {
-        "planner_id": "hybrid-glop-seeded-cem-mpc-v4",
+        "planner_id": "hybrid-glop-seeded-cem-mpc",
         "method": "hybrid-glop-seeded-cem",
         "horizon": horizon,
         "effective_horizon": effective_horizon,
@@ -909,12 +868,11 @@ def run_mpc_case(job: tuple[HeadroomCase, MPCConfig]) -> dict[str, Any]:
     case, config = job
     horizons: dict[str, Any] = {}
     for horizon in MPC_HORIZONS:
-        environment = CityRecoveryEnvV4(
+        environment = CityRecoveryEnv(
             case.scenario,
             case.tape_seed,
             list(case.schedule),
             collect_evidence=False,
-            reward_profile="v3_equivalent",
         )
         observation, _ = environment.reset(seed=case.tape_seed)
         previous_plan: np.ndarray | None = None
@@ -973,7 +931,7 @@ def _result_from_receipt(value: dict[str, Any]) -> PlannerResult:
 
 
 def _evaluate_oracle_candidate(
-    environment: CityRecoveryEnvV4, actions: np.ndarray, tape_seed: int
+    environment: CityRecoveryEnv, actions: np.ndarray, tape_seed: int
 ) -> PlannerResult:
     environment.reset(seed=tape_seed)
     terminated = False
@@ -1002,12 +960,11 @@ def run_oracle_case(
 ) -> dict[str, Any]:
     worker_runtime = configure_worker_runtime()
     case, tuned_actions, mpc_actions, config = job
-    environment = CityRecoveryEnvV4(
+    environment = CityRecoveryEnv(
         case.scenario,
         case.tape_seed,
         list(case.schedule),
         collect_evidence=False,
-        reward_profile="v3_equivalent",
     )
     mean = np.asarray(tuned_actions, dtype=np.float64).copy()
     mpc_sequence = np.asarray(mpc_actions, dtype=np.float64)
@@ -1184,23 +1141,33 @@ def select_best_mpc_k(
 
 
 def classify_case(planners: dict[str, PlannerResult]) -> dict[str, str]:
-    required = ("tuned_rule", "bc_initialization", "best_ppo", "mpc", "oracle")
+    required = ("tuned_rule", "mpc", "oracle")
     if any(name not in planners for name in required):
         raise HeadroomError("case classification is missing a required planner")
-    every_solved = all(planners[name].solved for name in required)
+    has_bc = "bc_initialization" in planners
+    has_ppo = "best_ppo" in planners
+    if has_bc != has_ppo:
+        raise HeadroomError("BC and PPO prior evidence must be supplied together")
+    every_solved = all(result.solved for result in planners.values())
     oracle_solved = planners["oracle"].solved
-    ppo_solved = planners["best_ppo"].solved
-    known_achievable = any(planners[name].solved for name in required)
+    reference_solved = (
+        planners["best_ppo"].solved
+        if has_ppo
+        else planners["tuned_rule"].solved or planners["mpc"].solved
+    )
+    known_achievable = any(result.solved for result in planners.values())
     if every_solved:
         literal = "saturated"
-    elif oracle_solved and not ppo_solved:
+    elif oracle_solved and not reference_solved:
         literal = "contested"
     elif not known_achievable:
         literal = "oracle_search_unsolved"
     else:
         literal = "achieved_nonunanimous"
-    if ppo_solved:
+    if has_ppo and reference_solved:
         decision_partition = "ppo_solved"
+    elif not has_ppo and reference_solved:
+        decision_partition = "causal_planner_solved"
     elif oracle_solved:
         decision_partition = "contested"
     elif known_achievable:
@@ -1214,14 +1181,12 @@ def classify_case(planners: dict[str, PlannerResult]) -> dict[str, str]:
 
 
 def write_new_receipt(path: Path, receipt: dict[str, Any]) -> None:
-    allowed = (ROOT / "internal" / "developmental_runs" / "v4").resolve()
+    allowed = (ROOT / "internal" / "developmental_runs").resolve()
     target = path.resolve()
     try:
         target.relative_to(allowed)
     except ValueError as exc:
-        raise HeadroomError(
-            "receipt must stay under internal/developmental_runs/v4"
-        ) from exc
+        raise HeadroomError("receipt must stay under internal/developmental_runs") from exc
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         raise HeadroomError(f"refusing to overwrite existing receipt: {target}")
@@ -1279,7 +1244,11 @@ def _parse_args() -> argparse.Namespace:
         help="required acknowledgement that this is privileged dev-only analysis",
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--prior-summary", type=Path, default=DEFAULT_PRIOR_SUMMARY)
+    parser.add_argument(
+        "--prior-evidence",
+        type=Path,
+        help="optional single nonauthorizing dev receipt containing BC/PPO rows",
+    )
     parser.add_argument("--workers", type=int, default=min(20, os.cpu_count() or 1))
     parser.add_argument(
         "--worker-affinity-mask",
@@ -1290,7 +1259,11 @@ def _parse_args() -> argparse.Namespace:
         choices=("normal", "above_normal", "high"),
         default="normal",
     )
-    parser.add_argument("--policy-seed", type=int, default=DEFAULT_POLICY_SEED)
+    parser.add_argument(
+        "--policy-seed",
+        type=int,
+        help="optional policy-seed check for --prior-evidence",
+    )
     parser.add_argument("--oracle-population", type=int, default=512)
     parser.add_argument("--oracle-elite-fraction", type=float, default=0.10)
     parser.add_argument("--oracle-min-iterations", type=int, default=20)
@@ -1344,15 +1317,16 @@ def main() -> int:
         os.environ[WORKER_AFFINITY_ENV] = args.worker_affinity_mask
     os.environ[WORKER_PRIORITY_ENV] = args.worker_priority
     started = time.perf_counter()
-    protected_before = protected_v3_snapshot()
     cases = build_development_cases()
     row_ids = [case.row_id for case in cases]
-    prior_path = args.prior_summary
-    if not prior_path.is_absolute():
-        prior_path = ROOT / prior_path
-    prior = select_prior_evidence(
-        prior_path.resolve(), row_ids, expected_policy_seed=args.policy_seed
-    )
+    prior: dict[str, Any] | None = None
+    if args.prior_evidence is not None:
+        prior_path = args.prior_evidence
+        if not prior_path.is_absolute():
+            prior_path = ROOT / prior_path
+        prior = load_prior_evidence(
+            prior_path.resolve(), row_ids, expected_policy_seed=args.policy_seed
+        )
 
     print("tuned rule: replaying 40 development cases", flush=True)
     tuned_rows: dict[str, PlannerResult] = {}
@@ -1449,16 +1423,14 @@ def main() -> int:
         for item in oracle_outputs
     ):
         raise HeadroomError("oracle search-wide physics invariant failed")
-    bc_rows: dict[str, PlannerResult] = prior["bc"]
-    ppo_rows: dict[str, PlannerResult] = prior["ppo"]
-
     planner_rows = {
         "tuned_rule": tuned_rows,
-        "bc_initialization": bc_rows,
-        "best_ppo_diagnostic": ppo_rows,
         f"mpc_k{selected_horizon}": selected_mpc_rows,
         "clairvoyant_oracle_cem": oracle_rows,
     }
+    if prior is not None:
+        planner_rows["bc_initialization"] = prior["bc"]
+        planner_rows["best_ppo_diagnostic"] = prior["ppo"]
     for planner, rows in planner_rows.items():
         _validate_result_invariants(planner, rows)
 
@@ -1471,19 +1443,23 @@ def main() -> int:
         row_id = case.row_id
         planners = {
             "tuned_rule": tuned_rows[row_id],
-            "bc_initialization": bc_rows[row_id],
-            "best_ppo": ppo_rows[row_id],
             "mpc": selected_mpc_rows[row_id],
             "oracle": oracle_rows[row_id],
         }
+        if prior is not None:
+            planners["bc_initialization"] = prior["bc"][row_id]
+            planners["best_ppo"] = prior["ppo"][row_id]
         classification = classify_case(planners)
         literal_counts[classification["literal_taxonomy"]] += 1
         partition_counts[classification["decision_partition"]] += 1
         known_achievable = any(result.solved for result in planners.values())
         achievable_count += int(known_achievable)
-        contested_count += int(
-            oracle_rows[row_id].solved and not ppo_rows[row_id].solved
+        reference_solved = (
+            prior["ppo"][row_id].solved
+            if prior is not None
+            else tuned_rows[row_id].solved or selected_mpc_rows[row_id].solved
         )
+        contested_count += int(oracle_rows[row_id].solved and not reference_solved)
         table.append(
             {
                 "row_id": row_id,
@@ -1511,22 +1487,28 @@ def main() -> int:
         for planner, rows in planner_rows.items()
     }
     tuned_count = totals["tuned_rule"]["solved_count"]
-    ppo_count = totals["best_ppo_diagnostic"]["solved_count"]
+    ppo_count = (
+        totals["best_ppo_diagnostic"]["solved_count"] if prior is not None else None
+    )
     mpc_count = totals[f"mpc_k{selected_horizon}"]["solved_count"]
     oracle_count = totals["clairvoyant_oracle_cem"]["solved_count"]
-    mpc_clear_margin = mpc_count - max(tuned_count, ppo_count)
+    reference_count = max(
+        [tuned_count] + ([] if ppo_count is None else [int(ppo_count)])
+    )
+    mpc_clear_margin = mpc_count - reference_count
     mpc_clearly_better = mpc_clear_margin >= 2
     if mpc_clearly_better:
         decision_row = "mpc_distillation_pivot_indicated"
         recommendation = (
-            "Planning clearly beats both PPO and the tuned rule; recommend an "
+            "Planning clearly beats every available causal reference; recommend an "
             "MPC-distillation pivot, but do not start it without direction."
         )
     elif achievable_count >= 37 and contested_count >= 4:
         decision_row = "headroom"
         recommendation = (
             "Measured achievable lower bound and contested count show real "
-            "headroom; recommend Step 3e before any full campaign."
+            "headroom; a matched reward comparison remains meaningful before "
+            "any full campaign."
         )
     elif achievable_count <= 34 and contested_count <= 1:
         decision_row = "empirical_saturation"
@@ -1539,12 +1521,9 @@ def main() -> int:
         decision_row = "inconclusive_between_registered_rows"
         recommendation = (
             "The result matches no preregistered numeric row; stop for direction "
-            "before Step 3e, an 8M campaign, or a distillation pivot."
+            "before a long campaign or a distillation pivot."
         )
 
-    protected_after = protected_v3_snapshot()
-    if protected_after != protected_before:
-        raise HeadroomError("a protected v3 path changed during headroom analysis")
     if any(
         result.hard_violation_count != 0 or result.maximum_conservation_residual != 0.0
         for rows in planner_rows.values()
@@ -1565,7 +1544,7 @@ def main() -> int:
     receipt = {
         "schema_version": SCHEMA_VERSION,
         "tool": TOOL_ID,
-        "status": "privileged_development_headroom_probe_nonauthorizing",
+        "status": "privileged_development_headroom_analysis_nonauthorizing",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "authorizing": False,
         "authorizes_training": False,
@@ -1575,26 +1554,35 @@ def main() -> int:
         "final_split_used": False,
         "uses_final_split": False,
         "case_count": 40,
-        "policy_seed": args.policy_seed,
-        "reward_profile": "v3_equivalent",
+        "policy_seed": (
+            prior["policy_seed"] if prior is not None else args.policy_seed
+        ),
         "environment": {
-            "id": "CityRecoveryEnv-v4",
-            "frozen_outcome": "absolute_outcome_v3",
-            "action_dimension": ACTION_SIZE_V3,
-            "observation_dimension": OBSERVATION_SIZE_V3,
-            "executed_action_path": "CityRecoveryEnvV4.step -> decode_action_v4 -> exact feasibility projection",
+            "id": ENGINE_ID,
+            "outcome": "absolute_outcome",
+            "action_dimension": ACTION_SIZE,
+            "observation_dimension": OBSERVATION_SIZE,
+            "executed_action_path": (
+                "CityRecoveryEnv.step -> decode_action -> exact feasibility projection"
+            ),
             "decoder_contract_note": (
-                "decode_action_v4 is the provenance-isolated v4 implementation "
-                "of the frozen 22-value v3 action schema and projection contract"
+                "all 22 raw action values pass through the production decoder "
+                "and exact allocation projection"
             ),
         },
-        "prior_policy_evidence": {
-            key: value for key, value in prior.items() if key not in {"bc", "ppo"}
-        },
+        "prior_policy_evidence": (
+            None
+            if prior is None
+            else {
+                key: value
+                for key, value in prior.items()
+                if key not in {"bc", "ppo"}
+            }
+        ),
         "planner_totals": totals,
         "mpc": {
             "method": "hybrid-glop-seeded-cem",
-            "baseline_v2_id": BASELINE_ID,
+            "baseline_id": BASELINE_ID,
             "future_tape_visible": False,
             "information": (
                 "current causal simulator state/history and exact public 73-value "
@@ -1646,7 +1634,9 @@ def main() -> int:
             "decision_partition_counts": dict(sorted(partition_counts.items())),
             "requested_three_counts_with_honesty_label": {
                 "saturated_every_planner_solved": literal_counts["saturated"],
-                "contested_oracle_solved_ppo_failed": literal_counts["contested"],
+                "contested_oracle_solved_reference_failed": literal_counts[
+                    "contested"
+                ],
                 "infeasible_not_proven_oracle_search_unsolved": literal_counts[
                     "oracle_search_unsolved"
                 ],
@@ -1654,7 +1644,7 @@ def main() -> int:
             "residual_nonunanimous_count": literal_counts["achieved_nonunanimous"],
             "taxonomy_note": (
                 "The requested three literal classes are not exhaustive when "
-                "PPO and the oracle solve but a weaker planner fails. The "
+                "the reference and oracle solve but a weaker planner fails. The "
                 "residual category makes all 40 rows explicit. Oracle search "
                 "failure is not proof of physical infeasibility."
             ),
@@ -1667,10 +1657,10 @@ def main() -> int:
             "recommendation": recommendation,
             "mpc_clearly_better_definition": (
                 "selected global MPC horizon solves at least two more cases "
-                "than both the diagnostic PPO and tuned rule"
+                "than every available causal policy reference"
             ),
             "mpc_solve_margin_over_stronger_reference": mpc_clear_margin,
-            "step_3e_started": False,
+            "matched_reward_comparison_started": False,
             "campaign_8m_started": False,
             "distillation_pivot_started": False,
             "true_ceiling_upper_bound_established": False,
@@ -1681,35 +1671,24 @@ def main() -> int:
         "invariants": {
             "development_case_count_exactly_40": len(table) == 40,
             "development_row_ids_unique": len({row["row_id"] for row in table}) == 40,
-            "development_seed_interval_exact": list(DEVELOPMENT_SEEDS_V3)
+            "development_seed_interval_exact": list(DEVELOPMENT_SEEDS)
             == list(range(820000, 820008)),
             "same_true_tape_for_newly_executed_tuned_mpc_oracle": True,
-            "prior_bc_ppo_rows_hash_validated_and_order_aligned": True,
-            "prior_bc_ppo_exact_current_tape_hashes_available": False,
+            "prior_bc_ppo_rows_hash_validated_and_order_aligned": prior is not None,
+            "prior_evidence_supplied": prior is not None,
             "prior_evidence_limitation": (
-                "Step 3 stored complete ordered dev outcome rows but neither "
-                "per-row tape hashes nor replayable checkpoints; those two planner "
-                "columns are imported evidence, not executions in this process"
+                None
+                if prior is None
+                else (
+                    "Imported policy rows are receipt evidence rather than "
+                    "executions in this process"
+                )
             ),
             "mpc_future_tape_visible": False,
             "oracle_future_tape_visible": True,
             "all_actions_used_decoder_and_projection": True,
             "all_hard_violation_counts_zero": True,
             "all_maximum_conservation_residuals_exactly_zero": True,
-            "protected_v3_snapshot_unchanged": True,
-            "protected_v3_files_sha256": protected_after,
-        },
-        "source_identity": {
-            "headroom_probe_v4_sha256": file_sha256(Path(__file__).resolve()),
-            "shared_evidence_sha256": file_sha256(
-                ROOT / "backend" / "app" / "shared_evidence.py"
-            ),
-            "simulator_v4_sha256": file_sha256(
-                ROOT / "backend" / "app" / "simulator_v4.py"
-            ),
-            "simulator_core_v4_sha256": file_sha256(
-                ROOT / "backend" / "app" / "simulator_core_v4.py"
-            ),
         },
         "runtime": {
             "workers": args.workers,
@@ -1751,7 +1730,11 @@ def main() -> int:
             {
                 "status": receipt["status"],
                 "tuned": tuned_count,
-                "bc": totals["bc_initialization"]["solved_count"],
+                "bc": (
+                    totals["bc_initialization"]["solved_count"]
+                    if prior is not None
+                    else None
+                ),
                 "best_ppo_diagnostic": ppo_count,
                 "mpc_best_k": selected_horizon,
                 "mpc": mpc_count,
@@ -1774,5 +1757,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except HeadroomError as error:
-        print(f"headroom probe failed: {error}", file=sys.stderr)
+        print(f"headroom analysis failed: {error}", file=sys.stderr)
         raise SystemExit(2) from error
