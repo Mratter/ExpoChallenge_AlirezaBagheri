@@ -1,55 +1,53 @@
-# Autonomous City Recovery Planner — PPO-v3
+# Autonomous City Recovery Planner
 
-Autonomous City Recovery Planner is a local, synthetic-disaster research demo. It compares a learned PPO policy with a transparent public-state heuristic inside the same 30-day city-recovery simulator, then exposes both independent outcomes and both complete daily trajectories in a technical Analyst Toolbox and a 3D city view.
+Autonomous City Recovery Planner is a local, synthetic-disaster research demo. It compares an explicitly selected ONNX policy with a transparent public-state heuristic inside the same 30-day city-recovery simulator, then exposes both independent outcomes and both complete daily trajectories in a technical Analyst Toolbox and a 3D city view.
 
 The shortest accurate explanation is:
 
 > Both planners start from the same public scenario and encounter the same realized disaster sequence. Each then observes its own evolving city through the same 73-field public schema and independently proposes how to use material, crews, depot stock, and preparedness investment. A shared feasibility layer makes each proposal physically valid, the simulator advances one day, and an identical six-part rule decides whether each planner solved that disaster.
 
-This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The primary benchmark is the number of synthetic disasters each planner independently **Solved** out of the same 40 sealed final cases.
+This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The current model evidence is development-only: the primary benchmark is the number of synthetic disasters each planner independently **Solved** on the same 40 development tapes.
 
-## Release truth first
+## See the system
 
-PPO-v3 is deliberately fail-closed. Source code, a checkpoint, or an attractive development result is not enough to make a release.
-
-The runtime becomes ready only when all of the following agree by hash and identity:
-
-1. the frozen scientific source and preregistered protocol;
-2. a complete 645,120-transition training campaign and append-only checkpoint ledger;
-3. a development-only checkpoint-selection receipt;
-4. the selected ONNX actor, selected manifest, and ONNX parity receipt;
-5. a write-once final-evaluation authorization; and
-6. the complete, single-use 40-case final report.
-
-Until that chain exists, `GET /api/v1/meta`, `GET /health/ready`, the V3 comparison endpoint, setup preflight, and the browser workbench return or report **dependency not ready**. They do not relabel an old model as V3 and do not substitute development numbers.
-
-### Official final benchmark
-
-The final report is machine-owned at `benchmarks/v3/final-40.json`. The table below is a human-readable snapshot of that sealed artifact; the JSON report and its verified provenance chain remain authoritative.
-
-| Final metric | Release value |
+| Live 3D recovery city | Paired recovery trajectory |
 | --- | --- |
-| PPO-v3 independently Solved | **25 / 40 (62.5%)** |
-| Public heuristic independently Solved | **14 / 40 (35.0%)** |
-| Both solved / PPO only / heuristic only / neither | **14 / 11 / 0 / 15** |
-| Mean resilience AUC | **PPO 0.4902262923 / heuristic 0.4685284838** |
-| Secondary head-to-head resilience-AUC wins | **PPO 40 / heuristic 0 / ties 0** |
-| Safety and replay invariants | **0 hard violations, 0.0 maximum conservation residual, 0 replay mismatches** |
-| Final cases | **40 synthetic cases, complete** |
+| ![Live 3D recovery city](docs/screenshots/3d-city.png) | ![Paired 30-day recovery trajectory](docs/screenshots/trajectory.png) |
+| Dispatch manifest | Decision log |
+| ![Daily dispatch manifest](docs/screenshots/dispatch-manifest.png) | ![Policy decision log](docs/screenshots/decision-log.png) |
 
-Inspect the canonical values directly rather than treating the copied table as an independent artifact:
+| Decision support |
+| --- |
+| ![Attribution, counterfactual, export, and sustainability decision support](docs/screenshots/decision-support.png) |
 
-```powershell
-$report = Get-Content -Raw .\benchmarks\v3\final-40.json | ConvertFrom-Json
-$report | Select-Object status, primary_metric, synthetic_case_count
-$report.candidate
-$report.baseline
-$report.paired_absolute_outcomes
-$report.secondary_head_to_head_resilience_auc
-$report.invariants
-```
+These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The 35/40 v4 development result below is receipt-backed evidence, not the policy shown in the screenshots.
 
-This release's final report has SHA-256 `f6d3b654ca6b2831af5bec07530b81ecf0e72b2aae44029a805d98325bfe5fb3`. If that file is absent, incomplete, changed, or rejected by preflight, the copy being run is not the verified V3 release. Development-only runs and superseded releases are intentionally omitted from this portable package.
+## Runtime and evidence truth first
+
+The consolidated runtime has one policy-selection rule: the operator must provide the ONNX artifact to serve. `scripts/setup.ps1` installs the runtime and builds the frontend without choosing a model. `scripts/run.ps1` accepts `-PolicyPath` or `INNOVERSE_POLICY_PATH`, then preflight validates the artifact's `73 → 22` tensor contract, bounded inference, and a complete smoke comparison before starting FastAPI.
+
+There is no implicit production checkpoint, fallback model, manifest, or source-seal lookup. `tests/fixtures/legacy_policy.onnx` exists only as a regression and evaluation fixture. The measured 1M-transition v4 policy is represented by development evidence; its diagnostic checkpoint was not persisted and is not a deployable artifact in this repository.
+
+### Current development benchmark
+
+All methods below ran on the same 40 development tapes. The consolidated v4 path has not used the final split. Its score is therefore framed against the measured **37-case achievable ceiling**, not an assumed ceiling of 40: v4 PPO reaches **35 / 37 of the measured ceiling**.
+
+| Development method | Solved on 40 development tapes | Position against the measured ceiling |
+| --- | --- | --- |
+| **v4 PPO at 1M active transitions** | **35 / 40**, 95% Wilson interval **[0.739, 0.945]** | **35 / 37** |
+| Tuned constant rule | **33 / 40** | 33 / 37 |
+| BC initialization | **32 / 40** | 32 / 37 |
+| BC teacher | **31 / 40** | 31 / 37 |
+| Legacy shipped-policy regression fixture | **31 / 40** | 31 / 37 |
+| Reactive heuristic | **17 / 40** | 17 / 37 |
+| Causal MPC, horizon `k=1` | **18 / 40** | 18 / 37 |
+| Causal MPC, horizon `k=3` | **29 / 40** | 29 / 37 |
+| Causal MPC, horizon `k=5` | **30 / 40** | 30 / 37 |
+| Privileged clairvoyant oracle | **37 / 40** | Measured ceiling; future-shock access, **not a submission baseline** |
+
+The canonical aggregate and paired comparisons are in `benchmarks/v4/development-baselines.md`; complete ordered rows and source hashes are in `internal/developmental_runs/v4/step6-dev-baseline-table.json`. Both identify themselves as nonauthorizing development evidence with `final_split_used: false`.
+
+The retired release's one-shot final report is retained at `docs/evidence/legacy-final-40.json` as legacy evidence only. It does not select a model, participate in current readiness, or describe the v4 development policy.
 
 ## Quick start on a fresh Windows computer
 
@@ -62,13 +60,13 @@ This release's final report has SHA-256 `f6d3b654ca6b2831af5bec07530b81ecf0e72b2
 - an internet connection for first-time dependency installation
 - a current Chrome, Edge, or Firefox browser
 
-The release demo uses ONNX Runtime on CPU. A GPU, CUDA, Git, and `uv` are not required.
+The runtime uses ONNX Runtime on CPU. A GPU, CUDA, Git, and `uv` are not required.
 
 ### 1. Open PowerShell in the package root
 
 The package root is the folder containing this README, `requirements.txt`, `backend`, `frontend`, `model`, and `scripts`.
 
-### 2. Install and verify everything
+### 2. Install the runtime and browser
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
@@ -82,9 +80,9 @@ Setup performs these steps:
 4. installs the runtime packages from `requirements.txt`;
 5. installs the locked browser packages with `npm ci`;
 6. builds `frontend/dist`; and
-7. runs the signed V3 release preflight.
+7. if `INNOVERSE_POLICY_PATH` is already set, runs preflight against that policy.
 
-`frontend/dist` is generated from the React source, but it is also the static browser runtime served by FastAPI and is therefore required when running the packaged app. This release includes a built copy; `setup.ps1` reproducibly rebuilds it after `npm ci` so a fresh machine does not depend on stale generated files.
+Setup succeeds without a selected policy. In that case it prints that the runtime is installed and model selection is still required. `frontend/dist` is generated from the React source and is the static browser runtime served by FastAPI; `setup.ps1` reproducibly creates it after `npm ci`.
 
 To prevent setup from invoking `winget`, install Python 3.12 and Node yourself, then run:
 
@@ -92,27 +90,23 @@ To prevent setup from invoking `winget`, install Python 3.12 and Node yourself, 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -SkipToolBootstrap
 ```
 
-An error that says V3 dependencies are not ready is not fixed by bypassing the check. It means one or more sealed release artifacts are genuinely missing or inconsistent; see [Release files and readiness](#release-files-and-readiness).
+### 3. Select a policy and start the app
 
-### 3. Start the app
+Point the launcher at the ONNX policy you intend to serve. Either set the environment variable:
 
 ```powershell
+$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
-Do not start `run.ps1` until setup has printed **`[setup] COMPLETE`**. If setup reports an error, resolve it and rerun setup; `run.ps1` correctly refuses to start from an incomplete environment.
-
-For a first-time install, this paste-safe block runs setup and launches the app only when setup succeeds:
+Or pass the path directly:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-if ($LASTEXITCODE -ne 0) {
-    throw "Setup failed with exit code $LASTEXITCODE. Fix the setup error before starting the Toolbox."
-}
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
+    -PolicyPath 'C:\path\to\selected-policy.onnx'
 ```
 
-The launcher verifies the release, starts FastAPI at `127.0.0.1:4117`, and opens:
+Do not start `run.ps1` until setup has printed **`[setup] COMPLETE`**. The launcher resolves the selected file, runs preflight, starts FastAPI at `127.0.0.1:4117`, and opens:
 
 ```text
 http://127.0.0.1:4117/#/toolbox
@@ -123,16 +117,23 @@ Keep the PowerShell window open. Press `Ctrl+C` there to stop the server.
 Use another port if `4117` is occupied:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Port 4120
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
+    -PolicyPath 'C:\path\to\selected-policy.onnx' `
+    -Port 4120
 ```
 
 Start without opening a browser:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Port 4120 -NoBrowser
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
+    -PolicyPath 'C:\path\to\selected-policy.onnx' `
+    -Port 4120 `
+    -NoBrowser
 ```
 
-### 4. Run a standalone release check
+### 4. Run a standalone runtime check
+
+With `INNOVERSE_POLICY_PATH` set:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
@@ -144,7 +145,7 @@ For an alternate port:
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1 -Port 4120
 ```
 
-Preflight verifies source and protocol bindings, selected artifacts, ONNX structure and inference, parity, final authorization, final benchmark integrity, the frontend build, and a real short runtime comparison. Never disable a failed hash or identity check to make the app start.
+Preflight checks required runtime files, Python 3.12, the frontend build, port availability, the ONNX Runtime CPU session, exact input `observation [batch,73]` and output `action [batch,22]` tensors, finite actions inside `[-1,1]`, and a deterministic 30-day smoke comparison with zero hard violations and exact conservation. Set `INNOVERSE_POLICY_SHA256` as well when the selected artifact must match a known digest.
 
 ## The four different pieces
 
@@ -153,7 +154,7 @@ The project is easier to understand when the learned policy, baseline, simulator
 ```mermaid
 flowchart LR
     S["Scenario + seed"] --> T["One shared 30-day shock tape"]
-    T --> O1["PPO-v3: its public 73-value observation"]
+    T --> O1["Selected ONNX policy: its public 73-value observation"]
     T --> O2["Heuristic: its public 73-value observation"]
     O1 --> A1["22-value action proposal"]
     O2 --> A2["22-value action proposal"]
@@ -167,16 +168,16 @@ flowchart LR
 
 | Piece | What it does | What it does not do |
 | --- | --- | --- |
-| **PPO-v3 policy** | A learned neural policy maps the current 73-value public observation to a 22-value daily intervention proposal. | It does not see future shocks, alter simulator rules, or bypass constraints. |
+| **Selected ONNX policy** | A learned policy maps the current 73-value public observation to a 22-value daily intervention proposal. | It does not see future shocks, alter simulator rules, or bypass constraints. |
 | **Public heuristic** | A fixed, transparent formula reacts to service gaps, priorities, stock, throughput, pending deliveries, preparedness, and public risk. | It is not trained, does not inspect PPO actions, and does not see future shocks. |
-| **CityRecoveryEnv-v3** | The authored synthetic world generates shocks and advances services, depots, deliveries, roads, crews, repair, and preparedness. | It is not a learned model and is not evidence about a real city. |
+| **CityRecoveryEnv** | The authored synthetic world generates shocks and advances services, depots, deliveries, roads, crews, repair, and preparedness. | It is not a learned model and does not choose actions for either planner. |
 | **Feasibility projector** | Deterministically converts either planner's proposal into allocations that satisfy daily bounds and conservation rules. | It is not another planner and does not choose a high-scoring strategy for the policy. |
 
-The PPO and heuristic run in separate copies of the same environment but receive an identical shock schedule. This prevents one planner from winning because it encountered an easier random disaster.
+The candidate and heuristic run in separate copies of the same environment but receive an identical shock schedule. This prevents one planner from winning because it encountered an easier random disaster.
 
 ## What one simulation represents
 
-Every V3 case lasts exactly **30 days** and contains five service systems in this fixed order:
+Every case lasts exactly **30 days** and contains five service systems in this fixed order:
 
 1. transport;
 2. housing;
@@ -200,32 +201,29 @@ Days **28–30** form the frozen three-day assessment tail. Forced shocks are re
 
 Given the same full scenario, seed, policy artifact, baseline version, and source identity, the comparison is deterministic.
 
-## PPO-v3 model architecture
+## Why this problem is hard
 
-| Property | PPO-v3 value |
+On the development tapes, a 30-day run contains a mean of **10.6 shocks**, with a range of **4 to 16**. The final shock lands on days 25–27 in **32 of 40 cases (80%)**, and on day 27 exactly in **13 of 40**. Shocks are blocked during the days 28–30 assessment window.
+
+Service recovery is concave and slow, so a late shock cannot be repaired reactively. The viable strategy is to buy resilience in advance against hazards visible only as probabilities. The measured consequence is that the learned policy's mean minimum tail margin grows **0.0288 → 0.0329 → 0.0397 → 0.0497** across BC, 200k, 500k, and 1M transitions: it learns to hold a buffer.
+
+## Policy runtime and training architecture
+
+| Property | Current contract |
 | --- | --- |
-| Algorithm | Stable-Baselines3 Proximal Policy Optimization (PPO) |
-| Observation | 73 normalized public inputs |
-| Action | 22 continuous outputs |
-| Actor | `73 → 384 → 256 → 128 → 22` |
-| Critic | `73 → 384 → 256 → 128 → 1` |
-| Hidden activation | SiLU |
-| Initialization | Orthogonal |
-| Training-time log standard deviation | 22 trainable values, initialized at `-2.0` |
-| Total trainable parameters | **322,733** |
-| Selected deployment | Deterministic actor-only ONNX, opset 17 |
+| Runtime artifact | One explicitly selected ONNX file |
+| Observation | `observation: tensor(float)[batch,73]` |
+| Action | `action: tensor(float)[batch,22]`, finite and inside `[-1,1]` |
+| Observation normalization | Must be embedded in the selected ONNX artifact; the runtime does not apply Python-side normalization |
 | Runtime provider | ONNX Runtime `CPUExecutionProvider` |
-| ONNX input / output | `observation [batch,73]` / `action [batch,22]` |
+| Runtime execution | Sequential, one intra-op thread and one inter-op thread |
+| Training algorithm | Stable-Baselines3 Proximal Policy Optimization (PPO) |
+| Training actor | `73 → 384 → 256 → 128 → 22` |
+| Training critic | `73 → 384 → 256 → 128 → 1` |
+| Hidden activation / initialization | SiLU / orthogonal |
+| Training-time log standard deviation | 22 trainable values initialized at `-1.5` |
 
-The parameter count is exact:
-
-- actor network and action head: 162,710 parameters;
-- critic network and value head: 160,001 parameters; and
-- training-time action log standard deviation: 22 parameters.
-
-Total: `162,710 + 160,001 + 22 = 322,733`.
-
-The deployed ONNX file contains the deterministic actor needed for inference. The critic and action-distribution standard deviation are training components; their absence from actor-only deployment is expected. Parameter count describes capacity, not quality, accuracy, or proof of generalization.
+`model/policy.py` validates the public tensor names, shapes, types, provider, smoke inference, and action bounds. It deliberately does not require a particular hidden-layer graph or infer training provenance from the ONNX file. The architecture below the tensor boundary describes `scripts/train_policy.py`; the repository does not currently contain a deployable checkpoint from the measured 1M-transition v4 run.
 
 ## The exact 73 public inputs
 
@@ -274,7 +272,7 @@ Raw actor outputs are clipped to `[-1,1]`. Shares are decoded into positive prop
 
 ## What the feasibility layer guarantees
 
-PPO-v3 and the heuristic use the same action decoder and constraint code.
+The selected policy and heuristic use the same action decoder and constraint code.
 
 For material and crews separately, the projector:
 
@@ -289,73 +287,69 @@ Preparedness cannot consume the repair floors reserved for critically damaged se
 
 The projector is a guardrail, not a hidden optimizer. A poor policy can remain feasible and still fail the disaster.
 
-## How PPO-v3 was trained
+## How the development policy was trained
 
-### Registered interaction budget
+The current training flow in `scripts/train_policy.py` is linear and inspectable: **BC/DAgger → actor-frozen critic warm-up → PPO actor-critic updates → development evaluation → new receipt**. The tool learns only from training cases and does not import or evaluate the final split.
 
-The frozen production budget is **645,120 PPO environment transitions** with policy seed `37017`.
+### Current optimizer contract
 
-| Training setting | Registered value |
+| Training setting | Current default |
 | --- | --- |
-| Simulator lanes | 12 |
-| Vector backend | `SubprocVecEnv` with Windows `spawn` |
-| Worker BLAS threads | 1 per worker |
-| Steps per lane per rollout | 256 |
-| Transitions per rollout | `12 × 256 = 3,072` |
-| Rollouts per stage | 30 |
-| Transitions per stage | `30 × 3,072 = 92,160` |
-| Stages | 7 |
-| Total authorized transitions | `7 × 92,160 = 645,120` |
-| PPO batch size / epochs | 384 / 3 |
-| Learning rate | 0.00005 |
-| Discount / GAE | 0.995 / 0.95 |
-| Clip range | 0.10 |
-| Entropy / value coefficients | 0.001 / 0.5 |
-| Maximum gradient norm | 0.5 |
+| Active PPO budget | 8,000,000 actor-critic transitions |
+| Policy seed | `37017` |
+| Simulator lanes | 20 |
+| Steps per lane / rollout | 250 / 5,000 transitions total |
+| PPO batch size / epochs | 500 / 5 |
+| Learning rate | `7.5e-5` |
+| Discount / GAE | `0.99` / `0.95` |
+| Clip range | `0.15` |
+| Entropy / value coefficients | `0.003` / `0.5` |
+| Target KL | `0.02`, with Stable-Baselines3 early stopping |
+| Exploration | `log_std_init=-1.5`, `use_sde=False` |
+| Observation handling | `VecNormalize`, with BC observation moments frozen during PPO by default |
 
-The sealed production campaign completed all **645,120** registered PPO environment transitions across seven durable stages. `training/v3/training-receipt.json`, `training/v3/training-terminal.json`, and the append-only checkpoint ledger agree on that count. Development-only checkpoint selection then chose the stage-six checkpoint at **552,960 transitions**, rather than the terminal stage, because it ranked highest under the preregistered ordering. The full campaign count and selected-checkpoint count describe different facts and should both be reported.
+The actor warm start uses four public-only DAgger iterations with beta schedule `[1,0,0,0]`, 15 epochs per iteration, batch size 512, and actor learning rate `0.001`. The teacher sees the same causal public observation contract as the learned policy and never receives the future tape.
 
-### Public-only behavior cloning, then PPO
+Before PPO changes the actor, the trainer freezes every actor parameter and trains the critic alone for at least 50,000 and at most 100,000 transitions, stopping after the minimum once explained variance exceeds `0.5`. It records actor hashes, observation and return moments, explained variance, approximate KL, clip fraction, entropy loss, value loss, policy-gradient loss, and action standard deviation. Development curves are recorded at 200k, 500k, 1M, and the requested terminal budget.
 
-Training has two phases:
-
-1. **Behavior cloning / DAgger warm start.** A deterministic public preparedness teacher supplies actions through the exact 73-field observation contract later used by PPO. It has no future-tape access. Four registered DAgger iterations use beta schedule `[1,0,0,0]`, 15 epochs per iteration, batch size 512, and learning rate 0.001.
-2. **PPO interaction.** The warm-started policy continues learning from its own experience on the frozen training split for the seven registered stages.
-
-The teacher is training infrastructure. It is neither the deployed policy nor the final comparison baseline. Its actions are not generated from final scenarios, privileged future shocks, or final outcomes.
+The current 35/40 result comes from the nonauthorizing 1M-transition development receipt at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`. That run persisted diagnostics and per-case outcomes, not a checkpoint or deployable ONNX file.
 
 ### Role-separated scenario splits
 
 | Split | Families × seeds | Cases | Purpose |
 | --- | --- | --- | --- |
-| Training | 6 × 32 (`810000–810031`) | 192 | Behavior cloning/DAgger and PPO interaction only. |
-| Development | 5 × 8 (`820000–820007`) | 40 | Rank complete stage checkpoints and select exactly one deployment. |
-| Final | 5 × 8 (`830000–830007`) | 40 | One authorized report after selection; never training or selection. |
+| Training | 6 × 32 (`810000–810031`) | 192 | Behavior cloning, DAgger, critic warm-up, and PPO interaction. |
+| Development | 5 × 8 (`820000–820007`) | 40 | Learning curves, policy comparison, and headroom measurement. |
+| Final | 5 × 8 (`830000–830007`) | 40 | Reserved evaluation set; no v4 final result is present in this repository. |
 
-The family sets and seed intervals are disjoint. Checkpoint selection first maximizes development Solved count, then development mean resilience AUC, then prefers fewer completed transitions, then uses checkpoint SHA-256 as the deterministic tie-break. The full campaign completed before selection. The selected stage-six checkpoint solved 31/40 development cases with mean resilience AUC `0.4963570975`; those development figures explain selection and are not the final benchmark.
+The family sets and seed intervals are disjoint. The development evidence names its split, records that the final split was not used, and binds every result to ordered scenario rows and disaster-tape hashes.
 
 ## The public heuristic
 
-The release baseline is `reactive-public-state-heuristic-v3` version `3.0.0`. It consumes the same 73-field public observation schema and emits the same 22-field action contract as PPO-v3. After day one, each planner's numeric observation legitimately differs because its earlier actions produced a different service, stock, delivery, and preparedness state; the exogenous shock tape remains matched.
+The runtime baseline retains the stable identity `reactive-public-state-heuristic-v3` version `3.0.0`. Its implementation lives in `backend/app/city/planners.py`; it consumes the same 73-field public observation schema and emits the same 22-field action contract as the selected policy. After day one, each planner's numeric observation legitimately differs because its earlier actions produced a different service, stock, delivery, and preparedness state; the exogenous shock tape remains matched.
 
 Its fixed rules prioritize target gaps and public priorities, adjust material and crew use using visible stock, pending deliveries, and throughput, release stock reactively, and invest a bounded amount in preparedness based on public risk. It has no learned weights, no access to PPO outputs, no future tape, and no result-dependent tuning during evaluation.
 
-This heuristic is intentionally understandable, but “transparent” does not mean “fake.” It must independently satisfy the same Solved rule and all feasibility checks. The final report preserves cases where it solves the disaster and PPO does not.
+This heuristic is intentionally understandable, but “transparent” does not mean “fake.” It must independently satisfy the same Solved rule and all feasibility checks. The development evidence preserves cases where it solves the disaster and another planner does not.
 
 ## What “Solved” means
 
 Each planner receives its own `absolute_outcome`. A planner is Solved only if **all six** frozen checks pass:
 
-| Check | Frozen V3 requirement |
+| Check | Frozen requirement |
 | --- | --- |
-| Assessment-tail targets | Every one of the five services is at or above its scenario-specific target on every day of days 28–30. |
+| Assessment-tail targets | Every one of the five sectors is at or above its public target on every one of the final three days; the canonical development cases use `0.55`. |
 | Resilience AUC | Mean priority-weighted daily resilience is at least `0.44`. |
 | Critical service-days | At most 8% of 150 service-days may be below `0.30`: a maximum of **12**. |
 | Hard constraints | Total hard-violation count is exactly `0`. |
-| Material conservation | Maximum absolute logistics conservation residual is at most `1e-6`. |
-| Terminal pipeline | Pending arrivals at each terminal depot do not exceed that depot's capacity. |
+| Material conservation | Maximum absolute logistics conservation residual is at most `1e-6`; the observed residual is exactly `0.0`. |
+| Terminal pipeline | Terminal pending arrivals are at or below depot capacity. |
 
-The response includes each check, each service's tail result, reason codes for failure, the exact definition ID, and the definition hash. The browser does not create its own friendlier version of Solved.
+The frozen definition hash is `d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d798a8f0afc896df82`. The response includes each check, each service's tail result, reason codes for failure, the exact definition ID, and that definition hash. The browser does not create its own friendlier version of Solved.
+
+The definition resists several simple ways to game a terminal score. The first check is a conjunction over sectors **and** days, so a strong sector cannot mask a weak one and a planner cannot pass by spiking only on the last day. The tail-target and resilience-AUC checks pull against each other: neither “steady but ends short” nor “neglect then sprint” passes. The terminal-pipeline check closes end-game inventory dumping.
+
+The calibration is measured from both sides. The reactive baseline solves **14 / 40** on the retained legacy one-shot benchmark, while the privileged development oracle sees every future shock and still fails **3 of 40**. These are separate benchmark suites, but together they bound the authored bar empirically: it is neither trivially passable nor saturated by clairvoyance.
 
 ### Independent outcomes, not “winning against” the other planner
 
@@ -381,6 +375,22 @@ Resilience AUC is still useful: it summarizes the average quality of the 30-day 
 
 It remains secondary because it cannot replace the full terminal-target, critical-day, feasibility, and conservation definition. The primary claim is the independently measured number of disasters Solved.
 
+## Worked example
+
+Case `v3_dev_health_compound:820007` is the legacy model's narrowest win. It contains **14 shocks in 30 days**, with **209 material per day** and **153 crew per day**.
+
+| Sector | Day 0 | Day 30 | Target |
+| --- | ---: | ---: | ---: |
+| Transport | 34.5% | 62.7% | 55% |
+| Housing | 42.6% | 59.2% | 55% |
+| Food | 26.3% | 64.5% | 55% |
+| Healthcare | 23.6% | 71.0% | 55% |
+| Public services | 23.6% | 66.1% | 55% |
+
+It passes three checks by a hair simultaneously: housing tail margin **+0.75 percentage points**, resilience AUC **0.44171** against the `0.44` floor, and exactly **12 critical-service days** of the 12 allowed.
+
+The final service levels land in near-exact priority order. Healthcare, with priority **1.88**, starts lowest at **23.6%** and finishes highest at **71.0%**; public services at priority **1.52** follows, then food at **1.32**. The only inversion is housing versus transport, whose priorities differ by **0.09**.
+
 ## Using the Analyst Toolbox
 
 Open `http://127.0.0.1:4117/#/toolbox` after the launcher reports ready.
@@ -405,7 +415,7 @@ The horizon is always 30 days and the assessment tail is always three days. The 
 
 ### 2. Run the paired case
 
-Select **Run paired 30-day trace**. The backend creates one shock schedule, runs PPO-v3 and the heuristic independently, checks both outcomes, saves the canonical result, and returns both trajectories.
+Select **Run paired 30-day trace**. The backend creates one shock schedule, runs the selected ONNX policy and the heuristic independently, checks both outcomes, saves the canonical result, and returns both trajectories.
 
 The top verdict cards show **Solved** or **Failed** for each planner from the backend's official outcome. They do not infer a verdict from which line is higher.
 
@@ -418,19 +428,21 @@ The main visualization is the paired 30-day recovery trace. It overlays both res
 - **Trajectory** — service levels, shocks, recovery, and daily reward.
 - **Daily audit** — before/after state, material and crew use, release, preparedness, hard violations, and official outcome evidence.
 - **Dispatch manifest** — stock, deliveries, physical dispatch, repair, preparedness consumption, idle resources, and conservation.
-- **Decision log** — raw 22-value action, feasibility projection, planner evidence, and all 73 public inputs.
+- **Decision log** — raw 22-value action, feasibility projection, planner evidence, all 73 public inputs, local action sensitivity, one-day counterfactual replay, recovery-plan exports, and preparedness-versus-shock-absorption evidence.
 
-Use the PPO/heuristic toggle in the day inspector to compare like-for-like fields. The architecture section describes only the selected PPO-v3 deployment and obtains its counts and hashes from verified API metadata.
+Use the candidate/heuristic toggle in the day inspector to compare like-for-like fields. The architecture section reports the selected artifact identity and tensor contract returned by API metadata.
 
-### 5. Recheck the release
+### 5. Recheck the runtime
 
-The Toolbox's **Recheck release** action retries metadata. It cannot approve missing artifacts; it only reports whether the backend's verification now passes.
+The Toolbox's **Recheck runtime** action retries metadata. It cannot choose or repair a policy; it only reports whether the backend can now load the explicitly configured artifact.
+
+The browser implementation contains zero uses of `any` or `@ts-ignore` across roughly 6,000 lines of TypeScript. Its accessibility surface includes **30 `aria-label` attributes**, **29 `role=` assignments**, an `aria-live` update region, and an `aria-modal` dialog.
 
 ## Using the 3D city view
 
 Open `http://127.0.0.1:4117/#/game` or use the Toolbox navigation.
 
-The 3D view is a presentation of the same V3 backend comparison, not a second model or a separate scoring system. It visualizes city services, hazards, depots, vehicles, and the 30-day progression. Operator-triggered incidents are limited to the intervention window; the assessment tail remains protected. The debrief uses the same official backend Solved/Failed outcomes as the Toolbox.
+The 3D view is a presentation of the same backend comparison, not a second model or a separate scoring system. It visualizes city services, hazards, depots, vehicles, and the 30-day progression. Operator-triggered incidents are limited to the intervention window; the assessment tail remains protected. The debrief uses the same backend Solved/Failed outcomes as the Toolbox.
 
 If the 3D scene is slow, reduce browser zoom, close GPU-heavy tabs, or use the Toolbox, which contains the complete numerical evidence.
 
@@ -438,14 +450,17 @@ If the 3D scene is slow, reduce browser zoom, close GPU-heavy tabs, or use the T
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /health/live` | Process liveness. It does not prove the V3 evidence chain is ready. |
-| `GET /health/ready` | Verifies the selected V3 runtime and sealed final benchmark; returns 503 until ready. |
-| `GET /api/v1/meta` | V3 model, environment, exact orders, outcome, baseline, and final benchmark metadata; fail-closed. |
-| `POST /api/v1/simulations/compare` | Runs and persists one V3 PPO-versus-heuristic comparison. |
-| `GET /api/v1/simulations?engine_version=city-recovery-env-v3` | Lists saved V3 run summaries. |
-| `GET /api/v1/simulations/{result_id}` | Reads one canonical saved V3 result. |
+| `GET /health/live` | Process liveness, independent of policy selection. |
+| `GET /health/ready` | Loads the explicitly selected policy and reports its identity and tensor contract; returns 503 when no valid policy is configured. |
+| `GET /api/v1/meta` | Current policy, environment, exact orders, outcome definition, baseline, persistence, and determinism metadata. |
+| `POST /api/v1/simulations/compare` | Runs and persists one selected-policy-versus-heuristic comparison on a shared tape. |
+| `GET /api/v1/simulations?engine_version=city-recovery-env-v3` | Lists saved run summaries for the stable engine-version identifier. |
+| `GET /api/v1/simulations/{result_id}` | Reads one canonical saved result. |
+| `GET /api/v1/simulations/{result_id}/explanations` | Replays the persisted candidate and returns non-causal local action sensitivity for all 73 observation channels on each day. |
+| `POST /api/v1/simulations/{result_id}/counterfactuals` | Overrides one day's material or crew shares and deterministically replays the selected policy thereafter without persisting a derived run. |
+| `GET /api/v1/simulations/{result_id}/recovery-plan?planner=candidate&format=csv` | Downloads the persisted candidate or baseline trajectory as deterministic CSV or PDF. |
 
-Example V3 request:
+Example comparison request:
 
 ```powershell
 $body = @{
@@ -474,7 +489,7 @@ Invoke-RestMethod `
     -Body $body
 ```
 
-The V3 response uses schema `4.0.0`. It includes the shared shock schedule and hash, exact observation and action orders, policy and baseline identities, both planner summaries, both complete trajectories, both official outcomes, the absolute outcome pair, the secondary AUC difference, and a content-addressed `result_id`.
+The response uses schema `4.0.0`. It includes the shared shock schedule and hash, exact observation and action orders, policy and baseline identities, both planner summaries, both complete trajectories, both absolute outcomes, the secondary AUC difference, and a content-addressed `result_id`.
 
 Saved runs default to:
 
@@ -486,69 +501,57 @@ Use a separate location without changing code:
 
 ```powershell
 $env:INNOVERSE_STATE_DIR = 'D:\InnoverseRuns'
+$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
 ## Active folder and file map
 
-Generated folders such as `.venv`, `.pytest_cache`, `.ruff_cache`, `frontend/node_modules`, `__pycache__`, and TypeScript build-info files are disposable build output. `frontend/dist` is reproducible build output but is also required by the packaged FastAPI runtime, so keep the shipped build or recreate it with `npm run build --prefix frontend`. The files below define or document the active package.
+Generated folders such as `.venv`, `.pytest_cache`, `.ruff_cache`, `frontend/node_modules`, `frontend/dist`, `__pycache__`, and TypeScript build-info files are reproducible build output. The active source tree is intentionally compact:
 
 ```text
 .
-├── artifacts/                    V3 production and selected model artifacts
-├── backend/app/                  FastAPI, schemas, persistence, scenarios, simulator
-├── benchmarks/                   Machine-generated benchmark reports
+├── backend/app/city/             Physics, scenarios, outcome, planners, optimizer, environment
+├── backend/app/                  HTTP, schemas, persistence, evidence, analysis, exports
+├── benchmarks/v4/                Development aggregate for the consolidated path
+├── docs/                         Guided code tour, screenshots, and legacy evidence
 ├── frontend/                     React Analyst Toolbox and 3D city
-├── internal/                     Required durable V3 release evidence
-├── model/                        Strict selected-V3 model loader
-├── scripts/                      Setup, launch, verification, training, selection, evaluation
-├── tests/                        Active Python V3 tests
-├── training/v3/                  Frozen config, protocol, seal, and write-once receipts
-├── .python-version               Required Python version
-├── requirements.txt              Runtime Python dependencies
-└── README.md                     This non-scientific operator guide
+├── internal/developmental_runs/  Nonauthorizing development receipts
+├── model/                        Explicit ONNX runtime boundary
+├── scripts/                      Setup, launch, training, evaluation, headroom, contract generation
+└── tests/                        Python executable specifications and regression fixture
 ```
 
-### Root files
+For a guided reading order rather than a flat inventory, start with `docs/CODE_TOUR.md`.
+
+### `backend/app/city`
 
 | Path | Role |
 | --- | --- |
-| `.python-version` | Pins Python 3.12 for compatible environment managers and the scientific source seal. |
-| `requirements.txt` | Exact direct dependencies for the API, simulator, and ONNX runtime. |
-| `.editorconfig` | Shared text-format defaults. |
-| `.gitignore` | Excludes generated environments, builds, caches, runtime state, and temporary files. |
-| `README.md` | Human operator/reviewer guide. It is deliberately outside the scientific source identity. |
-
-### `artifacts`
-
-| Path | Role |
-| --- | --- |
-| `artifacts/city_recovery_ppo.v3.selected.onnx` | Shipped selected PPO-v3 deterministic actor, exported from the 552,960-transition checkpoint after development selection and parity. |
-| `artifacts/model_manifest.v3.selected.json` | Shipped manifest binding ONNX, selected checkpoint, training, source, protocol, and parity identities. |
-| `artifacts/city_recovery_ppo.v3.zip`, `artifacts/city_recovery_ppo.v3.onnx` | Terminal production checkpoint and actor retained as sealed campaign evidence. The runtime deploys the selected actor above. |
-| `artifacts/city_recovery_ppo.v3.metadata.json`, `artifacts/model_manifest.v3.json` | Terminal production metadata and manifest bound into the completed training chain. |
-
-Absence of either selected V3 file means the V3 release is not ready. There is no fallback model.
+| `physics.py` | Canonical service/hazard order, allocation math, logistics constants, shock mechanics, and conservation measurements. |
+| `scenarios.py` | Training, development, and reserved final families plus deterministic tape generation. |
+| `outcome.py` | The six-check absolute outcome and trajectory summaries. |
+| `planners.py` | Reactive heuristic, preparedness teacher, tuned rule, and shared weight-to-logit conversion. |
+| `optimizer.py` | OR-Tools allocation proposals used by headroom analysis. |
+| `environment.py` | The 73/22 environment, feasibility projection, transitions, rollout, and comparison composition. |
 
 ### `backend/app`
 
 | Path | Role |
 | --- | --- |
-| `main.py` | FastAPI routes, static frontend serving, V3 fail-closed loading, metadata, and comparison orchestration. |
-| `models.py` | Strict request schemas, including the fixed 30-day `ScenarioV3` contract. |
-| `persistence.py` | Canonical content-addressed JSON storage for V3 operator runs. |
-| `scenarios_v3.py` | Frozen training, development, and final V3 scenario-family definitions. |
-| `simulator_v3.py` | V3 environment, observations, actions, public baseline and teacher, transitions, outcome, and comparison. |
-| `simulator_core.py` | Shared service constants, shock mechanics, hashing, projections, and constraint measurements. |
-| `simulator_v2.py` | Active, source-sealed V3 dependency that supplies depot capacity, delivery/spoilage constants, damage, transfers, and throughput mechanics reused by V3. The filename is retained because renaming it would break the frozen source identity. |
-| `backend/__init__.py`, `backend/app/__init__.py` | Python package markers. |
+| `main.py` | FastAPI composition root, policy loading, comparison, analysis, export, health, metadata, and static frontend routes. |
+| `models.py` | Strict public scenario and comparison request schemas. |
+| `persistence.py` | Canonical content-addressed local result storage. |
+| `shared_evidence.py` | Canonical JSON, hashing, Wilson intervals, split contracts, and durable writes. |
+| `recovery_analysis.py` | Replay-verified local sensitivity and one-day allocation counterfactuals. |
+| `recovery_exports.py` | Deterministic CSV and PDF recovery plans. |
 
 ### `model`
 
 | Path | Role |
 | --- | --- |
-| `ppo_v3.py` | Strict selected-V3 loader. Cross-verifies every source, receipt, artifact, parity, and final-report binding before creating an ONNX session. |
-| `__init__.py` | V3-only package exports. |
+| `policy.py` | Loads one explicit ONNX artifact, validates its SHA-256 when supplied, enforces the 73/22 contract, and runs CPU inference. |
+| `__init__.py` | Public policy exports. |
 
 ### `frontend`
 
@@ -558,133 +561,82 @@ Absence of either selected V3 file means the V3 release is not ready. There is n
 | `index.html`, `vite.config.ts`, `tsconfig*.json` | Browser entry and build configuration. |
 | `src/main.tsx` | React browser bootstrap. |
 | `src/App.tsx` | Main Toolbox and routing shell. |
-| `src/api.ts` | Strict V3 API client and fail-closed error handling. |
-| `src/types.ts` | V3 request, response, trajectory, outcome, benchmark, and metadata types. |
+| `src/api.ts`, `src/types.ts` | Strict runtime client, response validation, and public types. |
+| `src/analysisApi.ts`, `src/DecisionAnalysis.tsx` | Explanation, counterfactual, export, and sustainability decision support. |
 | `src/scenarios.ts` | Browser scenario presets and validation helpers. |
-| `src/v3ViewModel.ts` | Derived presentation values that preserve official backend verdicts. |
+| `src/viewModel.ts` | Derived presentation values that preserve backend verdicts. |
 | `src/shockPresentation.ts` | Shared hazard labels and presentation helpers. |
+| `src/generated/backendContract.ts` | Generated cross-language service, hazard, tensor, request, and outcome contract. |
 | `src/styles.css` | Municipal workbench visual system and responsive layout. |
-| `src/api.test.ts`, `src/v3ViewModel.test.ts` | Frontend contract tests. |
-| `src/game/` | 3D city, infrastructure, hazards, vehicles, quality adaptation, audio, pacing, session, and official debrief components. |
-
-The active 3D folder contains:
-
-| Path group | Role |
-| --- | --- |
-| `CityGame.tsx`, `CityScene.tsx`, `InfrastructureScene.tsx` | Game route, Three.js canvas, camera, environment, and city composition. |
-| `DenseCityBuildings.tsx`, `DepotNetwork.tsx`, `VehicleFleet.tsx` | Visible buildings, depots/routes, and response vehicles. |
-| `DisasterEffects.tsx`, `RecoveryPhenomenology.tsx`, `SceneEffects.tsx` | Hazard and recovery visualization driven by the selected trajectory. |
-| `DisasterTray.tsx`, `StartScreen.tsx`, `RunOutcome.tsx` | Operator controls, scenario entry, and official-outcome debrief. |
-| `model.ts`, `session.ts`, `pacing.ts`, `stakes.ts`, `realism.ts` | Typed game view model, run session, day pacing, presentation stakes, and visual-state mapping. None defines the scientific outcome. |
-| `cameraFraming.ts`, `worldLayout.ts`, `renderQuality.ts`, `QualityMonitor.tsx` | Camera/layout calculations and adaptive rendering quality. |
-| `audio.ts`, `useCityAudio.ts` | Optional local interaction and ambience audio. |
-| `game.css`, `start-screen.css`, `run-outcome.css` | 3D route, entry, and debrief styling. |
+| `src/game/` | 3D city, infrastructure, hazards, vehicles, quality adaptation, audio, pacing, session, and outcome debrief. |
 
 ### `scripts`
 
 | Path | Role |
 | --- | --- |
-| `setup.ps1` | Fresh Windows dependency installation, frontend build, and release preflight. |
-| `run.ps1` | Verified local FastAPI launcher and browser opener. |
-| `preflight.ps1`, `preflight_check.py` | PowerShell and Python release-integrity checks. |
+| `setup.ps1` | Fresh Windows dependency installation and frontend build, with optional configured-policy preflight. |
+| `run.ps1` | Explicit-policy preflight, local FastAPI launch, and browser opener. |
+| `preflight.ps1`, `preflight_check.py` | Runtime file, ONNX contract, inference, and smoke-comparison checks. |
 | `project_environment.ps1` | Resolves the package's Python 3.12 environment, including the long-path fallback. |
-| `v3_protocol.py` | Creates/verifies the preregistration, source seal, and write-once authorizations. Read-only without explicit write flags. |
-| `train_policy_v3.py` | Public-only BC/DAgger plus seven-stage resumable PPO training. |
-| `select_policy_v3.py` | Development-only checkpoint evaluation, deterministic selection, ONNX export, and parity. |
-| `evaluate_policy_v3.py` | Single-use, append-only, resumable final evaluator. |
-| `benchmark_vectorization_v3.py` | Nonauthorizing training-split throughput and memory diagnostic; never model-performance evidence. |
+| `train_policy.py` | BC/DAgger, actor-frozen critic warm-up, PPO, development milestones, diagnostics, and receipt writing. |
+| `evaluate.py` | Shared-tape comparisons for named public planners or explicit ONNX paths. |
+| `headroom.py` | Development-only causal MPC and privileged-oracle headroom analysis. |
+| `generate_frontend_contract.py` | Generates or checks the canonical Python-to-TypeScript contract. |
 
-### `training/v3`
-
-| Path | Role |
-| --- | --- |
-| `config.json` | Exact 73/22 architecture, optimizer, vectorization, seed, and 645,120-transition budget. |
-| `requirements-training.txt` | Stable-Baselines3 and PyTorch dependencies used by maintainers for training/evidence tools. |
-| `protocol.json` | Preregistered split, checkpoint-selection, authorization, final-evaluation, and artifact contracts. |
-| `source-seal.json` | Frozen per-file and semantic scientific-source hashes. |
-| `training-authorization.json` | Write-once authorization for exactly one production training/selection campaign. |
-| `training-use-receipt.json` | Atomic proof that the production authorization was consumed. |
-| `training-receipt.json`, `training-terminal.json` | Proof that all seven stages and 645,120 production transitions completed. |
-| `checkpoint-selection-receipt.json`, `selected-onnx-parity.json` | Development selection of the 552,960-transition checkpoint and selected ONNX parity proof. |
-| `final-authorization.json`, `final-use-receipt.json` | Write-once authorization and atomic proof of its single permitted use. |
-| `final-terminal.json` | Verified terminal marker binding the 40-row ledger, final report, selected deployment, source, and protocol. |
-
-### `benchmarks`
+### Evidence and tests
 
 | Path | Role |
 | --- | --- |
-| `benchmarks/v3/final-40.json` | Complete canonical V3 one-shot final aggregate; sole source of official final counts. |
+| `benchmarks/v4/development-baselines.md` | Human-readable 40-tape development aggregate and paired comparisons. |
+| `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Complete development rows, source hashes, invariants, and paired statistics. |
+| `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Matched 1M-transition training and reward-comparison evidence. |
+| `docs/evidence/legacy-final-40.json` | Historical final report for the retired release; not an active runtime dependency. |
+| `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; not an implicitly selected runtime model. |
+| `tests/test_city_*.py`, `tests/test_simulator*.py` | Physics, scenarios, outcome, planners, optimizer, and environment behavior. |
+| `tests/test_policy.py`, `tests/test_api.py`, `tests/test_recovery_*.py` | Explicit policy loading, HTTP, replay analysis, and export behavior. |
+| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_headroom.py`, `tests/test_development_evidence.py` | Scientific tools and development evidence. |
+| `frontend/src/*.test.ts`, `frontend/src/generated/*.test.ts` | API parsing, generated contract, view-model, and decision-support behavior. |
 
-### `tests`
+## Policy selection and readiness
 
-| Path | Role |
-| --- | --- |
-| `test_simulator_v3.py` | Transition, observation/action, preparedness, crew, conservation, and outcome checks. |
-| `test_policy_v3.py` | Architecture, parameter, export, loader, and parity checks. |
-| `test_api_v3.py` | Fail-closed V3 metadata, compare endpoint, and persistence checks. |
-| `test_v3_protocol.py` | Frozen split, protocol, seal, authorization, and final-unused contract checks. |
-| `test_v3_evidence_tools.py` | Training, checkpoint, selection, and final-evaluator durability checks. |
+Readiness is about the explicitly selected runtime artifact, not the development-score receipts. `GET /health/live` confirms only that FastAPI is alive. `GET /health/ready` loads the configured policy and returns 503 until that succeeds.
 
-### `internal`
+The runtime requires:
 
-`internal` contains only evidence required to verify this selected V3 release.
+1. a readable path in `INNOVERSE_POLICY_PATH` or `run.ps1 -PolicyPath`;
+2. a loadable ONNX graph with exactly one `observation` float input shaped `[batch,73]`;
+3. exactly one `action` float output shaped `[batch,22]`;
+4. finite output inside `[-1,1]` for smoke inference;
+5. the Python runtime modules and built `frontend/dist`; and
+6. a successful deterministic smoke comparison.
 
-| Path | Meaning |
-| --- | --- |
-| `internal/training_runs/v3` | Completed append-only production checkpoint ledger, exact stage checkpoints, selection staging receipts, and 40-row final ledger. Do not edit manually. |
-
-## Release files and readiness
-
-A finished V3 release has, at minimum, these selected/final files in addition to the frozen inputs already present:
-
-```text
-artifacts/city_recovery_ppo.v3.selected.onnx
-artifacts/model_manifest.v3.selected.json
-training/v3/training-receipt.json
-training/v3/training-terminal.json
-training/v3/checkpoint-selection-receipt.json
-training/v3/selected-onnx-parity.json
-training/v3/final-authorization.json
-training/v3/final-use-receipt.json
-training/v3/final-terminal.json
-benchmarks/v3/final-40.json
-```
-
-The exact presence of files is still not sufficient: their hashes, source identity, selected checkpoint, transition count, protocol, ONNX graph, parity, authorization, report rows, and ledger digests must cross-verify. Use `scripts/preflight.ps1` as the decision procedure.
-
-To inspect file hashes without modifying anything:
+An optional expected digest makes model selection content-specific:
 
 ```powershell
-Get-FileHash .\training\v3\protocol.json -Algorithm SHA256
-Get-FileHash .\training\v3\source-seal.json -Algorithm SHA256
-Get-FileHash .\artifacts\city_recovery_ppo.v3.selected.onnx -Algorithm SHA256
-Get-FileHash .\artifacts\model_manifest.v3.selected.json -Algorithm SHA256
-Get-FileHash .\benchmarks\v3\final-40.json -Algorithm SHA256
+$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
+$env:INNOVERSE_POLICY_SHA256 = (Get-FileHash `
+    $env:INNOVERSE_POLICY_PATH `
+    -Algorithm SHA256).Hash.ToLowerInvariant()
+powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
 ```
 
-The principal verified V3 identities are:
-
-| Artifact or identity | SHA-256 |
-| --- | --- |
-| Scientific-source semantic identity | `f0fd873a075f86e418eb4841a87f964e090189eca6f04df01255aa5a3b2bb3d9` |
-| Preregistered protocol file | `d512b74512dc9203bfac7e81d90245176732655d0e3ada54e3a6851fec3e3762` |
-| Selected 552,960-transition checkpoint | `3246ddae65b6add700c1a4fc528d724d537e5e9d0dd453c8665b4e6c8ed86d5b` |
-| Selected ONNX actor | `6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b` |
-| Final 40-case benchmark | `f6d3b654ca6b2831af5bec07530b81ecf0e72b2aae44029a805d98325bfe5fb3` |
-
-These values document this release; recompute them from the shipped artifacts for verification. The authoritative scientific-source semantic identity remains the value recorded inside `training/v3/source-seal.json`.
+The ready and metadata endpoints report the selected artifact's SHA-256, path stem, runtime, observation/action counts, and canonical orders. Changing `INNOVERSE_POLICY_PATH` changes the served candidate; no repository fixture or development receipt silently replaces it.
 
 ## Developer verification
 
-The launcher needs only runtime dependencies. Python tests and training/evidence tools additionally need the frozen training requirements plus test tools.
+The launcher needs only `requirements.txt`. Tests for the training tool additionally import Stable-Baselines3 and PyTorch. After running setup, resolve the actual Python environment, including the automatic short-path fallback, and install the same development packages used by CI:
 
 Resolve the correct environment robustly, including long Windows paths:
 
 ```powershell
 . .\scripts\project_environment.ps1
 $ctx = Get-CityRecoveryEnvironmentContext -Root (Get-Location).Path
-& $ctx.PythonPath -m pip install -r .\training\v3\requirements-training.txt
-& $ctx.PythonPath -m pip install pytest==8.4.1 ruff==0.12.4
+& $ctx.PythonPath -m pip install `
+    httpx==0.28.1 `
+    pytest==8.4.1 `
+    ruff==0.12.4 `
+    stable-baselines3==2.7.0 `
+    torch==2.8.0
 ```
 
 Run the active Python tests and lint:
@@ -694,7 +646,7 @@ Run the active Python tests and lint:
 & $ctx.PythonPath -m ruff check backend model scripts tests
 ```
 
-The active tests cover simulator, policy, API, protocol, and evidence contracts. For the shipped release, `preflight.ps1` is the authoritative end-to-end check of the consumed final evidence chain.
+The active tests cover physics, scenarios, outcome, environment, planners, optimizer, policy loading, API, persistence, decision support, exports, training, evaluation, headroom, and development evidence.
 
 Run frontend tests, type checking, and production build:
 
@@ -705,78 +657,56 @@ npm run typecheck --prefix frontend
 npm run build --prefix frontend
 ```
 
-Run the registered Windows spawn/lane preflight without training:
+Check that the generated browser contract still matches canonical Python values:
 
 ```powershell
-& $ctx.PythonPath .\scripts\train_policy_v3.py --vectorization-preflight-only
+& $ctx.PythonPath .\scripts\generate_frontend_contract.py --check
 ```
 
-Run a bounded training-only vectorization diagnostic:
+Run runtime preflight separately when a selected ONNX file is available:
 
 ```powershell
-& $ctx.PythonPath .\scripts\benchmark_vectorization_v3.py `
-    --lanes 4 8 12 `
-    --warmup-steps 4 `
-    --steps 20 `
-    --memory-sample-steps 2
+$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
+powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
 ```
 
-That diagnostic touches the training split only and compares `DummyVecEnv` with spawned subprocess lanes. It measures throughput, memory, and deterministic digests. It is not a policy benchmark and cannot authorize a change to the frozen 12-lane geometry.
+`.github/workflows/ci.yml` runs Ruff and the full Python suite, plus frontend tests, type checking, and production build, on every push and pull request.
 
-## Maintainer-only scientific pipeline
+## Maintainer-only development tools
 
-Normal demo users should not run the commands in this section. They consume write-once authorizations, publish artifacts, or access the final split.
-
-The registered order is:
-
-1. verify the frozen protocol and source;
-2. run or resume exactly one complete production campaign at registered stage boundaries;
-3. select exactly one checkpoint using development cases only;
-4. create final authorization bound to that selected checkpoint;
-5. invoke the final evaluator once; and
-6. run release preflight.
-
-The gated command interfaces are:
+Normal demo users do not need these commands. They run training or development analysis and may take substantial CPU time. Every output path shown below must be new; the tools refuse to overwrite an existing receipt.
 
 ```powershell
-# Read-only protocol/source verification
-& $ctx.PythonPath .\scripts\v3_protocol.py
+# BC/DAgger -> critic warm-up -> PPO -> development curve -> receipt
+& $ctx.PythonPath .\scripts\train_policy.py `
+    --json-output .\internal\developmental_runs\v4\new-training-receipt.json
 
-# Production training: no timestep override under the sealed authorization
-& $ctx.PythonPath .\scripts\train_policy_v3.py
+# Shared-tape development comparison
+& $ctx.PythonPath .\scripts\evaluate.py `
+    --split dev `
+    --policy tuned `
+    --policy 'onnx:C:\path\to\selected-policy.onnx'
 
-# Write-once development selection + selected ONNX publication
-& $ctx.PythonPath .\scripts\select_policy_v3.py --write-new
-
-# Write-once authorization after selection
-& $ctx.PythonPath .\scripts\v3_protocol.py --authorize-final
-
-# Single-use final evaluation; resumes only original identity-matching durable rows
-& $ctx.PythonPath .\scripts\evaluate_policy_v3.py --run-final-once
+# Privileged development headroom analysis
+& $ctx.PythonPath .\scripts\headroom.py `
+    --developmental-nonauthorizing `
+    --output .\internal\developmental_runs\v4\new-headroom-receipt.json
 ```
 
-Do not run `--run-final-once` to “see what happens,” do not delete an unfavorable report, and do not start a second invocation after interruption. The evaluator's append-only ledger resumes only the exact original selected model/source identity.
+`scripts/evaluate.py` also contains the reserved final split, but no current README workflow invokes it. The v4 development result has no selected ONNX publication step in this repository; model export and selection must be completed explicitly before a trained policy can be passed to `run.ps1`. The blocking post-training sequence is specified in `docs/TRAINING_DEPLOYMENT_PLAN.md` and is not authorized by this documentation phase.
 
-## Evidence and provenance chain
+## Development evidence and provenance
 
-The V3 protocol is designed so that performance claims cannot be assembled from mismatched pieces.
+The current performance claim is assembled from retained development evidence rather than runtime model selection:
 
-1. `protocol.json` preregisters the exact source set, 73/22 contracts, training geometry, role-separated splits, selection order, final count, baseline, and outcome definition.
-2. `source-seal.json` binds every scientific source file and a semantic source hash.
-3. Training authorization is consumed atomically; checkpoints are published only at complete 92,160-transition boundaries, hashed, and linked in an append-only ledger.
-4. Behavior-cloning data and its receipt bind the public-only teacher, training split, and replay.
-5. Development evaluation ranks only complete registered checkpoints and records proof that the final split was not accessed.
-6. The selected actor is exported to ONNX opset 17 and compared against the selected Stable-Baselines3 checkpoint on development trajectories.
-7. Final authorization binds the selected checkpoint, ONNX, parity, source, and protocol identities.
-8. The final evaluator runs the 40 final cases through the selected ONNX runtime and public heuristic on matched tapes. Every row is durable and replay-checked.
-9. `final-40.json` aggregates independent outcomes, paired categories, secondary AUC, violations, conservation, row hash, and ledger hash.
-10. The runtime revalidates the complete chain before exposing V3 metadata or comparison.
+1. `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` records matched initialization, optimizer settings, critic warm-up, 200k/500k/1M curves, per-case outcomes, diagnostics, and exact physics invariants.
+2. `internal/developmental_runs/v4/headroom-probe-v4-dev.json` records tuned-rule, causal-MPC, and privileged-oracle headroom on the same 40 development cases.
+3. `internal/developmental_runs/v4/step6-dev-baseline-table.json` assembles ten planners in one ordered table with Wilson intervals, paired exact McNemar comparisons, source hashes, and `final_split_used: false`.
+4. `benchmarks/v4/development-baselines.md` is the human-readable aggregate whose SHA-256 is bound inside the Step 6 receipt.
+5. `tests/test_development_evidence.py` verifies every reported solved count, paired outcome, oracle label, and Markdown binding.
+6. `tests/test_consolidation_gate.py` anchors the consolidated outcome and engine hashes plus a complete deterministic golden trajectory.
 
-The scientific source seal covers the environment, schemas, scenario splits, policy loader, training, selection, evaluation, config, and requirements. This README and the frontend are intentionally non-scientific: changing presentation cannot change the sealed mechanics, model, or evidence.
-
-### Portable package boundary
-
-This copy retains the complete successful V3 chain required by the strict loader: production artifacts, all seven registered checkpoints, checkpoint ledger, selected-deployment staging receipts, authorizations, final-use receipt, 40-row final ledger, terminal marker, and aggregate report. Development experiments, superseded releases, launch logs, caches, and alternate model generations are deliberately not shipped.
+These files support the development comparison but do not configure FastAPI. Runtime identity comes from the ONNX file explicitly supplied by the operator, and the API binds persisted results to that artifact's SHA-256. The legacy final JSON and legacy ONNX fixture remain separate historical/regression inputs under `docs/evidence` and `tests/fixtures`.
 
 ## Troubleshooting
 
@@ -800,25 +730,23 @@ Use the documented form, which applies the policy only to that process:
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 ```
 
-### Setup or `/health/ready` reports `DEPENDENCY_NOT_READY`
+### `run.ps1` or `/health/ready` reports `DEPENDENCY_NOT_READY`
 
-Read the full message. Typical causes are missing selected V3 artifacts, absent final report, source drift, receipt/hash mismatch, wrong ONNX shape or opset, failed parity, or incomplete final rows. This is evidence protection, not a frontend bug. Restore the correct release files; do not disable the check.
-
-### Selected V3 artifacts are missing from a copy
-
-That copy is incomplete. Restore the shipped selected ONNX, selected manifest, receipts, final ledger, terminal marker, and benchmark together; never copy only the ONNX around the integrity checks.
+Confirm that `INNOVERSE_POLICY_PATH` is set in the shell that starts the app, or pass `-PolicyPath` directly. The selected file must be readable ONNX with the exact `observation [batch,73]` and `action [batch,22]` float contracts. If `INNOVERSE_POLICY_SHA256` is set, it must match the file exactly. Run `scripts/preflight.ps1` to see the contract or smoke-comparison failure before starting the server.
 
 ### Port 4117 is already in use
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Port 4120
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
+    -PolicyPath 'C:\path\to\selected-policy.onnx' `
+    -Port 4120
 ```
 
 Use the same port in the browser and preflight.
 
 ### The project path is very long
 
-The setup scripts automatically place the Python environment under `%LOCALAPPDATA%\Innoverse\city-recovery-ppo-v3` when needed. Use `project_environment.ps1` rather than assuming `.venv\Scripts\python.exe` exists.
+The setup scripts automatically place the Python environment under `%LOCALAPPDATA%\Innoverse\city-recovery\py312-<root-hash>` when the repository path would exceed the native-library path budget. Use `project_environment.ps1` rather than assuming `.venv\Scripts\python.exe` exists.
 
 ### The frontend looks stale or is blank
 
@@ -827,14 +755,15 @@ Stop the server, rebuild, and restart:
 ```powershell
 npm ci --prefix frontend
 npm run build --prefix frontend
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
+    -PolicyPath 'C:\path\to\selected-policy.onnx'
 ```
 
-Then hard-refresh the browser with `Ctrl+F5`. Inspect `/health/live` and `/health/ready` separately: liveness can pass while V3 release verification correctly fails.
+Then hard-refresh the browser with `Ctrl+F5`. Inspect `/health/live` and `/health/ready` separately: liveness can pass while policy loading correctly fails.
 
 ### A forced shock is rejected
 
-V3 accepts forced shocks only on days 1–27. Days 28–30 are the fixed assessment tail.
+Forced shocks are accepted only on days 1–27. Days 28–30 are the fixed assessment tail.
 
 ### Saved runs are not where expected
 
@@ -844,43 +773,16 @@ The default is `%LOCALAPPDATA%\Innoverse\ai17-city-recovery\runs`. Check whether
 
 The 3D route loads a much larger rendering bundle. Close other graphics-heavy tabs, update the browser, or use `#/toolbox`; all model evidence is available there without the 3D scene.
 
-### A hash check fails after someone edited simulator or training code
-
-Do not regenerate a manifest around unreviewed changes. The selected policy, source seal, parity, and final report describe one exact scientific identity. A scientific change requires a new version, new freeze, new training/selection evidence, and a new final protocol.
-
-## Honest scope and limitations
-
-- All scenarios are **synthetic and authored**. The simulator is not historical disaster ground truth, a digital twin, or operational validation.
-- PPO-v3 and the heuristic are evaluated fairly inside this simulator, but success does not establish effectiveness in a real emergency.
-- Training, development, and final families are disjoint, yet all are generated by the same simulator family. Simulator-specific generalization is not real-world generalization.
-- The final suite contains 40 cases. Counts and confidence intervals should be reported, but the sample is not a universal performance guarantee.
-- The model uses one registered policy seed. The final report evaluates one development-selected checkpoint, not an ensemble or broad study of training-seed variance.
-- The official Solved definition is an authored engineering threshold. It is useful because it is explicit, independent, and frozen—not because it is a universal definition of disaster resolution.
-- The public risk indicators are causal simulator signals shared by both planners. Neither sees future random draws, but both can learn or encode patterns in the authored environment.
-- Feasibility projection proves compliance with the simulator's daily action and conservation contracts. It does not prove safety, legal compliance, or logistical feasibility outside this code.
-- The selected ONNX policy is deterministic. Results describe that exact artifact, source identity, scenarios, baseline, and metric definition.
-- The runtime and registered training configuration are CPU-based. Do not claim V3 was trained on CUDA unless a future, separately sealed version and its receipts prove that.
-- This is a research demonstration, not an emergency-management recommendation system. Human authorities remain responsible for real decisions.
-
 ## How to present the project accurately
 
 A concise presentation can say:
 
-> We built a 322,733-parameter PPO policy for a five-service synthetic city-recovery environment. It receives 73 causal public-state inputs and chooses 22 continuous controls for material, crews, depot release, and preparedness. A deterministic feasibility layer enforces the same physical rules for PPO and a transparent public heuristic. After a complete 645,120-transition campaign, development-only selection chose the 552,960-transition checkpoint. On the sealed 40-case final suite, PPO independently solved 25 cases (62.5%) and the heuristic solved 14 (35.0%): 14 were solved by both, 11 by PPO only, none by the heuristic only, and 15 by neither. PPO's mean resilience AUC was 0.4902262923 versus 0.4685284838, with zero hard violations, zero conservation residual, and zero replay mismatches. These are synthetic-simulator results, not real-world disaster validation.
+> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to it and a transparent public heuristic. On 40 development tapes, the measured 1M-transition v4 PPO policy solved 35 cases with 95% Wilson interval [0.739, 0.945], against a measured clairvoyant ceiling of 37, with zero hard violations and exact conservation. The development run did not persist a deployable checkpoint, so the consolidated runtime serves only an ONNX artifact explicitly selected by the operator.
 
-Avoid these claims:
+## Data character
 
-- “The model is X% accurate.”
-- “It won X/40, therefore it solved X/40.”
-- “The neural network guarantees feasible actions.” The projector enforces feasibility.
-- “The model predicted future disasters.” It receives causal public risk, not the future tape.
-- “The simulator proves real-world impact.” It demonstrates competence on authored synthetic scenarios.
-- “322,733 parameters makes it better.” Quality comes from sealed evaluation, not parameter count.
-
-## License and data character
-
-The API metadata identifies the synthetic V3 dataset as `synthetic-city-dynamics-v3`, schema/version-bound and non-empirical. Release model and dataset license identifiers are exposed dynamically in verified `/api/v1/meta`. Consult that endpoint and the selected manifest for the exact shipped artifact licenses.
+All scenarios and shock tapes are authored and generated locally by `backend/app/city/scenarios.py`; the repository does not bundle an empirical disaster dataset. Runtime metadata reports the selected policy identity, environment specification, baseline identity, and solved-definition hash.
 
 ---
 
-For a demo operator, the safe path is: run `setup.ps1`, run `run.ps1`, use `#/toolbox`, and trust only values returned by the verified V3 API. For a reviewer, start with `training/v3/protocol.json`, `training/v3/source-seal.json`, the selected manifest, `benchmarks/v3/final-40.json`, and `scripts/preflight.ps1`.
+For a demo operator: run `setup.ps1`, select a compatible ONNX file, and pass it to `run.ps1`. For a reviewer: start with `docs/CODE_TOUR.md`, `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json`, `model/policy.py`, and `scripts/preflight_check.py`.

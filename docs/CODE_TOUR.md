@@ -1,0 +1,115 @@
+# Code tour
+
+This repository is organized around one dependency rule: city mechanics are the center, while HTTP, training, evaluation, and presentation are consumers of those mechanics. Start with the path that matches the work you plan to do, then follow the guided reading order below when you need the complete picture.
+
+## Choose an entry point
+
+| Goal | Start here | Follow with |
+| --- | --- | --- |
+| Trace a runtime request | `backend/app/main.py` | `backend/app/models.py`, `model/policy.py`, `backend/app/city/environment.py`, `backend/app/persistence.py` |
+| Understand or change training | `scripts/train_policy.py` | `backend/app/city/environment.py`, `backend/app/city/planners.py`, `backend/app/city/outcome.py` |
+| Reproduce a policy comparison | `scripts/evaluate.py` | `model/policy.py`, `backend/app/city/scenarios.py`, `backend/app/city/environment.py` |
+| Study achievable headroom | `scripts/headroom.py` | `backend/app/city/planners.py`, `backend/app/city/optimizer.py`, `backend/app/city/outcome.py` |
+| Work on the browser application | `frontend/src/App.tsx` | `frontend/src/generated/backendContract.ts`, `frontend/src/api.ts`, `frontend/src/analysisApi.ts`, `frontend/src/DecisionAnalysis.tsx` |
+
+## The dependency shape
+
+The principal flow is:
+
+```text
+models + shared_evidence       physics
+          |                 /    |     \
+          +----> scenarios      outcome  planners + optimizer
+                    \             |       /
+                     +------> environment <------ model/policy
+                                  |
+                    persistence + analysis + exports
+                                  |
+                                main.py
+                                  |
+                         generated TypeScript contract
+                                  |
+                       API clients -> App -> 3D city
+```
+
+The diagram is intentionally one-directional:
+
+- `backend/app/city` owns deterministic domain behavior and does not depend on FastAPI, persistence, React, or training scripts.
+- `backend/app/main.py` is the composition root. It wires policy loading, simulation, persistence, analysis, exports, and static frontend delivery without moving domain rules into the route layer.
+- `scripts` import production domain and policy modules. Production runtime modules never import training or evaluation scripts.
+- `scripts/generate_frontend_contract.py` projects canonical Python values into TypeScript. The browser consumes the generated file; it does not maintain a competing copy of the simulator contract.
+- Tests exercise each layer at its public seam, then cover the assembled request, replay, evidence, and frontend flows.
+
+## Guided reading order
+
+### 1. Establish the public schemas and evidence primitives
+
+Read `backend/app/models.py` first for the validated scenario, forced-shock, and comparison request shapes. These Pydantic models define what may enter the runtime and are also inputs to scenario construction and frontend contract generation.
+
+Then read `backend/app/shared_evidence.py`. It provides canonical JSON bytes and hashes, strict JSON loading, Wilson intervals, split contracts, function-source hashes, and durable parent-directory synchronization. Outcome identities, persisted results, development receipts, and generated evidence all use these shared primitives.
+
+### 2. Read the city mechanics from the bottom up
+
+Begin with `backend/app/city/physics.py`. It is the numerical foundation: service and hazard order, allocation projection, action proposals, depot damage, throughput, transfers, capped landing, and conservation measurements. The remaining city modules use these functions instead of reimplementing allocation or logistics rules.
+
+Continue with `backend/app/city/scenarios.py`. It defines canonical training, development, and final scenario families and turns a validated scenario plus seed into a deterministic disaster tape. This is where split membership and shock realization become concrete.
+
+Read `backend/app/city/outcome.py` beside it. Outcome calculation is deliberately separate from state transition code. `absolute_outcome` evaluates the canonical solved conjunction; `summarize_trajectory` derives the aggregate evidence used by the API, evaluation tools, and analysis views.
+
+Next inspect the proposal producers:
+
+- `backend/app/city/planners.py` contains causal public-state policies: the reactive heuristic, preparedness teacher, tuned rule, and the shared weight-to-logit conversion.
+- `backend/app/city/optimizer.py` contains the OR-Tools allocation proposal used by headroom analysis. It consumes a public allocation context and the same physics constants as every other planner.
+
+Finish the domain pass in `backend/app/city/environment.py`. `CityRecoveryEnv` composes the scenario tape, 73-field observation contract, 22-field action contract, proposal decoding, feasibility projection, daily transition, and outcome summary. The rollout and comparison helpers near the bottom are the main bridge used by the runtime and scripts. `CyclingScenarioEnv` provides the training-facing rotation over canonical cases without creating a second simulator.
+
+### 3. Follow one policy through the runtime
+
+Read `model/policy.py` for the deployment boundary. It reads an explicitly selected ONNX artifact, validates its identity and 73-to-22 tensor contract, creates an ONNX Runtime session, and validates every predicted action before returning it.
+
+Then move through the application modules in this order:
+
+1. `backend/app/persistence.py` assigns canonical result identities and stores complete comparison results atomically.
+2. `backend/app/recovery_analysis.py` verifies a persisted replay before producing per-day local action sensitivity or a one-day allocation counterfactual. Counterfactual replay changes only the selected intervention and follows the same policy thereafter.
+3. `backend/app/recovery_exports.py` renders persisted candidate or baseline trajectories as deterministic CSV and PDF recovery plans.
+4. `backend/app/main.py` wires these capabilities into health, metadata, comparison, saved-run, explanation, counterfactual, and export endpoints. It also serves the built frontend.
+
+A comparison request therefore follows a compact path: validate the request, load the selected policy, generate one disaster tape, run independent candidate and baseline environments, summarize both outcomes, persist the canonical result, and return that stored structure to the browser.
+
+### 4. Read the scientific tools as clients of the domain
+
+`scripts/train_policy.py` is the full training pipeline. Its main flow is behavior cloning and DAgger, actor-frozen critic warm-up, PPO optimization, development evaluation at fixed milestones, and receipt writing. The instrumented PPO class and diagnostic helpers make optimizer movement, actor freezing, normalization state, and critic quality visible in the resulting evidence. The gated post-training sequence is recorded in the [training deployment plan](TRAINING_DEPLOYMENT_PLAN.md).
+
+`scripts/evaluate.py` is the compact comparison runner. Read `build_cases`, `resolve_policy`, `rollout`, and `aggregate` in that order to see how a named split and policy set become matched per-case rows and paired statistics.
+
+`scripts/headroom.py` measures what is achievable on development cases. It compares public planners and MPC horizons with a privileged oracle, preserves physics invariants, classifies contested cases, and writes a deterministic evidence receipt. The oracle is an analysis instrument; normal runtime policies remain causal public-state planners.
+
+`scripts/generate_frontend_contract.py` is the cross-language boundary. It imports canonical service, hazard, observation, action, request, and outcome values and renders `frontend/src/generated/backendContract.ts`. Run it with `--check` after changing a value it projects.
+
+### 5. Follow the browser data flow
+
+Start with `frontend/src/generated/backendContract.ts`. It is generated, not hand-maintained, and anchors service order, hazard impacts, observation and action order, request limits, and the default scenario.
+
+Then follow the two API paths:
+
+- `frontend/src/api.ts` validates metadata, comparison, and saved-run responses before exposing them to the application.
+- `frontend/src/analysisApi.ts` validates explanation and counterfactual identities, dimensions, ordering, hashes, and normalized allocation shares, and constructs recovery-plan export URLs.
+
+`frontend/src/App.tsx` is the browser composition root. It owns the scenario editor, planner comparison, trajectory, audit, dispatch, decision-log views, saved runs, and the route boundary between the Analyst Toolbox and the city.
+
+`frontend/src/DecisionAnalysis.tsx` implements the decision-support workflow: per-day policy sensitivity across all 73 observation channels, a replayed one-day allocation counterfactual, deterministic recovery-plan downloads, and preparedness-versus-shock-absorption evidence.
+
+For the 3D path, begin with `frontend/src/game/CityGame.tsx`, which owns setup, playback, day selection, disaster injection, audio, quality monitoring, and the debrief transition. Continue into `frontend/src/game/CityScene.tsx`, which assembles districts, infrastructure, depots, vehicles, disaster effects, recovery states, camera behavior, and rendering quality from the same comparison trajectory shown in the Toolbox. The supporting modules under `frontend/src/game` each own one visual or interaction concern.
+
+### 6. Use tests as executable maps
+
+The Python suite follows the production boundaries:
+
+- `tests/test_city_physics.py`, `test_city_scenarios.py`, `test_city_outcome.py`, `test_city_planners.py`, `test_city_optimizer.py`, and `test_city_environment.py` cover the domain from primitives through complete transitions.
+- `tests/test_policy.py` covers ONNX loading and inference contracts.
+- `tests/test_train_policy.py`, `test_evaluate.py`, `test_development_evidence.py`, and `test_headroom.py` cover the scientific tools and their evidence.
+- `tests/test_api.py`, `test_recovery_analysis.py`, `test_recovery_exports.py`, and `test_shared_evidence.py` cover the runtime shell and durable results.
+- `tests/test_frontend_contract_generation.py` proves that the generated TypeScript contract matches the canonical Python values.
+- Tests beside the frontend source (`*.test.ts`) cover response parsing, generated contracts, view-model calculations, and decision-support behavior.
+
+For a change that crosses layers, test from the center outward: domain invariant, Python consumer, generated contract if applicable, TypeScript parser, and finally the rendered workflow.
