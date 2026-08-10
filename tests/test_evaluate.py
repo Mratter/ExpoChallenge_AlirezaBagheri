@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.dev_probe_v3 import ProbeRow, exact_mcnemar_p, paired_contingency
+from scripts.evaluate import ProbeRow, exact_mcnemar_p, paired_contingency
 
 
 def _row(row_id: str, solved: bool) -> ProbeRow:

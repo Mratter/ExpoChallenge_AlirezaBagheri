@@ -47,7 +47,6 @@ V3_FINAL_LEDGER_PATH = ROOT / "internal" / "training_runs" / "v3" / "final-ledge
 DEFAULT_POLICIES = (
     "heuristic",
     "teacher",
-    "tuned",
     f"onnx:{DEFAULT_ONNX_PATH.relative_to(ROOT).as_posix()}",
 )
 
@@ -356,7 +355,7 @@ def run_probe(split: str, policies: Sequence[Policy]) -> dict[str, Any]:
         )
     return {
         "schema_version": 1,
-        "tool": "dev_probe_v3",
+        "tool": "evaluate",
         "authorizing": False,
         "split": split,
         "same_tapes": True,
@@ -434,7 +433,7 @@ def serializable_result(result: dict[str, Any]) -> dict[str, Any]:
 
 def print_human(result: dict[str, Any], ledger: dict[str, Any] | None) -> None:
     print(
-        f"dev_probe_v3 split={result['split']} cases=40 "
+        f"evaluate split={result['split']} cases=40 "
         f"authorizing={str(result['authorizing']).lower()} same_tapes=true"
     )
     for label, metrics in result["policies"].items():
@@ -477,7 +476,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         metavar="SPEC",
         help=(
             "repeatable: heuristic, teacher, tuned, onnx:<path>, mpc, or oracle; "
-            "defaults to heuristic+teacher+tuned+shipped ONNX"
+            "defaults to heuristic+teacher+the legacy ONNX regression fixture"
         ),
     )
     parser.add_argument(
@@ -505,7 +504,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             else None
         )
     except (ProbeError, OSError, ValueError, ort.OnnxRuntimeException) as exc:
-        print(f"dev_probe_v3: error: {exc}", file=sys.stderr)
+        print(f"evaluate: error: {exc}", file=sys.stderr)
         return 2
     if args.json:
         payload = serializable_result(result)

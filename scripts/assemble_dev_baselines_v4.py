@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.dev_probe_v3 import (  # noqa: E402
+from scripts.evaluate import (  # noqa: E402
     DEFAULT_ONNX_PATH,
     ProbeRow,
     build_cases,
@@ -362,7 +362,7 @@ def build_payload() -> tuple[dict[str, Any], str]:
             "shared_evidence_sha256": file_sha256(
                 ROOT / "backend" / "app" / "shared_evidence.py"
             ),
-            "dev_probe_sha256": file_sha256(ROOT / "scripts" / "dev_probe_v3.py"),
+            "evaluator_sha256": file_sha256(ROOT / "scripts" / "evaluate.py"),
             "scenarios_v3_sha256": file_sha256(
                 ROOT / "backend" / "app" / "scenarios_v3.py"
             ),
