@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
-from math import ceil
 from typing import Any
 
 import gymnasium as gym
@@ -11,43 +10,45 @@ import ortools
 from gymnasium import spaces
 from ortools.linear_solver import pywraplp
 
-from backend.app.models import Scenario
-from backend.app.simulator_core import (
+from backend.app.city.physics import (
     BASE_OBSERVATION_ORDER,
     CONSTRAINT_TOLERANCE,
     DELTA,
     DEPENDENCIES,
+    DEPOT_CAPACITY,
+    DEPOT_THROUGHPUT_FLOOR,
     ETA,
+    FOOD_SPOILAGE_RATE,
+    IMMEDIATE_DELIVERY_FRACTION,
+    RESERVE_DRAW_FRACTION,
     SERVICES,
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
     SHOCK_TYPE_PROBABILITIES,
     SHOCKS,
-    _round_vector,
+    TRANSFER_DAILY_CAP_FRACTION,
+    TRANSFER_DONOR_RESERVE_FRACTION,
+    TRANSFER_MIN_THROUGHPUT,
+    TRANSFER_RECEIVER_TARGET_FRACTION,
+    TRANSFER_STARVED_FRACTION,
+    TRANSFER_SURPLUS_FRACTION,
+    Transfer as TransferV2,
     action_to_proposal,
-    canonical_hash,
+    apply_depot_damage as apply_depot_damage_v2,
+    deterministic_transfer as deterministic_transfer_v2,
+    land_capped as _land_capped,
     measure_constraints,
     project_capped_simplex,
+    round_vector as _round_vector,
+    throughput_factors as throughput_factors_v2,
 )
+from backend.app.models import Scenario
+from backend.app.shared_evidence import canonical_hash
 
-# The v2 coefficients are preregistered, centralized, and hashed into every compare
-# result.  Keeping them here also prevents the training and runtime paths from
-# silently drifting apart.
-DEPOT_CAPACITY = np.full(5, 400.0, dtype=np.float64)
-IMMEDIATE_DELIVERY_FRACTION = 0.65
+# The remaining coefficients are specific to the legacy v2 transition and
+# disappear with that environment. Shared logistics physics lives in
+# backend.app.city.physics.
 DELAYED_DELIVERY_FRACTION = 0.35
-FOOD_SPOILAGE_RATE = 0.006
-RESERVE_DRAW_FRACTION = 0.04
-ROAD_CAPACITY_FLOOR = 0.40
-DEPOT_THROUGHPUT_FLOOR = 0.30
-DEPOT_DAMAGE_SCALE = 1.50
-DEPOT_DAMAGE_PENALTY_CAP = 0.72
-TRANSFER_STARVED_FRACTION = 0.15
-TRANSFER_SURPLUS_FRACTION = 0.42
-TRANSFER_DONOR_RESERVE_FRACTION = 0.35
-TRANSFER_RECEIVER_TARGET_FRACTION = 0.30
-TRANSFER_DAILY_CAP_FRACTION = 0.06
-TRANSFER_MIN_THROUGHPUT = 0.55
 AFTERSHOCK_DAY_ONE_SCALE = 0.28
 AFTERSHOCK_DAY_TWO_SCALE = 0.12
 
@@ -132,15 +133,6 @@ class ShockV2:
     ambient_occurrence_probability: float
     ambient_occurrence_draw: float
     cluster_hazard: float
-
-
-@dataclass(frozen=True)
-class TransferV2:
-    from_service: str
-    to_service: str
-    units: float
-    donor_stock_fraction_before: float
-    receiver_stock_fraction_before: float
 
 
 @dataclass(frozen=True)
@@ -249,123 +241,6 @@ def generate_shock_schedule_v2(scenario: Scenario, seed: int) -> list[ShockV2]:
             )
         )
     return schedule
-
-
-def apply_depot_damage_v2(
-    shock: ShockV2,
-    peak_penalty: np.ndarray,
-    duration_days: np.ndarray,
-    remaining_days: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Apply typed depot damage while preserving the stronger/longer condition."""
-
-    peaks = np.asarray(peak_penalty, dtype=np.float64).copy()
-    durations = np.asarray(duration_days, dtype=np.int64).copy()
-    remaining = np.asarray(remaining_days, dtype=np.int64).copy()
-    current = np.divide(
-        peaks * remaining,
-        durations,
-        out=np.zeros(5, dtype=np.float64),
-        where=durations > 0,
-    )
-    if shock.type is not None and shock.severity > 0.0:
-        impact = np.asarray(shock.impact, dtype=np.float64)
-        candidate_penalty = np.clip(
-            DEPOT_DAMAGE_SCALE * shock.severity * impact,
-            0.0,
-            DEPOT_DAMAGE_PENALTY_CAP,
-        )
-        candidate_duration = np.array(
-            [ceil(2.0 + 8.0 * shock.severity * value) for value in impact],
-            dtype=np.int64,
-        )
-        for index in range(5):
-            if candidate_penalty[index] <= 0.0:
-                continue
-            combined_penalty = max(float(current[index]), float(candidate_penalty[index]))
-            combined_remaining = max(int(remaining[index]), int(candidate_duration[index]))
-            peaks[index] = combined_penalty
-            durations[index] = combined_remaining
-            remaining[index] = combined_remaining
-            current[index] = combined_penalty
-    return peaks, durations, remaining, current
-
-
-def throughput_factors_v2(
-    shocked_services: np.ndarray, damage_penalty: np.ndarray
-) -> tuple[np.ndarray, float, np.ndarray]:
-    depot_factor = np.clip(
-        1.0 - np.asarray(damage_penalty, dtype=np.float64),
-        DEPOT_THROUGHPUT_FLOOR,
-        1.0,
-    )
-    shocked = np.asarray(shocked_services, dtype=np.float64)
-    road_capacity = float(
-        np.clip(ROAD_CAPACITY_FLOOR + (1.0 - ROAD_CAPACITY_FLOOR) * shocked[0], 0.0, 1.0)
-    )
-    throughput = depot_factor.copy()
-    throughput[1:] *= road_capacity
-    return depot_factor, road_capacity, np.clip(throughput, 0.0, 1.0)
-
-
-def deterministic_transfer_v2(
-    stock: np.ndarray,
-    throughput: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, tuple[TransferV2, ...]]:
-    """Move at most one bounded generic-supply load between eligible depots."""
-
-    adjusted = np.asarray(stock, dtype=np.float64).copy()
-    factors = np.asarray(throughput, dtype=np.float64)
-    fractions = adjusted / DEPOT_CAPACITY
-    receivers = [
-        index
-        for index in range(5)
-        if fractions[index] < TRANSFER_STARVED_FRACTION
-        and factors[index] >= TRANSFER_MIN_THROUGHPUT
-    ]
-    if not receivers:
-        return adjusted, np.zeros(5, dtype=np.float64), ()
-    receiver = min(receivers, key=lambda index: (fractions[index], index))
-    donors = [
-        index
-        for index in range(5)
-        if index != receiver
-        and fractions[index] > TRANSFER_SURPLUS_FRACTION
-        and factors[index] >= TRANSFER_MIN_THROUGHPUT
-    ]
-    if not donors:
-        return adjusted, np.zeros(5, dtype=np.float64), ()
-    donor = max(donors, key=lambda index: (fractions[index], -index))
-    amount = min(
-        TRANSFER_DAILY_CAP_FRACTION * DEPOT_CAPACITY[receiver],
-        adjusted[donor] - TRANSFER_DONOR_RESERVE_FRACTION * DEPOT_CAPACITY[donor],
-        TRANSFER_RECEIVER_TARGET_FRACTION * DEPOT_CAPACITY[receiver] - adjusted[receiver],
-    )
-    amount = float(max(0.0, amount))
-    if amount <= CONSTRAINT_TOLERANCE:
-        return adjusted, np.zeros(5, dtype=np.float64), ()
-    net = np.zeros(5, dtype=np.float64)
-    adjusted[donor] -= amount
-    adjusted[receiver] += amount
-    net[donor] = -amount
-    net[receiver] = amount
-    event = TransferV2(
-        from_service=SERVICES[donor],
-        to_service=SERVICES[receiver],
-        units=float(round(amount, 8)),
-        donor_stock_fraction_before=float(round(fractions[donor], 8)),
-        receiver_stock_fraction_before=float(round(fractions[receiver], 8)),
-    )
-    return adjusted, net, (event,)
-
-
-def _land_capped(
-    stock: np.ndarray, arrivals: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    room = np.maximum(0.0, DEPOT_CAPACITY - stock)
-    landed = np.minimum(np.asarray(arrivals, dtype=np.float64), room)
-    held = np.asarray(arrivals, dtype=np.float64) - landed
-    return stock + landed, landed, held
 
 
 class CityRecoveryEnvV2(gym.Env[np.ndarray, np.ndarray]):

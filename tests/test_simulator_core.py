@@ -4,8 +4,11 @@ from typing import Any
 
 import numpy as np
 
-from backend.app.simulator_core import CONSTRAINT_TOLERANCE, SERVICES
-from backend.app.simulator_core_v4 import project_capped_simplex
+from backend.app.city.physics import (
+    CONSTRAINT_TOLERANCE,
+    SERVICES,
+    project_capped_simplex,
+)
 
 
 def _project_capped_simplex_bisection_reference(

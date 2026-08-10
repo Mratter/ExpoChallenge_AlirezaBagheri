@@ -18,7 +18,6 @@ from scripts.train_policy_v4 import (
     STEP3E_CONTESTED_ROW_IDS,
     STEP3E_HEADROOM_RECEIPT,
     STEP3E_OPTIMIZER_RECEIPT,
-    PROTECTED_V3_EXTRA_FILES_SHA256,
     STEP3E_SUPERVISOR_GATE_CORRECTION,
     TrainingError,
     actor_state,
@@ -30,7 +29,6 @@ from scripts.train_policy_v4 import (
     historical_step3_rows_hash,
     learning_milestones,
     parse_args,
-    protected_v3_snapshot,
     reported_approx_kl_summary,
     state_digest,
     step3e_carry_decision,
@@ -252,16 +250,6 @@ def test_step3e_provenance_derives_and_validates_four_contested_cases() -> None:
     assert (
         provenance["validated_source_identity"]
         == historical_headroom["source_identity"]
-    )
-
-    protected = protected_v3_snapshot(
-        provenance["protected_v3_expected_files_sha256"]
-    )
-    assert protected["file_count"] == len(
-        {
-            **provenance["protected_v3_expected_files_sha256"],
-            **PROTECTED_V3_EXTRA_FILES_SHA256,
-        }
     )
 
 

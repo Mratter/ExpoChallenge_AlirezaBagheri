@@ -10,33 +10,32 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from backend.app.models import ScenarioV3
-from backend.app.simulator_core import (
+from backend.app.city.physics import (
     CONSTRAINT_TOLERANCE,
     DELTA,
     DEPENDENCIES,
+    DEPOT_CAPACITY,
     ETA,
+    FOOD_SPOILAGE_RATE,
+    IMMEDIATE_DELIVERY_FRACTION,
+    RESERVE_DRAW_FRACTION,
     SERVICES,
     SHOCK_BUDGET_FACTORS,
     SHOCK_IMPACTS,
     SHOCK_TYPE_PROBABILITIES,
     SHOCKS,
-    _round_vector,
+    Transfer,
     action_to_proposal,
-    canonical_hash,
+    apply_depot_damage,
+    deterministic_transfer,
+    land_capped,
     measure_constraints,
     project_capped_simplex,
+    round_vector as _round_vector,
+    throughput_factors,
 )
-from backend.app.simulator_v2 import (
-    DEPOT_CAPACITY,
-    FOOD_SPOILAGE_RATE,
-    IMMEDIATE_DELIVERY_FRACTION,
-    RESERVE_DRAW_FRACTION,
-    TransferV2,
-    apply_depot_damage_v2,
-    deterministic_transfer_v2,
-    throughput_factors_v2,
-)
+from backend.app.models import ScenarioV3
+from backend.app.shared_evidence import canonical_hash
 
 ENGINE_V3_ID = "CityRecoveryEnv-v3"
 ENGINE_V3_VERSION = "3.0.0"
@@ -215,7 +214,7 @@ class DayContextV3:
     depot_factor: np.ndarray
     road_capacity: float
     throughput: np.ndarray
-    transfers: tuple[TransferV2, ...]
+    transfers: tuple[Transfer, ...]
     transfer_net: np.ndarray
     stock_ready: np.ndarray
     public_risk_next: np.ndarray
@@ -323,15 +322,6 @@ def generate_disaster_tape_v3(scenario: ScenarioV3, seed: int) -> list[ShockV3]:
             )
         )
     return schedule
-
-
-def _land_capped_v3(
-    stock: np.ndarray, arrivals: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    room = np.maximum(0.0, DEPOT_CAPACITY - np.asarray(stock, dtype=np.float64))
-    landed = np.minimum(np.asarray(arrivals, dtype=np.float64), room)
-    held = np.asarray(arrivals, dtype=np.float64) - landed
-    return np.asarray(stock, dtype=np.float64) + landed, landed, held
 
 
 def decode_action_v3(action: np.ndarray, context: DayContextV3) -> InterventionV3:
@@ -569,7 +559,7 @@ class CityRecoveryEnvV3(gym.Env[np.ndarray, np.ndarray]):
         before = self._q.copy()
         stock_before = self._stocks.copy()
         pending_arrivals = self._pending.copy()
-        stock_after_pending, pending_landed, pending_held = _land_capped_v3(
+        stock_after_pending, pending_landed, pending_held = land_capped(
             stock_before, pending_arrivals
         )
         self._stocks = stock_after_pending
@@ -605,13 +595,13 @@ class CityRecoveryEnvV3(gym.Env[np.ndarray, np.ndarray]):
             self._damage_duration,
             self._damage_remaining,
             damage_penalty,
-        ) = apply_depot_damage_v2(
+        ) = apply_depot_damage(
             shock, self._damage_peak, self._damage_duration, self._damage_remaining
         )
-        depot_factor, road_capacity, throughput = throughput_factors_v2(
+        depot_factor, road_capacity, throughput = throughput_factors(
             shocked, damage_penalty
         )
-        stock_ready, transfer_net, transfers = deterministic_transfer_v2(
+        stock_ready, transfer_net, transfers = deterministic_transfer(
             stock_after_pending, throughput
         )
         self._stocks = stock_ready
@@ -765,7 +755,7 @@ class CityRecoveryEnvV3(gym.Env[np.ndarray, np.ndarray]):
         repair_crew = crew - preparedness_crew
         same_day_scheduled = material * IMMEDIATE_DELIVERY_FRACTION
         delayed_scheduled = material - same_day_scheduled
-        stock_with_delivery, same_day_landed, same_day_held = _land_capped_v3(
+        stock_with_delivery, same_day_landed, same_day_held = land_capped(
             context.stock_ready, same_day_scheduled
         )
         preparedness_crew_capacity_effective = (

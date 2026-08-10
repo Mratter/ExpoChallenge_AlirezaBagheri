@@ -16,6 +16,7 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 
+from backend.app.city.physics import land_capped
 from backend.app.models import ScenarioV3
 from backend.app.simulator_core_v4 import (
     _round_vector,
@@ -46,7 +47,6 @@ from backend.app.simulator_v3 import (
     DayContextV3,
     InterventionV3,
     ShockV3,
-    _land_capped_v3,
     _summarize_v3,
     absolute_outcome_v3,
     generate_disaster_tape_v3,
@@ -273,7 +273,7 @@ class CityRecoveryEnvV4(CityRecoveryEnvV3):
         repair_crew = crew - preparedness_crew
         same_day_scheduled = material * IMMEDIATE_DELIVERY_FRACTION
         delayed_scheduled = material - same_day_scheduled
-        stock_with_delivery, same_day_landed, same_day_held = _land_capped_v3(
+        stock_with_delivery, same_day_landed, same_day_held = land_capped(
             context.stock_ready, same_day_scheduled
         )
         preparedness_crew_capacity_effective = (
