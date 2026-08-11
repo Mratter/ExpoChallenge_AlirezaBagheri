@@ -1,6 +1,6 @@
 # Autonomous City Recovery Planner
 
-Autonomous City Recovery Planner is a local, synthetic-disaster research demo. It compares an explicitly selected ONNX policy with a transparent public-state heuristic inside the same 30-day city-recovery simulator, then exposes both independent outcomes and both complete daily trajectories in a technical Analyst Toolbox and a 3D city view.
+Autonomous City Recovery Planner is a local, synthetic-disaster research demo. It compares the bundled, parity-approved v4 ONNX policy—or an explicit operator override—with a transparent public-state heuristic inside the same 30-day city-recovery simulator, then exposes both independent outcomes and both complete daily trajectories in a technical Analyst Toolbox and a 3D city view.
 
 The shortest accurate explanation is:
 
@@ -20,26 +20,27 @@ This is a sequential planning system, not a classifier. Do not describe it with 
 | --- |
 | ![Attribution, counterfactual, export, and sustainability decision support](docs/screenshots/decision-support.png) |
 
-These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The historical 35/40 learned-policy result below is receipt-backed evidence from the original development subset, not the policy shown in the screenshots.
+These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The selected 178/200 v4 policy and the historical 35/40 learned-policy result below are receipt-backed evidence, not the policy shown in the screenshots.
 
 ## Runtime and evidence truth first
 
-The consolidated runtime has one policy-selection rule: the operator must provide the ONNX artifact to serve. `scripts/setup.ps1` installs the runtime and builds the frontend without choosing a model. `scripts/run.ps1` accepts `-PolicyPath` or `INNOVERSE_POLICY_PATH`, then preflight validates the artifact's `73 → 22` tensor contract, bounded inference, and a complete smoke comparison before starting FastAPI.
+The repository ships `artifacts/city_recovery_ppo.v4.onnx` as its zero-configuration policy. `scripts/setup.ps1` builds the runtime and preflights that artifact; `scripts/run.ps1` serves it by default. A nonblank `INNOVERSE_POLICY_PATH` overrides the bundle, and an explicit `-PolicyPath` overrides both. The selected path must resolve and pass the `73 → 22` tensor contract, bounded inference, and complete smoke comparison; an invalid higher-priority choice fails closed instead of falling back.
 
-There is no implicit production checkpoint, fallback model, manifest, or source-seal lookup. `tests/fixtures/legacy_policy.onnx` exists only as a regression and evaluation fixture. The measured 1M-transition v4 policy is represented by development evidence; its diagnostic checkpoint was not persisted and is not a deployable artifact in this repository.
+The bundled artifact is SHA-256 `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483`. Its neighboring manifest is descriptive provenance, not a second loader or authorization mechanism. `tests/fixtures/legacy_policy.onnx` remains only a regression and evaluation fixture and is never a runtime fallback.
 
 ### Current development benchmark
 
-The current cheap-planner comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. All four planners ran on the same ordered tapes, with zero hard violations and an observed maximum conservation residual of exactly `0.0`. No learned-v4 policy has been evaluated on this expanded roster or on the final split.
+The current comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. At the registered 2M endpoint, the five policy seeds (`37017`, `47017`, `57017`, `67017`, and `77017`) solved **172, 171, 171, 174, and 169** cases: mean **171.4 / 200**, sample standard deviation **1.82**. Selection then ranked all 20 complete milestone checkpoints and chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, four solves ahead of the **174 / 200** runner-up. Full SB3-to-ONNX parity reproduced all 178 solves, with zero hard violations, exact conservation, and no deterministic replay mismatches. No learned-v4 policy has been evaluated on the final split.
 
 | Development method | Solved on 200 development tapes | Wilson 95% CI |
 | --- | ---: | ---: |
+| **Selected v4 PPO, seed 67017 at 1M** | **178 / 200** | **[0.839, 0.926]** |
 | Reactive heuristic | **91 / 200** | **[0.387, 0.524]** |
 | Preparedness teacher | **151 / 200** | **[0.691, 0.809]** |
 | **Tuned constant rule** | **160 / 200** | **[0.739, 0.850]** |
 | Legacy ONNX regression fixture | **141 / 200** | **[0.638, 0.764]** |
 
-The human-readable aggregate is in `benchmarks/v4/development-baselines-200.md`; complete ordered rows, paired exact McNemar comparisons, invariants, and source hashes are in `internal/developmental_runs/v4/development-baselines-200.json`. Both identify themselves as nonauthorizing development evidence with `final_split_used: false`.
+The five-seed study and matched ablations are summarized in `benchmarks/v4/training-study-200.md`, with a digest-bound index at `internal/developmental_runs/v4/training-study-200-summary.json`. The cheap-planner aggregate is in `benchmarks/v4/development-baselines-200.md`, with complete ordered rows in `internal/developmental_runs/v4/development-baselines-200.json`. The selected checkpoint is recorded in `internal/developmental_runs/v4/checkpoint-selection-200.json`; `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` binds its SB3 and ONNX development rows, and `artifacts/city_recovery_ppo.v4.manifest.json` binds the published artifact to both receipts. Every result is development-only with `final_split_used: false`.
 
 ### Historical original 40-case development subset
 
@@ -77,7 +78,7 @@ The runtime uses ONNX Runtime on CPU. A GPU, CUDA, Git, and `uv` are not require
 
 ### 1. Open PowerShell in the package root
 
-The package root is the folder containing this README, `requirements.txt`, `backend`, `frontend`, `model`, and `scripts`.
+The package root is the folder containing this README, `requirements.txt`, `artifacts`, `backend`, `frontend`, `model`, and `scripts`.
 
 ### 2. Install the runtime and browser
 
@@ -93,9 +94,9 @@ Setup performs these steps:
 4. installs the runtime packages from `requirements.txt`;
 5. installs the locked browser packages with `npm ci`;
 6. builds `frontend/dist`; and
-7. if `INNOVERSE_POLICY_PATH` is already set, runs preflight against that policy.
+7. runs preflight against the bundled v4 policy or an explicit override.
 
-Setup succeeds without a selected policy. In that case it prints that the runtime is installed and model selection is still required. `frontend/dist` is generated from the React source and is the static browser runtime served by FastAPI; `setup.ps1` reproducibly creates it after `npm ci`.
+Setup is zero-configuration, but it is not policy-optional: it completes only after the selected ONNX file passes interface, inference, and smoke-comparison checks. `frontend/dist` is generated from the React source and is the static browser runtime served by FastAPI; `setup.ps1` reproducibly creates it after `npm ci`.
 
 To prevent setup from invoking `winget`, install Python 3.12 and Node yourself, then run:
 
@@ -103,23 +104,23 @@ To prevent setup from invoking `winget`, install Python 3.12 and Node yourself, 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -SkipToolBootstrap
 ```
 
-### 3. Select a policy and start the app
+### 3. Start the app
 
-Point the launcher at the ONNX policy you intend to serve. Either set the environment variable:
+The ordinary bundled-policy launch needs no model argument:
 
 ```powershell
-$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
-Or pass the path directly:
+To override the bundle, set `INNOVERSE_POLICY_PATH`, or pass `-PolicyPath` directly. The command-line parameter has higher precedence than the environment variable:
 
 ```powershell
+$env:INNOVERSE_POLICY_PATH = 'C:\path\to\environment-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
     -PolicyPath 'C:\path\to\selected-policy.onnx'
 ```
 
-Do not start `run.ps1` until setup has printed **`[setup] COMPLETE`**. The launcher resolves the selected file, runs preflight, starts FastAPI at `127.0.0.1:4117`, and opens:
+Do not start `run.ps1` until setup has printed **`[setup] COMPLETE`**. The launcher resolves the winning policy path, runs preflight, starts FastAPI at `127.0.0.1:4117`, and opens:
 
 ```text
 http://127.0.0.1:4117/#/toolbox
@@ -131,7 +132,6 @@ Use another port if `4117` is occupied:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
-    -PolicyPath 'C:\path\to\selected-policy.onnx' `
     -Port 4120
 ```
 
@@ -139,14 +139,13 @@ Start without opening a browser:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
-    -PolicyPath 'C:\path\to\selected-policy.onnx' `
     -Port 4120 `
     -NoBrowser
 ```
 
 ### 4. Run a standalone runtime check
 
-With `INNOVERSE_POLICY_PATH` set:
+The standalone check also uses the bundled policy by default:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
@@ -158,7 +157,7 @@ For an alternate port:
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1 -Port 4120
 ```
 
-Preflight checks required runtime files, Python 3.12, the frontend build, port availability, the ONNX Runtime CPU session, exact input `observation [batch,73]` and output `action [batch,22]` tensors, finite actions inside `[-1,1]`, and a deterministic 30-day smoke comparison with zero hard violations and exact conservation. Set `INNOVERSE_POLICY_SHA256` as well when the selected artifact must match a known digest.
+Preflight checks required runtime files, Python 3.12, the frontend build, port availability, the ONNX Runtime CPU session, exact input `observation [batch,73]` and output `action [batch,22]` tensors, finite actions inside `[-1,1]`, and a deterministic 30-day smoke comparison with zero hard violations and exact conservation. It accepts the same optional `-PolicyPath` override, and `INNOVERSE_POLICY_SHA256` can require a known digest for whichever policy wins precedence.
 
 ## The four different pieces
 
@@ -224,7 +223,8 @@ Service recovery is concave and slow, so a late shock cannot be repaired reactiv
 
 | Property | Current contract |
 | --- | --- |
-| Runtime artifact | One explicitly selected ONNX file |
+| Runtime artifact | Bundled `artifacts/city_recovery_ppo.v4.onnx`, with explicit path overrides supported |
+| Bundled artifact SHA-256 | `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483` |
 | Observation | `observation: tensor(float)[batch,73]` |
 | Action | `action: tensor(float)[batch,22]`, finite and inside `[-1,1]` |
 | Observation normalization | Must be embedded in the selected ONNX artifact; the runtime does not apply Python-side normalization |
@@ -236,7 +236,7 @@ Service recovery is concave and slow, so a late shock cannot be repaired reactiv
 | Hidden activation / initialization | SiLU / orthogonal |
 | Training-time log standard deviation | 22 trainable values initialized at `-1.5` |
 
-`model/policy.py` validates the public tensor names, shapes, types, provider, smoke inference, and action bounds. It deliberately does not require a particular hidden-layer graph or infer training provenance from the ONNX file. The architecture below the tensor boundary describes `scripts/train_policy.py`; the repository does not currently contain a deployable checkpoint from the measured 1M-transition v4 run.
+`model/policy.py` validates the public tensor names, shapes, types, provider, smoke inference, and action bounds. It deliberately does not require a particular hidden-layer graph or infer training provenance from the ONNX file. The architecture below the tensor boundary describes `scripts/train_policy.py`; the selected 1M-transition checkpoint is published as the bundled, deployable ONNX artifact above.
 
 ## The exact 73 public inputs
 
@@ -304,12 +304,12 @@ The projector is a guardrail, not a hidden optimizer. A poor policy can remain f
 
 The current training flow in `scripts/train_policy.py` is linear and inspectable: **BC/DAgger → actor-frozen critic warm-up → PPO actor-critic updates → development evaluation → new receipt**. The tool learns only from training cases and does not import or evaluate the final split.
 
-### Current optimizer contract
+### Selected publication study
 
-| Training setting | Current default |
+| Registered publication-study setting | Preregistered value |
 | --- | --- |
-| Active PPO budget | 8,000,000 actor-critic transitions |
-| Policy seed | `37017` |
+| Active PPO budget | 2,000,000 actor-critic transitions per seed |
+| Policy seeds | `37017`, `47017`, `57017`, `67017`, `77017` |
 | Simulator lanes | 20 |
 | Steps per lane / rollout | 250 / 5,000 transitions total |
 | PPO batch size / epochs | 500 / 5 |
@@ -323,9 +323,11 @@ The current training flow in `scripts/train_policy.py` is linear and inspectable
 
 The actor warm start uses four public-only DAgger iterations with beta schedule `[1,0,0,0]`, 15 epochs per iteration, batch size 512, and actor learning rate `0.001`. The teacher sees the same causal public observation contract as the learned policy and never receives the future tape.
 
-Before PPO changes the actor, the trainer freezes every actor parameter and trains the critic alone for at least 50,000 and at most 100,000 transitions, stopping after the minimum once explained variance exceeds `0.5`. It records actor hashes, observation and return moments, explained variance, approximate KL, clip fraction, entropy loss, value loss, policy-gradient loss, and action standard deviation. Development curves are recorded at 200k, 500k, 1M, and the requested terminal budget.
+Before PPO changes the actor, the trainer freezes every actor parameter and trains the critic alone for at least 50,000 and at most 100,000 transitions, stopping after the minimum once explained variance exceeds `0.5`. It records actor hashes, observation and return moments, explained variance, approximate KL, clip fraction, entropy loss, value loss, policy-gradient loss, and action standard deviation. The publication sweep recorded development checkpoints at 200k, 500k, 1M, and 2M for each of five seeds.
 
-The historical 35/40 result on the original development subset comes from the nonauthorizing 1M-transition receipt at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`. That run persisted diagnostics and per-case outcomes, not a checkpoint or deployable ONNX file, and it has not been reevaluated on the expanded 200-case development roster.
+Selection ranked all 20 complete checkpoints only by development solves, then earlier transition count and lower policy seed for ties. Seed `67017` at 1M won with **178 / 200**; the runner-up solved **174 / 200**, so no tie-break was needed. The selected checkpoint, frozen observation normalization, self-contained opset-17 ONNX graph, and full 200-case parity receipt are now durable.
+
+The earlier 35/40 result on the original development subset remains historical evidence at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`; it is not the selected publication study.
 
 ### Role-separated scenario splits
 
@@ -447,7 +449,7 @@ Use the candidate/heuristic toggle in the day inspector to compare like-for-like
 
 ### 5. Recheck the runtime
 
-The Toolbox's **Recheck runtime** action retries metadata. It cannot choose or repair a policy; it only reports whether the backend can now load the explicitly configured artifact.
+The Toolbox's **Recheck runtime** action retries metadata. It cannot choose or repair a policy; it only reports whether the backend can load the winning runtime artifact, whether that is the bundled default or an explicit override.
 
 The browser implementation contains zero uses of `any` or `@ts-ignore` across roughly 6,000 lines of TypeScript. Its accessibility surface includes **30 `aria-label` attributes**, **29 `role=` assignments**, an `aria-live` update region, and an `aria-modal` dialog.
 
@@ -464,7 +466,7 @@ If the 3D scene is slow, reduce browser zoom, close GPU-heavy tabs, or use the T
 | Method and path | Purpose |
 | --- | --- |
 | `GET /health/live` | Process liveness, independent of policy selection. |
-| `GET /health/ready` | Loads the explicitly selected policy and reports its identity and tensor contract; returns 503 when no valid policy is configured. |
+| `GET /health/ready` | Loads the bundled policy or explicit override and reports its identity and tensor contract; returns 503 when the winning path is invalid. |
 | `GET /api/v1/meta` | Current policy, environment, exact orders, outcome definition, baseline, persistence, and determinism metadata. |
 | `POST /api/v1/simulations/compare` | Runs and persists one selected-policy-versus-heuristic comparison on a shared tape. |
 | `GET /api/v1/simulations?engine_version=city-recovery-env-v3` | Lists saved run summaries for the stable engine-version identifier. |
@@ -514,7 +516,6 @@ Use a separate location without changing code:
 
 ```powershell
 $env:INNOVERSE_STATE_DIR = 'D:\InnoverseRuns'
-$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
@@ -587,8 +588,9 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 
 | Path | Role |
 | --- | --- |
-| `setup.ps1` | Fresh Windows dependency installation and frontend build, with optional configured-policy preflight. |
-| `run.ps1` | Explicit-policy preflight, local FastAPI launch, and browser opener. |
+| `setup.ps1` | Fresh Windows dependency installation, frontend build, and selected-policy preflight. |
+| `run.ps1` | Bundled-or-override policy preflight, local FastAPI launch, and browser opener. |
+| `runtime_policy.ps1` | Fail-closed `-PolicyPath` → environment → bundled-artifact precedence. |
 | `preflight.ps1`, `preflight_check.py` | Runtime file, ONNX contract, inference, and smoke-comparison checks. |
 | `project_environment.ps1` | Resolves the package's Python 3.12 environment, including the long-path fallback. |
 | `train_policy.py` | BC/DAgger, actor-frozen critic warm-up, PPO, development milestones, diagnostics, and receipt writing. |
@@ -601,12 +603,16 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 
 | Path | Role |
 | --- | --- |
+| `artifacts/city_recovery_ppo.v4.onnx`, `artifacts/city_recovery_ppo.v4.manifest.json` | Bundled parity-approved policy and descriptive publication metadata. |
+| `benchmarks/v4/training-study-200.md`, `internal/developmental_runs/v4/training-study-200-summary.json` | Human-readable five-seed/ablation report and digest-bound machine summary. |
+| `internal/developmental_runs/v4/checkpoint-selection-200.json` | Five-seed, 20-checkpoint development selection receipt. |
+| `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` | Complete 200-case SB3-to-ONNX parity receipt for the selected policy. |
 | `benchmarks/v4/development-baselines-200.md` | Current human-readable 200-tape cheap-planner development aggregate. |
 | `internal/developmental_runs/v4/development-baselines-200.json` | Current complete 200-case rows, source hashes, invariants, and paired statistics. |
 | `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Byte-identical historical aggregate and receipt from the original 40-case subset. |
 | `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Historical matched 1M-transition training and reward-comparison evidence on the original subset. |
 | `docs/evidence/legacy-final-40.json` | Historical final report for the retired release; not an active runtime dependency. |
-| `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; not an implicitly selected runtime model. |
+| `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; never a runtime fallback. |
 | `tests/test_city_*.py`, `tests/test_simulator*.py` | Physics, scenarios, outcome, planners, optimizer, and environment behavior. |
 | `tests/test_policy.py`, `tests/test_api.py`, `tests/test_recovery_*.py` | Explicit policy loading, HTTP, replay analysis, and export behavior. |
 | `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_development_evidence.py` | Scientific tools and current plus historical development evidence. |
@@ -614,11 +620,11 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 
 ## Policy selection and readiness
 
-Readiness is about the explicitly selected runtime artifact, not the development-score receipts. `GET /health/live` confirms only that FastAPI is alive. `GET /health/ready` loads the configured policy and returns 503 until that succeeds.
+Readiness is about the resolved runtime artifact, not development scores alone. `GET /health/live` confirms only that FastAPI is alive. `GET /health/ready` loads the bundle or higher-priority override and returns 503 until that succeeds.
 
 The runtime requires:
 
-1. a readable path in `INNOVERSE_POLICY_PATH` or `run.ps1 -PolicyPath`;
+1. a readable bundled policy, or a readable nonblank override from `INNOVERSE_POLICY_PATH` or `-PolicyPath`;
 2. a loadable ONNX graph with exactly one `observation` float input shaped `[batch,73]`;
 3. exactly one `action` float output shaped `[batch,22]`;
 4. finite output inside `[-1,1]` for smoke inference;
@@ -635,7 +641,7 @@ $env:INNOVERSE_POLICY_SHA256 = (Get-FileHash `
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
 ```
 
-The ready and metadata endpoints report the selected artifact's SHA-256, path stem, runtime, observation/action counts, and canonical orders. Changing `INNOVERSE_POLICY_PATH` changes the served candidate; no repository fixture or development receipt silently replaces it.
+The ready and metadata endpoints report the selected artifact's SHA-256, path stem, runtime, observation/action counts, and canonical orders. `-PolicyPath` wins over `INNOVERSE_POLICY_PATH`, which wins over the bundle. Preflight and the launcher reject a bad override before starting the server; a directly invoked backend reports the invalid environment selection as not ready. No repository fixture or lower-priority path silently replaces either choice.
 
 ## Developer verification
 
@@ -678,10 +684,9 @@ Check that the generated browser contract still matches canonical Python values:
 & $ctx.PythonPath .\scripts\generate_frontend_contract.py --check
 ```
 
-Run runtime preflight separately when a selected ONNX file is available:
+Run runtime preflight separately against the bundled artifact:
 
 ```powershell
-$env:INNOVERSE_POLICY_PATH = 'C:\path\to\selected-policy.onnx'
 powershell -ExecutionPolicy Bypass -File .\scripts\preflight.ps1
 ```
 
@@ -708,20 +713,20 @@ Normal demo users do not need these commands. They run training or development a
     --output .\internal\developmental_runs\v4\new-headroom-receipt.json
 ```
 
-`scripts/evaluate.py` also contains the reserved final split, but no current README workflow invokes it. The v4 development result has no selected ONNX publication step in this repository; model export and selection must be completed explicitly before a trained policy can be passed to `run.ps1`. The blocking post-training sequence is specified in `docs/TRAINING_DEPLOYMENT_PLAN.md` and is not authorized by this documentation phase.
+`scripts/evaluate.py` also contains the reserved final split, but no current README workflow invokes it. Development selection, export, manifest generation, full SB3-to-ONNX parity, and the application-level served-path gate are complete for the bundled v4 artifact. The served gate exercised all 200 development cases through FastAPI `POST` → persist → `GET` and exactly reproduced the accepted **178 / 200** solves. The gated sequence is recorded in `docs/TRAINING_DEPLOYMENT_PLAN.md`; none of this authorizes a learned-v4 final evaluation.
 
 ## Development evidence and provenance
 
-The current performance claim is assembled from retained development evidence rather than runtime model selection:
+The current performance and runtime claims are bound by retained development and publication evidence:
 
-1. `internal/developmental_runs/v4/development-baselines-200.json` records all four cheap planners over the same 200 ordered development tapes, complete rows, Wilson intervals, paired exact McNemar comparisons, source hashes, and `final_split_used: false`.
-2. `benchmarks/v4/development-baselines-200.md` is the current human-readable aggregate.
-3. `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` records historical matched initialization, optimizer settings, critic warm-up, 200k/500k/1M curves, per-case outcomes, diagnostics, and exact physics invariants on the original 40-case subset.
-4. `internal/developmental_runs/v4/headroom-probe-v4-dev.json` records historical tuned-rule, causal-MPC, and privileged-oracle headroom on that same original subset. Its 37/40 oracle result is not a 200-case ceiling.
-5. `internal/developmental_runs/v4/step6-dev-baseline-table.json` and its bound `benchmarks/v4/development-baselines.md` preserve the original ten-planner table byte-identically as historical evidence.
-6. `tests/test_build_development_baselines.py` and `tests/test_development_evidence.py` verify the current and historical evidence contracts respectively; `tests/test_consolidation_gate.py` anchors the consolidated outcome and engine hashes plus a complete deterministic golden trajectory.
+1. `internal/developmental_runs/v4/training-study-200-summary.json` and `benchmarks/v4/training-study-200.md` bind the five-seed baseline, matched ablations, selection, and publication chain without using the final split.
+2. `internal/developmental_runs/v4/checkpoint-selection-200.json` ranks 20 complete checkpoints from five seeds and selects seed `67017` at 1M with 178/200 development solves.
+3. `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` proves all 6,000 action vectors, 132,000 action elements, outcomes, AUC values, safety checks, conservation checks, and deterministic replays across the 200 development cases.
+4. `artifacts/city_recovery_ppo.v4.manifest.json` binds the selected checkpoint, normalization state, ONNX SHA-256, interface, selection receipt, and parity receipt.
+5. `internal/developmental_runs/v4/development-baselines-200.json` and `benchmarks/v4/development-baselines-200.md` record the four cheap planners on the same 200 ordered development tapes; the original-subset training, headroom, and unsuffixed baseline files remain explicitly historical.
+6. Focused policy, API, export, evidence, and consolidation tests verify the artifact contract, publication metadata, current and historical evidence, and deterministic physics anchors.
 
-These files support the development comparison but do not configure FastAPI. Runtime identity comes from the ONNX file explicitly supplied by the operator, and the API binds persisted results to that artifact's SHA-256. The legacy final JSON and legacy ONNX fixture remain separate historical/regression inputs under `docs/evidence` and `tests/fixtures`.
+The bundled ONNX path configures FastAPI when no override is supplied, and the API binds persisted results to the bytes it actually loads. The legacy final JSON and legacy ONNX fixture remain separate historical/regression inputs under `docs/evidence` and `tests/fixtures`.
 
 ## Troubleshooting
 
@@ -747,13 +752,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 ### `run.ps1` or `/health/ready` reports `DEPENDENCY_NOT_READY`
 
-Confirm that `INNOVERSE_POLICY_PATH` is set in the shell that starts the app, or pass `-PolicyPath` directly. The selected file must be readable ONNX with the exact `observation [batch,73]` and `action [batch,22]` float contracts. If `INNOVERSE_POLICY_SHA256` is set, it must match the file exactly. Run `scripts/preflight.ps1` to see the contract or smoke-comparison failure before starting the server.
+Run `scripts/preflight.ps1` to see the exact failure. With no override, confirm that `artifacts/city_recovery_ppo.v4.onnx` exists and matches the documented SHA-256. With an override, confirm that `-PolicyPath` or `INNOVERSE_POLICY_PATH` names a readable ONNX file with the exact `observation [batch,73]` and `action [batch,22]` float contracts. If `INNOVERSE_POLICY_SHA256` is set, it must match the winning file exactly.
 
 ### Port 4117 is already in use
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
-    -PolicyPath 'C:\path\to\selected-policy.onnx' `
     -Port 4120
 ```
 
@@ -771,7 +775,7 @@ Stop the server, rebuild, and restart:
 npm ci --prefix frontend
 npm run build --prefix frontend
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 `
-    -PolicyPath 'C:\path\to\selected-policy.onnx'
+    -NoBrowser
 ```
 
 Then hard-refresh the browser with `Ctrl+F5`. Inspect `/health/live` and `/health/ready` separately: liveness can pass while policy loading correctly fails.
@@ -792,7 +796,7 @@ The 3D route loads a much larger rendering bundle. Close other graphics-heavy ta
 
 A concise presentation can say:
 
-> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. On the current 200-case development roster, the tuned public rule solved 160 cases with 95% Wilson interval [0.739, 0.850], the preparedness teacher solved 151, the legacy ONNX fixture solved 141, and the reactive heuristic solved 91, all with zero hard violations and exact conservation. The learned-policy result remains historical 35/40 evidence from the original subset; no learned-v4 final result or deployable checkpoint is present.
+> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. A registered five-seed sweep evaluated 20 checkpoints on 200 development tapes and selected seed 67017 at 1M with 178 solves, 95% Wilson interval [0.839, 0.926], four solves ahead of the runner-up. The self-contained ONNX artifact reproduced all 178 SB3 outcomes with zero hard violations, exact conservation, and deterministic replay. It ships as the zero-configuration runtime policy; no learned-v4 final result is claimed.
 
 ## Data character
 
@@ -800,4 +804,4 @@ All scenarios and shock tapes are authored and generated locally by `backend/app
 
 ---
 
-For a demo operator: run `setup.ps1`, select a compatible ONNX file, and pass it to `run.ps1`. For a reviewer: start with `docs/CODE_TOUR.md`, `benchmarks/v4/development-baselines-200.md`, `internal/developmental_runs/v4/development-baselines-200.json`, `model/policy.py`, and `scripts/preflight_check.py`; the unsuffixed development table is the historical original-subset record.
+For a demo operator: run `setup.ps1`, then `run.ps1`; the bundled v4 policy needs no path argument. For a reviewer: start with `docs/CODE_TOUR.md`, `artifacts/city_recovery_ppo.v4.manifest.json`, `internal/developmental_runs/v4/checkpoint-selection-200.json`, `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json`, `model/policy.py`, and `scripts/preflight_check.py`.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 from pathlib import Path
 
@@ -11,13 +12,17 @@ import pytest
 from onnx import TensorProto, helper, numpy_helper
 
 import model.policy as policy_module
-from model.policy import PolicyError, load_policy
+from model.policy import DEFAULT_POLICY_PATH, PolicyError, load_policy
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_POLICY = ROOT / "tests" / "fixtures" / "legacy_policy.onnx"
 LEGACY_POLICY_SHA256 = (
     "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b"
 )
+SHIPPED_POLICY_SHA256 = (
+    "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483"
+)
+SHIPPED_MANIFEST = ROOT / "artifacts" / "city_recovery_ppo.v4.manifest.json"
 ZERO_ACTION_SHA256 = (
     "ffb0d191e76274edaff60d384695431984cd084871140f529e93484f3512542d"
 )
@@ -33,6 +38,57 @@ def _sha256(payload: bytes) -> str:
 def _raw_action_sha256(action: np.ndarray) -> str:
     raw = action.astype(np.float32).reshape(1, 22)
     return _sha256(raw.tobytes())
+
+
+def _onnx_shape(value_info: onnx.ValueInfoProto) -> list[str | int]:
+    return [
+        dimension.dim_param if dimension.dim_param else dimension.dim_value
+        for dimension in value_info.type.tensor_type.shape.dim
+    ]
+
+
+def test_bundled_v4_policy_has_the_approved_identity_and_contract() -> None:
+    assert DEFAULT_POLICY_PATH == ROOT / "artifacts" / "city_recovery_ppo.v4.onnx"
+    assert DEFAULT_POLICY_PATH.is_file()
+    assert _sha256(DEFAULT_POLICY_PATH.read_bytes()) == SHIPPED_POLICY_SHA256
+
+    graph = onnx.load(DEFAULT_POLICY_PATH, load_external_data=False).graph
+    assert [(value.name, _onnx_shape(value)) for value in graph.input] == [
+        ("observation", ["batch", 73])
+    ]
+    assert [(value.name, _onnx_shape(value)) for value in graph.output] == [
+        ("action", ["batch", 22])
+    ]
+
+    policy = load_policy(DEFAULT_POLICY_PATH, expected_sha256=SHIPPED_POLICY_SHA256)
+    action = policy.predict(np.zeros(73, dtype=np.float64))
+
+    assert policy.path == DEFAULT_POLICY_PATH.resolve()
+    assert policy.sha256 == SHIPPED_POLICY_SHA256
+    assert policy.session.get_providers() == ["CPUExecutionProvider"]
+    assert action.shape == (22,)
+    assert np.all(np.isfinite(action))
+    assert np.all(np.abs(action) <= 1.0)
+
+
+def test_bundled_v4_manifest_matches_the_approved_artifact_and_selection() -> None:
+    manifest = json.loads(SHIPPED_MANIFEST.read_text(encoding="utf-8"))
+
+    assert manifest["artifact"]["format"] == "onnx"
+    assert manifest["artifact"]["opset"] == 17
+    assert manifest["artifact"]["path"] == (
+        "artifacts/city_recovery_ppo.v4.onnx"
+    )
+    assert manifest["artifact"]["sha256"] == SHIPPED_POLICY_SHA256
+    assert manifest["artifact"]["size_bytes"] == DEFAULT_POLICY_PATH.stat().st_size
+    assert manifest["artifact"]["distribution"] == "included"
+    assert manifest["scope"]["development_case_count"] == 200
+    assert manifest["scope"]["final_split_used"] is False
+    assert manifest["selection"]["development_case_count"] == 200
+    assert manifest["selection"]["winner"]["solved_count"] == 178
+    assert manifest["selection"]["runner_up"]["solved_count"] == 174
+    assert manifest["development_parity"]["sb3_solved_count"] == 178
+    assert manifest["development_parity"]["onnx_solved_count"] == 178
 
 
 def _write_identity_model(

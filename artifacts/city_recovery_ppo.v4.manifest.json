@@ -1,0 +1,230 @@
+{
+  "schema_version": "city-recovery-ppo-v4-portable-manifest-v1",
+  "kind": "portable_model_manifest",
+  "model_id": "city-recovery-ppo-v4",
+  "publication_status": "development_parity_passed",
+  "runtime_enforcement": "descriptive_only",
+  "scope": {
+    "split": "dev",
+    "development_case_count": 200,
+    "final_split_used": false,
+    "statement": "Development-only selection and parity evidence; this is not a final-split result."
+  },
+  "derived_from": {
+    "raw_export_manifest": {
+      "path": "internal/developmental_runs/v4/city_recovery_ppo.v4.export-manifest.raw.json",
+      "sha256": "a2ba49ebabcd79681b93d8d142523e2823b9476025ea0e2645a8d9dcfefac45c",
+      "size_bytes": 8082
+    },
+    "selection_receipt": {
+      "path": "internal/developmental_runs/v4/checkpoint-selection-200.json",
+      "sha256": "65fefa91903e6e7539ead5e1a957528454a9c01e8084ace56fa5047738e73e00",
+      "size_bytes": 33464
+    },
+    "parity_receipt": {
+      "path": "internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json",
+      "sha256": "e3b487df8221db75d58dc68eccbc9df93af16cb0e9f17b5bc60cf50a5b42ba6c",
+      "size_bytes": 535807
+    },
+    "training_study_summary": {
+      "path": "internal/developmental_runs/v4/training-study-200-summary.json",
+      "sha256": "7c39de680d74e22a4429a940f08473f9572dd50e9757ec94e006124e05a2925d",
+      "size_bytes": 17074
+    }
+  },
+  "artifact": {
+    "distribution": "included",
+    "path": "artifacts/city_recovery_ppo.v4.onnx",
+    "sha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
+    "size_bytes": 657385,
+    "format": "onnx",
+    "opset": 17
+  },
+  "selected_checkpoint": {
+    "id": "seed-67017-ppo-1000000",
+    "distribution": "not_in_repository",
+    "path": null,
+    "sha256": "4e84c74eda1334212ac3680897b3077f62e22b271b7ecc943911f9fd4aa55f22",
+    "policy_seed": 67017,
+    "active_actor_critic_transitions": 1000000,
+    "development": {
+      "case_count": 200,
+      "solved_count": 178,
+      "solve_rate": 0.89,
+      "mean_resilience_auc": 0.4913824449,
+      "mean_minimum_tail_margin": 0.043992118
+    },
+    "bundle_manifest": {
+      "id": "seed-67017-ppo-1000000-bundle-manifest",
+      "distribution": "not_in_repository",
+      "path": null,
+      "sha256": "11ca6308b5d1726d4614982dd23a7fedd7c4a2c5db8279955abc9ea8cac29216",
+      "num_timesteps": 1050000,
+      "policy_state_sha256": "da2568d16cadd6dd332fea5497a7651ef6b8eb3b11581ea3d557264f62115a68",
+      "actor_state_sha256": "3a90cdb6eb52e0c9ba9a079e4dbbfb8c5107690cffabd6bcc779cf8128431f6e",
+      "optimizer_state_sha256": "0f2e91df54545eddf5e0e1b646cda2dc3839d7f17bb0c26bf4c19b36800fec8f",
+      "return_rms_sha256": "ed84114802243fe228f2b5688bdeb45f25575670fe25646b99e5d39e81107220"
+    },
+    "normalization": {
+      "id": "seed-67017-ppo-1000000-normalization",
+      "distribution": "not_in_repository",
+      "path": null,
+      "file_sha256": "5f566a43549e5ef3757ed59982f20c2e2bf65e3cd7a3c0036fa13c10a5c320e6",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "count": 23040.0001,
+      "epsilon": 1e-08,
+      "clip_obs": 10.0,
+      "baked_into_onnx": true
+    },
+    "training_receipt": {
+      "id": "seed-67017-training-receipt",
+      "distribution": "not_in_repository",
+      "path": null,
+      "sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    }
+  },
+  "training": {
+    "registered_policy_seeds": [37017, 47017, 57017, 67017, 77017],
+    "selected_policy_seed": 67017,
+    "selected_milestone_active_actor_critic_transitions": 1000000,
+    "registered_run_active_actor_critic_transitions": 2000000,
+    "training_roster": {
+      "case_count": 192,
+      "contract_sha256": "fa088279d023d70b13871a98a68f12af016ede6f2e8bc4618ef7c223d75ce74e",
+      "record_sha256": "805f34de0309340151aad0e1676aed74d70167c893bfb0734482499cf68e0ce8"
+    },
+    "config": {
+      "active_actor_critic_transitions": 2000000,
+      "batch_size": 500,
+      "bc_epochs": 15,
+      "bc_warm_start": true,
+      "clip_range": 0.15,
+      "critic_explained_variance_threshold": 0.5,
+      "critic_warmup_max_transitions": 100000,
+      "critic_warmup_min_transitions": 50000,
+      "development_case_count": 200,
+      "ent_coef": 0.003,
+      "evaluation_milestones": [200000, 500000, 1000000, 2000000],
+      "freeze_observation_rms": true,
+      "gae_lambda": 0.95,
+      "gamma": 0.99,
+      "lanes": 20,
+      "learning_rate": 0.000075,
+      "log_std_init": -1.5,
+      "max_grad_norm": 0.5,
+      "n_epochs": 5,
+      "n_steps_per_lane": 250,
+      "policy_seed": 67017,
+      "preparedness_alignment_coefficient": 10.0,
+      "reward_profile": "v3_equivalent",
+      "rollout_size": 5000,
+      "target_kl": 0.02,
+      "target_kl_semantics": "Stable-Baselines3 early-stops the remaining epoch loop after observing an update above the target",
+      "use_sde": false,
+      "vec_normalize": true,
+      "vf_coef": 0.5
+    },
+    "reward_coefficients_retuned_from_ablation_results": false
+  },
+  "selection": {
+    "split": "dev",
+    "development_case_count": 200,
+    "candidate_count": 20,
+    "primary_metric": "solved_count",
+    "resilience_auc_used_for_selection": false,
+    "tie_break_order": [
+      "earlier_active_actor_critic_transitions",
+      "lower_policy_seed"
+    ],
+    "winner": {
+      "case_count": 200,
+      "solved_count": 178,
+      "solve_rate": 0.89,
+      "mean_resilience_auc": 0.4913824449,
+      "mean_minimum_tail_margin": 0.043992118
+    },
+    "runner_up": {
+      "case_count": 200,
+      "solved_count": 174,
+      "solve_rate": 0.87,
+      "mean_resilience_auc": 0.4884108993,
+      "mean_minimum_tail_margin": 0.0474303055
+    },
+    "margin": {
+      "solved_cases": 4,
+      "percentage_points": 2.0000000000000018
+    },
+    "tie_break": {
+      "used": false,
+      "level": null
+    }
+  },
+  "interface": {
+    "self_contained": true,
+    "provider": "CPUExecutionProvider",
+    "input": {
+      "name": "observation",
+      "type": "tensor(float)",
+      "shape": ["batch", 73],
+      "normalization": "embedded_vecnormalize_observation_rms"
+    },
+    "raw_output": {
+      "name": "action",
+      "type": "tensor(float)",
+      "shape": ["batch", 22]
+    },
+    "action_clip": [-1.0, 1.0]
+  },
+  "development_parity": {
+    "passed": true,
+    "case_count": 200,
+    "action_sample_count": 6000,
+    "action_element_count": 132000,
+    "action_tolerance": 0.00001,
+    "maximum_action_absolute_error": 0.0000019073486328125,
+    "action_elements_over_tolerance": 0,
+    "resilience_auc_tolerance": 0.000001,
+    "maximum_resilience_auc_absolute_error": 0.000000010000000050247593,
+    "sb3_solved_count": 178,
+    "onnx_solved_count": 178,
+    "per_case_outcome_mismatch_count": 0,
+    "deterministic_replay_mismatch_count": 0,
+    "onnx_hard_violation_count": 0,
+    "onnx_maximum_conservation_residual": 0.0,
+    "rows_sha256": "ca9320566b86dfb7a02d2cb9232c7a28c80f08dbbd700dffc6d2af9af1c22d6b"
+  },
+  "observation_order_sha256": "d35d955c843645e0901801d48a64501fbd3887b7281d051e066d41bb613762d7",
+  "action_order_sha256": "aab57085756655377fb5931b1e81f2129e390874a551759d1256894320dc8bce",
+  "runtime_versions": {
+    "training": {
+      "python": "3.12.10",
+      "numpy": "2.3.2",
+      "torch": "2.8.0",
+      "stable-baselines3": "2.7.0",
+      "gymnasium": "1.2.1",
+      "onnx": "1.19.0",
+      "onnxruntime": "1.23.0",
+      "operating_system": "Windows-11-10.0.26200-SP0"
+    },
+    "selection": {
+      "python": "3.12.10",
+      "numpy": "2.3.2",
+      "torch": "2.8.0",
+      "stable-baselines3": "2.7.0",
+      "gymnasium": "1.2.1",
+      "onnx": "1.19.0",
+      "onnxruntime": "1.23.0",
+      "operating_system": "Windows-11-10.0.26200-SP0"
+    },
+    "export_and_parity": {
+      "python": "3.12.10",
+      "numpy": "2.3.2",
+      "torch": "2.8.0+cpu",
+      "stable-baselines3": "2.7.0",
+      "gymnasium": "1.2.1",
+      "onnx": "1.19.0",
+      "onnxruntime": "1.23.0",
+      "operating_system": "Windows-11-10.0.26200-SP0"
+    }
+  }
+}

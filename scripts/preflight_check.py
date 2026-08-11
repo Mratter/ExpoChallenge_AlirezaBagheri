@@ -1,4 +1,4 @@
-"""Validate one explicitly configured policy against the portable runtime."""
+"""Validate the bundled or explicitly configured portable runtime policy."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from backend.app.city.outcome import SOLVED_DEFINITION_SHA256  # noqa: E402
 from backend.app.models import Scenario  # noqa: E402
 from model.policy import (  # noqa: E402
     ACTION_COUNT,
+    DEFAULT_POLICY_PATH,
     OBSERVATION_COUNT,
     Policy,
     load_policy,
@@ -37,13 +38,9 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 def _load_configured_policy() -> Policy:
-    """Load only the ONNX artifact explicitly selected by the operator."""
+    """Load an environment override or the bundled v4 ONNX artifact."""
 
-    policy_path = os.environ.get(POLICY_PATH_ENV, "").strip()
-    if not policy_path:
-        raise RuntimeError(
-            f"{POLICY_PATH_ENV} is required; point it to the ONNX policy to serve."
-        )
+    policy_path = os.environ.get(POLICY_PATH_ENV, "").strip() or DEFAULT_POLICY_PATH
     expected_sha256 = os.environ.get(POLICY_SHA256_ENV)
     if expected_sha256 is not None:
         expected_sha256 = expected_sha256.strip() or None

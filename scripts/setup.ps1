@@ -1,5 +1,6 @@
 param(
     [ValidateSet('cpu')][string]$Profile = 'cpu',
+    [AllowEmptyString()][string]$PolicyPath,
     [switch]$SkipToolBootstrap
 )
 $ErrorActionPreference = 'Stop'
@@ -111,19 +112,19 @@ try {
     & $NpmCommand run build --prefix frontend
     if ($LASTEXITCODE -ne 0) { throw 'The frontend production build failed.' }
 
-    if (-not [string]::IsNullOrWhiteSpace([string]$env:INNOVERSE_POLICY_PATH)) {
-        Write-Host '[setup] Verifying the configured ONNX policy and runtime'
-        & (Join-Path $PSScriptRoot 'preflight.ps1') -Profile $Profile -SkipPortCheck
-        if ($LASTEXITCODE -ne 0) { throw 'Runtime preflight failed.' }
+    Write-Host '[setup] Verifying the bundled or selected ONNX policy and runtime'
+    $PreflightParameters = @{
+        Profile = $Profile
+        SkipPortCheck = $true
     }
-    else {
-        Write-Host '[setup] Runtime installed; no policy is selected yet.'
-        Write-Host '[setup] Set INNOVERSE_POLICY_PATH to an ONNX policy before running the Toolbox.'
+    if ($PSBoundParameters.ContainsKey('PolicyPath')) {
+        $PreflightParameters.PolicyPath = $PolicyPath
     }
+    & (Join-Path $PSScriptRoot 'preflight.ps1') @PreflightParameters
+    if ($LASTEXITCODE -ne 0) { throw 'Runtime preflight failed.' }
 
     Write-Host ''
     Write-Host '[setup] COMPLETE'
-    Write-Host '[setup] Configure: $env:INNOVERSE_POLICY_PATH = ''C:\path\to\policy.onnx'''
     Write-Host '[setup] Start the Toolbox with: powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1'
 }
 finally {

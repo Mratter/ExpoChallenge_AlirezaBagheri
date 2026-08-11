@@ -66,7 +66,7 @@ Finish the domain pass in `backend/app/city/environment.py`. `CityRecoveryEnv` c
 
 ### 3. Follow one policy through the runtime
 
-Read `model/policy.py` for the deployment boundary. It reads an explicitly selected ONNX artifact, validates its identity and 73-to-22 tensor contract, creates an ONNX Runtime session, and validates every predicted action before returning it.
+Read `model/policy.py` for the deployment boundary. It names `artifacts/city_recovery_ppo.v4.onnx` as the bundled zero-configuration default, validates the selected artifact's identity and raw `observation[batch,73]` to `action[batch,22]` tensor contract, creates an ONNX Runtime session, and validates every predicted action before returning it. `scripts/runtime_policy.ps1` gives setup, preflight, and launchers the same fail-closed precedence: explicit `-PolicyPath`, then `INNOVERSE_POLICY_PATH`, then the bundle.
 
 Then move through the application modules in this order:
 
@@ -79,7 +79,7 @@ A comparison request therefore follows a compact path: validate the request, loa
 
 ### 4. Read the scientific tools as clients of the domain
 
-`scripts/train_policy.py` is the full training pipeline. Its main flow is behavior cloning and DAgger, actor-frozen critic warm-up, PPO optimization, development evaluation at fixed milestones, and receipt writing. The instrumented PPO class and diagnostic helpers make optimizer movement, actor freezing, normalization state, and critic quality visible in the resulting evidence. The gated post-training sequence is recorded in the [training deployment plan](TRAINING_DEPLOYMENT_PLAN.md).
+`scripts/train_policy.py` is the full training pipeline. Its main flow is behavior cloning and DAgger, actor-frozen critic warm-up, PPO optimization, development evaluation at fixed milestones, and receipt writing. The instrumented PPO class and diagnostic helpers make optimizer movement, actor freezing, normalization state, and critic quality visible in the resulting evidence. The five-seed baseline and matched ablations are indexed by `internal/developmental_runs/v4/training-study-200-summary.json` and presented in `benchmarks/v4/training-study-200.md`. Selection evaluated 20 checkpoints; `internal/developmental_runs/v4/checkpoint-selection-200.json` chose seed `67017` at 1M with 178/200 development solves, and `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` proves full SB3-to-ONNX parity for the bundled artifact. The gated sequence is recorded in the [training deployment plan](TRAINING_DEPLOYMENT_PLAN.md).
 
 `scripts/evaluate.py` is the compact comparison runner. Read `build_cases`, `resolve_policy`, `rollout`, and `aggregate` in that order to see how a named 200-case development or final split and policy set become matched per-case rows and paired statistics. The final roster is reserved for explicit regression or owner-authorized evaluation; the repository contains no learned-v4 final result.
 
@@ -109,7 +109,7 @@ For the 3D path, begin with `frontend/src/game/CityGame.tsx`, which owns setup, 
 The Python suite follows the production boundaries:
 
 - `tests/test_city_physics.py`, `test_city_scenarios.py`, `test_city_outcome.py`, `test_city_planners.py`, `test_city_optimizer.py`, and `test_city_environment.py` cover the domain from primitives through complete transitions.
-- `tests/test_policy.py` covers ONNX loading and inference contracts.
+- `tests/test_policy.py` covers the bundled artifact identity plus ONNX loading and inference contracts; `tests/test_runtime_policy_resolution.ps1` covers launcher precedence and fail-closed resolution.
 - `tests/test_train_policy.py`, `test_evaluate.py`, `test_build_development_baselines.py`, `test_development_evidence.py`, and `test_headroom.py` cover the scientific tools and their current plus historical evidence.
 - `tests/test_api.py`, `test_recovery_analysis.py`, `test_recovery_exports.py`, and `test_shared_evidence.py` cover the runtime shell and durable results.
 - `tests/test_frontend_contract_generation.py` proves that the generated TypeScript contract matches the canonical Python values.

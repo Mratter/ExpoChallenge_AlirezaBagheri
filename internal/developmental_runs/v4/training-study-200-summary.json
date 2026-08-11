@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "kind": "city-recovery-training-study-200-summary",
+  "scope": {
+    "split": "dev",
+    "development_case_count": 200,
+    "training_roster_case_count": 192,
+    "final_split_used": false,
+    "statement": "Development-only training, ablation, selection, and SB3-to-ONNX parity evidence. This is not a final-split result."
+  },
+  "source_evidence": {
+    "external_study_root": "E:/city-recovery-v4-study-200-attempt-01",
+    "seed_sweep_summary": {
+      "path": "E:/city-recovery-v4-study-200-attempt-01/seed-sweep-summary.json",
+      "sha256": "7ab75187e8233aa088ea00a334c69d6d5a599e8f28841c85fc02746d6830ccc8",
+      "size_bytes": 3299
+    },
+    "ablation_summary": {
+      "path": "E:/city-recovery-v4-study-200-attempt-01/ablation-summary.json",
+      "sha256": "1623d97423ff76d3a59662fcce93266ca67d0899a089e81eb762c28e060575e6",
+      "size_bytes": 16000
+    }
+  },
+  "baseline": {
+    "name": "adopted_v3_equivalent_2m",
+    "config": {
+      "active_actor_critic_transitions": 2000000,
+      "reward_profile": "v3_equivalent",
+      "preparedness_alignment_coefficient": 10.0,
+      "bc_warm_start": true,
+      "vec_normalize": true
+    },
+    "endpoints": [
+      {
+        "seed": 37017,
+        "active_actor_critic_transitions": 2000000,
+        "solved_count": 172,
+        "solve_rate": 0.86,
+        "mean_resilience_auc": 0.487830617,
+        "mean_minimum_tail_margin": 0.0421613017,
+        "receipt_sha256": "a88bde011f0a2b89c3e40b3f0b233e0cd8362f9c6224f2c94d9798225a7b4979"
+      },
+      {
+        "seed": 47017,
+        "active_actor_critic_transitions": 2000000,
+        "solved_count": 171,
+        "solve_rate": 0.855,
+        "mean_resilience_auc": 0.4855700816,
+        "mean_minimum_tail_margin": 0.0458952172,
+        "receipt_sha256": "4e801f03ae33b0ac52f9acb07cb9083a19e20222aecea7ecc3ecb59ae777e50e"
+      },
+      {
+        "seed": 57017,
+        "active_actor_critic_transitions": 2000000,
+        "solved_count": 171,
+        "solve_rate": 0.855,
+        "mean_resilience_auc": 0.4866063695,
+        "mean_minimum_tail_margin": 0.0487350368,
+        "receipt_sha256": "0e8de3231bd9d962a8bc01349920db9f9ac6df5f3c2a4c602afe4845ea5dd5df"
+      },
+      {
+        "seed": 67017,
+        "active_actor_critic_transitions": 2000000,
+        "solved_count": 174,
+        "solve_rate": 0.87,
+        "mean_resilience_auc": 0.4884108993,
+        "mean_minimum_tail_margin": 0.0474303055,
+        "receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+      },
+      {
+        "seed": 77017,
+        "active_actor_critic_transitions": 2000000,
+        "solved_count": 169,
+        "solve_rate": 0.845,
+        "mean_resilience_auc": 0.4882343725,
+        "mean_minimum_tail_margin": 0.0468973412,
+        "receipt_sha256": "abc30ac1e66c6dcbf680e39e8663e876758e93f3070f51814c6fa61078a6c685"
+      }
+    ],
+    "aggregate": {
+      "seed_count": 5,
+      "mean_solved_count": 171.4,
+      "sample_std_solved_count": 1.816590212458495,
+      "mean_solve_rate": 0.857,
+      "sample_std_solve_rate": 0.009082951062292483,
+      "minimum_solved_count": 169,
+      "maximum_solved_count": 174
+    }
+  },
+  "matched_ablation_control": {
+    "seeds": [37017, 47017, 57017],
+    "solved_counts": [172, 171, 171]
+  },
+  "ablations": [
+    {
+      "name": "no_bc_warm_start",
+      "treatment": {
+        "active_actor_critic_transitions": 2000000,
+        "reward_profile": "v3_equivalent",
+        "preparedness_alignment_coefficient": 10.0,
+        "bc_warm_start": false,
+        "vec_normalize": true
+      },
+      "endpoints": [
+        {
+          "seed": 37017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 145,
+          "solve_rate": 0.725,
+          "mean_resilience_auc": 0.4826082389,
+          "mean_minimum_tail_margin": 0.0409850797,
+          "receipt_sha256": "b07cd105203946b5c9fb4c609562f587233fb0ae8af7f78fcd7adb848dcd9c71"
+        },
+        {
+          "seed": 47017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 156,
+          "solve_rate": 0.78,
+          "mean_resilience_auc": 0.4818545254,
+          "mean_minimum_tail_margin": 0.0444698475,
+          "receipt_sha256": "729cb686ae682a5add296b5d3adf34634ed684b4e15a13b3240f90ec1029e1e7"
+        },
+        {
+          "seed": 57017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 151,
+          "solve_rate": 0.755,
+          "mean_resilience_auc": 0.4830872411,
+          "mean_minimum_tail_margin": 0.0414772283,
+          "receipt_sha256": "bf078a7861baee3b0e1df63d6994dd923008f0f014f526f8938499766382a7b6"
+        }
+      ],
+      "paired_solved_deltas": [
+        {"seed": 37017, "control": 172, "treatment": 145, "delta": -27},
+        {"seed": 47017, "control": 171, "treatment": 156, "delta": -15},
+        {"seed": 57017, "control": 171, "treatment": 151, "delta": -20}
+      ],
+      "mean_treatment_minus_control_solved": -20.666666666666668,
+      "aggregate": {
+        "seed_count": 3,
+        "mean_solved_count": 150.66666666666666,
+        "sample_std_solved_count": 5.507570547286102,
+        "mean_solve_rate": 0.7533333333333333,
+        "sample_std_solve_rate": 0.027537852736430536,
+        "minimum_solved_count": 145,
+        "maximum_solved_count": 156
+      }
+    },
+    {
+      "name": "risk_averse_reward",
+      "treatment": {
+        "active_actor_critic_transitions": 2000000,
+        "reward_profile": "risk_averse",
+        "preparedness_alignment_coefficient": 2.0,
+        "bc_warm_start": true,
+        "vec_normalize": true
+      },
+      "endpoints": [
+        {
+          "seed": 37017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 173,
+          "solve_rate": 0.865,
+          "mean_resilience_auc": 0.4918805785,
+          "mean_minimum_tail_margin": 0.0551521294,
+          "receipt_sha256": "a390c5df36f652eb9b72563432101160850b6c40aa25a24bcb101d835352f1a0"
+        },
+        {
+          "seed": 47017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 171,
+          "solve_rate": 0.855,
+          "mean_resilience_auc": 0.4924755172,
+          "mean_minimum_tail_margin": 0.0501784383,
+          "receipt_sha256": "18ff54a29c613165d5eadd73d043b97d2cc18123ff282843fd6164c246bf968e"
+        },
+        {
+          "seed": 57017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 177,
+          "solve_rate": 0.885,
+          "mean_resilience_auc": 0.4928279659,
+          "mean_minimum_tail_margin": 0.0573636255,
+          "receipt_sha256": "3f5441ba47d3e8bb19081f45c2866c2d7106c9e12a6ea46309c3ab05b1ce79e8"
+        }
+      ],
+      "paired_solved_deltas": [
+        {"seed": 37017, "control": 172, "treatment": 173, "delta": 1},
+        {"seed": 47017, "control": 171, "treatment": 171, "delta": 0},
+        {"seed": 57017, "control": 171, "treatment": 177, "delta": 6}
+      ],
+      "mean_treatment_minus_control_solved": 2.3333333333333335,
+      "aggregate": {
+        "seed_count": 3,
+        "mean_solved_count": 173.66666666666666,
+        "sample_std_solved_count": 3.0550504633038935,
+        "mean_solve_rate": 0.8683333333333333,
+        "sample_std_solve_rate": 0.01527525231651948,
+        "minimum_solved_count": 171,
+        "maximum_solved_count": 177
+      },
+      "coefficient_tuning_performed": false,
+      "treatment_note": "This arm used the frozen historical risk-averse reward profile and its registered preparedness-alignment coefficient of 2.0. No reward coefficient was retuned or selected from these results."
+    },
+    {
+      "name": "no_vec_normalize",
+      "treatment": {
+        "active_actor_critic_transitions": 2000000,
+        "reward_profile": "v3_equivalent",
+        "preparedness_alignment_coefficient": 10.0,
+        "bc_warm_start": true,
+        "vec_normalize": false
+      },
+      "endpoints": [
+        {
+          "seed": 37017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 140,
+          "solve_rate": 0.7,
+          "mean_resilience_auc": 0.4867276892,
+          "mean_minimum_tail_margin": 0.0271368701,
+          "receipt_sha256": "bfaa3cd86b22a84ef872f4b6e850b241a9a9ef1436d82c83ad37ed03181caa74"
+        },
+        {
+          "seed": 47017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 134,
+          "solve_rate": 0.67,
+          "mean_resilience_auc": 0.4815081321,
+          "mean_minimum_tail_margin": 0.0262892914,
+          "receipt_sha256": "3cc5b62b85b6eb74334916155bc6f76659aa3c42c3edd2c6303f1c45ae2dc155"
+        },
+        {
+          "seed": 57017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 144,
+          "solve_rate": 0.72,
+          "mean_resilience_auc": 0.4821327343,
+          "mean_minimum_tail_margin": 0.0224742656,
+          "receipt_sha256": "9d71baca38acd1dbe1a9fcc25085cff9f06f24ad2e06c55f19aa20681d17f1a1"
+        }
+      ],
+      "paired_solved_deltas": [
+        {"seed": 37017, "control": 172, "treatment": 140, "delta": -32},
+        {"seed": 47017, "control": 171, "treatment": 134, "delta": -37},
+        {"seed": 57017, "control": 171, "treatment": 144, "delta": -27}
+      ],
+      "mean_treatment_minus_control_solved": -32.0,
+      "aggregate": {
+        "seed_count": 3,
+        "mean_solved_count": 139.33333333333334,
+        "sample_std_solved_count": 5.033222956847166,
+        "mean_solve_rate": 0.6966666666666667,
+        "sample_std_solve_rate": 0.025166114784235794,
+        "minimum_solved_count": 134,
+        "maximum_solved_count": 144
+      }
+    },
+    {
+      "name": "preparedness_alignment_2",
+      "treatment": {
+        "active_actor_critic_transitions": 2000000,
+        "reward_profile": "v3_equivalent",
+        "preparedness_alignment_coefficient": 2.0,
+        "bc_warm_start": true,
+        "vec_normalize": true
+      },
+      "endpoints": [
+        {
+          "seed": 37017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 169,
+          "solve_rate": 0.845,
+          "mean_resilience_auc": 0.4922803157,
+          "mean_minimum_tail_margin": 0.0454214051,
+          "receipt_sha256": "52ed112a67bbc5cebfa02a290e586a563b0829fc099a3c464740528b6cf1ac68"
+        },
+        {
+          "seed": 47017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 170,
+          "solve_rate": 0.85,
+          "mean_resilience_auc": 0.4917553882,
+          "mean_minimum_tail_margin": 0.0496575999,
+          "receipt_sha256": "ed49085aa8cfb7c4e6c0e7f8c8ebe644cc246fe4afc89e411c203d919821559d"
+        },
+        {
+          "seed": 57017,
+          "active_actor_critic_transitions": 2000000,
+          "solved_count": 173,
+          "solve_rate": 0.865,
+          "mean_resilience_auc": 0.4923969882,
+          "mean_minimum_tail_margin": 0.0458915275,
+          "receipt_sha256": "b34d419ad2e3950aa46417fdfab6b4b5a7e740573c5ca3f2e82522361a225ca1"
+        }
+      ],
+      "paired_solved_deltas": [
+        {"seed": 37017, "control": 172, "treatment": 169, "delta": -3},
+        {"seed": 47017, "control": 171, "treatment": 170, "delta": -1},
+        {"seed": 57017, "control": 171, "treatment": 173, "delta": 2}
+      ],
+      "mean_treatment_minus_control_solved": -0.6666666666666666,
+      "aggregate": {
+        "seed_count": 3,
+        "mean_solved_count": 170.66666666666666,
+        "sample_std_solved_count": 2.0816659994661326,
+        "mean_solve_rate": 0.8533333333333334,
+        "sample_std_solve_rate": 0.010408329997330672,
+        "minimum_solved_count": 169,
+        "maximum_solved_count": 173
+      }
+    },
+    {
+      "name": "budget_645k",
+      "treatment": {
+        "active_actor_critic_transitions": 645000,
+        "reward_profile": "v3_equivalent",
+        "preparedness_alignment_coefficient": 10.0,
+        "bc_warm_start": true,
+        "vec_normalize": true
+      },
+      "endpoints": [
+        {
+          "seed": 37017,
+          "active_actor_critic_transitions": 645000,
+          "solved_count": 170,
+          "solve_rate": 0.85,
+          "mean_resilience_auc": 0.4908338452,
+          "mean_minimum_tail_margin": 0.0402506509,
+          "receipt_sha256": "5c41c14c861d0ccd28bc4d2d36a2061a751c28d08391d74183a866608c562944"
+        },
+        {
+          "seed": 47017,
+          "active_actor_critic_transitions": 645000,
+          "solved_count": 169,
+          "solve_rate": 0.845,
+          "mean_resilience_auc": 0.4893769009,
+          "mean_minimum_tail_margin": 0.0408542077,
+          "receipt_sha256": "4d77acdfbe3190cb0198bce03df919fd00a7c93ba521bdc7339294c2645ba82e"
+        },
+        {
+          "seed": 57017,
+          "active_actor_critic_transitions": 645000,
+          "solved_count": 168,
+          "solve_rate": 0.84,
+          "mean_resilience_auc": 0.4895906664,
+          "mean_minimum_tail_margin": 0.0407356394,
+          "receipt_sha256": "25d0188152f9ff71ae676881df868fee6663ff1ebb242058a72bb1134372e9cb"
+        }
+      ],
+      "paired_solved_deltas": [
+        {"seed": 37017, "control": 172, "treatment": 170, "delta": -2},
+        {"seed": 47017, "control": 171, "treatment": 169, "delta": -2},
+        {"seed": 57017, "control": 171, "treatment": 168, "delta": -3}
+      ],
+      "mean_treatment_minus_control_solved": -2.3333333333333335,
+      "aggregate": {
+        "seed_count": 3,
+        "mean_solved_count": 169.0,
+        "sample_std_solved_count": 1.0,
+        "mean_solve_rate": 0.8450000000000001,
+        "sample_std_solve_rate": 0.0050000000000000044,
+        "minimum_solved_count": 168,
+        "maximum_solved_count": 170
+      }
+    }
+  ],
+  "endpoint_invariants": {
+    "training_receipt_count": 20,
+    "hard_violation_count": 0,
+    "maximum_conservation_residual": 0.0
+  },
+  "selection": {
+    "receipt": {
+      "path": "internal/developmental_runs/v4/checkpoint-selection-200.json",
+      "sha256": "65fefa91903e6e7539ead5e1a957528454a9c01e8084ace56fa5047738e73e00",
+      "size_bytes": 33464
+    },
+    "candidate_count": 20,
+    "primary_metric": "solved_count",
+    "resilience_auc_used_for_selection": false,
+    "selected_checkpoint": {
+      "id": "seed-67017-ppo-1000000",
+      "policy_seed": 67017,
+      "active_actor_critic_transitions": 1000000,
+      "solved_count": 178,
+      "solve_rate": 0.89,
+      "checkpoint_sha256": "4e84c74eda1334212ac3680897b3077f62e22b271b7ecc943911f9fd4aa55f22",
+      "normalization_file_sha256": "5f566a43549e5ef3757ed59982f20c2e2bf65e3cd7a3c0036fa13c10a5c320e6",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "bundle_manifest_sha256": "11ca6308b5d1726d4614982dd23a7fedd7c4a2c5db8279955abc9ea8cac29216",
+      "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    },
+    "runner_up": {
+      "id": "seed-67017-ppo-2000000",
+      "solved_count": 174,
+      "solve_rate": 0.87
+    },
+    "margin": {
+      "solved_cases": 4,
+      "percentage_points": 2.0000000000000018
+    },
+    "tie_break_used": false
+  },
+  "publication": {
+    "parity_receipt": {
+      "path": "internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json",
+      "sha256": "e3b487df8221db75d58dc68eccbc9df93af16cb0e9f17b5bc60cf50a5b42ba6c",
+      "size_bytes": 535807
+    },
+    "raw_export_manifest": {
+      "path": "internal/developmental_runs/v4/city_recovery_ppo.v4.export-manifest.raw.json",
+      "sha256": "a2ba49ebabcd79681b93d8d142523e2823b9476025ea0e2645a8d9dcfefac45c",
+      "size_bytes": 8082,
+      "publication_status": "development_parity_passed"
+    },
+    "manifest": {
+      "path": "artifacts/city_recovery_ppo.v4.manifest.json"
+    },
+    "artifact": {
+      "path": "artifacts/city_recovery_ppo.v4.onnx",
+      "sha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
+      "size_bytes": 657385,
+      "format": "onnx",
+      "opset": 17
+    },
+    "interface": {
+      "input_name": "observation",
+      "input_shape": ["batch", 73],
+      "observation_normalization_baked_in": true,
+      "output_name": "action",
+      "output_shape": ["batch", 22],
+      "raw_output_shape": ["batch", 22],
+      "action_clip": [-1.0, 1.0],
+      "provider": "CPUExecutionProvider"
+    },
+    "development_parity": {
+      "passed": true,
+      "case_count": 200,
+      "action_sample_count": 6000,
+      "action_element_count": 132000,
+      "action_tolerance": 0.00001,
+      "maximum_action_absolute_error": 0.0000019073486328125,
+      "action_elements_over_tolerance": 0,
+      "resilience_auc_tolerance": 0.000001,
+      "maximum_resilience_auc_absolute_error": 0.000000010000000050247593,
+      "sb3_solved_count": 178,
+      "onnx_solved_count": 178,
+      "per_case_outcome_mismatch_count": 0,
+      "deterministic_replay_mismatch_count": 0,
+      "onnx_hard_violation_count": 0,
+      "onnx_maximum_conservation_residual": 0.0,
+      "rows_sha256": "ca9320566b86dfb7a02d2cb9232c7a28c80f08dbbd700dffc6d2af9af1c22d6b"
+    }
+  }
+}

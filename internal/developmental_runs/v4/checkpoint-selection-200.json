@@ -1,0 +1,506 @@
+{
+  "candidate_count": 20,
+  "candidates": [
+    {
+      "active_actor_critic_transitions": 1000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000\\manifest.json",
+      "bundle_manifest_sha256": "11ca6308b5d1726d4614982dd23a7fedd7c4a2c5db8279955abc9ea8cac29216",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000\\model.zip",
+      "checkpoint_sha256": "4e84c74eda1334212ac3680897b3077f62e22b271b7ecc943911f9fd4aa55f22",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.043992118,
+        "mean_resilience_auc": 0.4913824449,
+        "solve_rate": 0.89,
+        "solved_count": 178
+      },
+      "id": "seed-67017-ppo-1000000",
+      "normalization_file_sha256": "5f566a43549e5ef3757ed59982f20c2e2bf65e3cd7a3c0036fa13c10a5c320e6",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000\\normalization.npz",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "policy_seed": 67017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\training-receipt.json",
+      "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    },
+    {
+      "active_actor_critic_transitions": 2000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-2000000\\manifest.json",
+      "bundle_manifest_sha256": "b5914f9e24badcaecc04e2b3e4ad4a35624fa71fb870ad40c5fba3c773f481bd",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-2000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-2000000\\model.zip",
+      "checkpoint_sha256": "82b3c899be681ea7b9f1ad169759e754699992f64d5fb0648ecfcd5e393d67da",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0474303055,
+        "mean_resilience_auc": 0.4884108993,
+        "solve_rate": 0.87,
+        "solved_count": 174
+      },
+      "id": "seed-67017-ppo-2000000",
+      "normalization_file_sha256": "a5752a494fabd4ecdbf74bd70cef4c4b0964f87fed83289597403debfc53de94",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-2000000\\normalization.npz",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "policy_seed": 67017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\training-receipt.json",
+      "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    },
+    {
+      "active_actor_critic_transitions": 500000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-500000\\manifest.json",
+      "bundle_manifest_sha256": "df3f0928c2e1e5ef35ce7374a1920dc1fc7c687941f4d1699b014e329de5494e",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-500000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-500000\\model.zip",
+      "checkpoint_sha256": "7169532ba5d25dcc1ff668260966861c42e3298743cf06296e70d845325ebcfd",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0414479242,
+        "mean_resilience_auc": 0.4909917954,
+        "solve_rate": 0.865,
+        "solved_count": 173
+      },
+      "id": "seed-67017-ppo-500000",
+      "normalization_file_sha256": "24cb840efee6adc0fc124f6520a2a627f5d2a9dc45683948386ca5f5240e6dd5",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-500000\\normalization.npz",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "policy_seed": 67017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\training-receipt.json",
+      "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    },
+    {
+      "active_actor_critic_transitions": 2000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-2000000\\manifest.json",
+      "bundle_manifest_sha256": "9d2aafd9885878ae6a7d1b0d31b3cbdac73ffb2a032d884faa48346300ac1df1",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-2000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-2000000\\model.zip",
+      "checkpoint_sha256": "c5f26782323be1ede7bacbf9c3b103cc243bc63fd5239fb3ddd87fd6ba4ca944",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0421613017,
+        "mean_resilience_auc": 0.487830617,
+        "solve_rate": 0.86,
+        "solved_count": 172
+      },
+      "id": "seed-37017-ppo-2000000",
+      "normalization_file_sha256": "4e3aa7bd2225833bba55e891af896e641d002089e0e7fe05901b4076256f1089",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-2000000\\normalization.npz",
+      "observation_rms_sha256": "456c8fab41d53a8d1ecc23fdf461cc9df5642726cff0f84f5bb2f94643876835",
+      "policy_seed": 37017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\training-receipt.json",
+      "training_receipt_sha256": "a88bde011f0a2b89c3e40b3f0b233e0cd8362f9c6224f2c94d9798225a7b4979"
+    },
+    {
+      "active_actor_critic_transitions": 2000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-2000000\\manifest.json",
+      "bundle_manifest_sha256": "e012b8055000d5effd007ba2f60c360bbf4ffa7df7c2d4608258314ce7a7eee6",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-2000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-2000000\\model.zip",
+      "checkpoint_sha256": "c2c0dbd3698b404f67359222b4950da7e7cfcf157f8b4a2600acb62fe5606ddb",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0458952172,
+        "mean_resilience_auc": 0.4855700816,
+        "solve_rate": 0.855,
+        "solved_count": 171
+      },
+      "id": "seed-47017-ppo-2000000",
+      "normalization_file_sha256": "324d7f670f4553e35fafdcd77101b416d666ae73559f39d32403643b26d70f76",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-2000000\\normalization.npz",
+      "observation_rms_sha256": "77156039dd87a2873fb4f1098385d2f163346f4a153a30fe728e7673a9f342ea",
+      "policy_seed": 47017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\training-receipt.json",
+      "training_receipt_sha256": "4e801f03ae33b0ac52f9acb07cb9083a19e20222aecea7ecc3ecb59ae777e50e"
+    },
+    {
+      "active_actor_critic_transitions": 2000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-2000000\\manifest.json",
+      "bundle_manifest_sha256": "a808e0f6d1483d9b4bda87a331a063d44603133984115a17933561cb5fa1a68a",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-2000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-2000000\\model.zip",
+      "checkpoint_sha256": "8d2d2a90ce549df9eb4345631b83da09b295d4c0c8c4ee368b854bf6ad6f2010",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0487350368,
+        "mean_resilience_auc": 0.4866063695,
+        "solve_rate": 0.855,
+        "solved_count": 171
+      },
+      "id": "seed-57017-ppo-2000000",
+      "normalization_file_sha256": "90c57f8db43efc93c975768792d1337f7b54a39b0a347bc06f4d68bc4e88e36d",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-2000000\\normalization.npz",
+      "observation_rms_sha256": "a75c02959bde3cc909e9409c980ee3685ae726a5f94bf2cb5096e2ab19252c97",
+      "policy_seed": 57017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\training-receipt.json",
+      "training_receipt_sha256": "0e8de3231bd9d962a8bc01349920db9f9ac6df5f3c2a4c602afe4845ea5dd5df"
+    },
+    {
+      "active_actor_critic_transitions": 1000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-1000000\\manifest.json",
+      "bundle_manifest_sha256": "87a74c7e9d18bfd82fd2124bf10d0e6f55a20eea78da3f5683f7b9f37883ea09",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-1000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-1000000\\model.zip",
+      "checkpoint_sha256": "c3f1d8d39a356de6fcf557abed407e0a4a68b5b261f117581fd6f71851c3ddf0",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0488005288,
+        "mean_resilience_auc": 0.4904790818,
+        "solve_rate": 0.85,
+        "solved_count": 170
+      },
+      "id": "seed-37017-ppo-1000000",
+      "normalization_file_sha256": "8fdf4d22db3a30d6048c398ac6748a6b53918c3dd1e48fe3daebe217f16be92d",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-1000000\\normalization.npz",
+      "observation_rms_sha256": "456c8fab41d53a8d1ecc23fdf461cc9df5642726cff0f84f5bb2f94643876835",
+      "policy_seed": 37017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\training-receipt.json",
+      "training_receipt_sha256": "a88bde011f0a2b89c3e40b3f0b233e0cd8362f9c6224f2c94d9798225a7b4979"
+    },
+    {
+      "active_actor_critic_transitions": 1000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-1000000\\manifest.json",
+      "bundle_manifest_sha256": "d10b803bbfc9a56e07c10bc0a3c2af13812fe0f4f8f6ec738d7042b14392acef",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-1000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-1000000\\model.zip",
+      "checkpoint_sha256": "9e641eed45fd46306399a74c3d9644a7cb9cf90346087246a09773e05b1d6b18",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.043165413,
+        "mean_resilience_auc": 0.4880671805,
+        "solve_rate": 0.85,
+        "solved_count": 170
+      },
+      "id": "seed-47017-ppo-1000000",
+      "normalization_file_sha256": "ea5006c0280bef80c97f6390ae06f582f7d8dee7ffcc11e05b3e8ee1dfe9113d",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-1000000\\normalization.npz",
+      "observation_rms_sha256": "77156039dd87a2873fb4f1098385d2f163346f4a153a30fe728e7673a9f342ea",
+      "policy_seed": 47017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\training-receipt.json",
+      "training_receipt_sha256": "4e801f03ae33b0ac52f9acb07cb9083a19e20222aecea7ecc3ecb59ae777e50e"
+    },
+    {
+      "active_actor_critic_transitions": 1000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-1000000\\manifest.json",
+      "bundle_manifest_sha256": "2be0e96f4aad8f4ab41e24985eae2028b2e5e5abe34b717bd256cc45974daab5",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-1000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-1000000\\model.zip",
+      "checkpoint_sha256": "ed24d4ae4547bea266858dafe57b74b2e4bc451320b5de43bd8e5409b83dcc5c",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0447815812,
+        "mean_resilience_auc": 0.4883286828,
+        "solve_rate": 0.85,
+        "solved_count": 170
+      },
+      "id": "seed-57017-ppo-1000000",
+      "normalization_file_sha256": "0e6564bdc587f0c7d159a0204cff4b8a1cb96589e32b4b25113fd2c90ee432b2",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-1000000\\normalization.npz",
+      "observation_rms_sha256": "a75c02959bde3cc909e9409c980ee3685ae726a5f94bf2cb5096e2ab19252c97",
+      "policy_seed": 57017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\training-receipt.json",
+      "training_receipt_sha256": "0e8de3231bd9d962a8bc01349920db9f9ac6df5f3c2a4c602afe4845ea5dd5df"
+    },
+    {
+      "active_actor_critic_transitions": 1000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-1000000\\manifest.json",
+      "bundle_manifest_sha256": "95a82451c8a98f9988c8cd1734881806015ddf03d10b138bc9da68070670e020",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-1000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-1000000\\model.zip",
+      "checkpoint_sha256": "40f2e4918bb36baad2f26697b4fec956c6c96a2aad7e3004c3641628845ccb4f",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.048521345,
+        "mean_resilience_auc": 0.4901932963,
+        "solve_rate": 0.845,
+        "solved_count": 169
+      },
+      "id": "seed-77017-ppo-1000000",
+      "normalization_file_sha256": "8006359526c2a61052f89cb70e3973ddf8bc6cf6bd9c0946845de262629bac71",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-1000000\\normalization.npz",
+      "observation_rms_sha256": "6cca61ae612700d33cbbcdae8e46d9e4997cd8916859f7255b16dbb9cb344b4f",
+      "policy_seed": 77017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\training-receipt.json",
+      "training_receipt_sha256": "abc30ac1e66c6dcbf680e39e8663e876758e93f3070f51814c6fa61078a6c685"
+    },
+    {
+      "active_actor_critic_transitions": 2000000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-2000000\\manifest.json",
+      "bundle_manifest_sha256": "5b7f5d70da930cb28642cb897e0ee6e93df4e54e2f805aea258dfdb8959ef941",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-2000000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-2000000\\model.zip",
+      "checkpoint_sha256": "5ad06ddcc6333c7854134e78c49aa332fb4e99631a8c418ef7cf8d68f0ad6d4c",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0468973412,
+        "mean_resilience_auc": 0.4882343725,
+        "solve_rate": 0.845,
+        "solved_count": 169
+      },
+      "id": "seed-77017-ppo-2000000",
+      "normalization_file_sha256": "88d227bc4d0bfab692642725afb65798ffffa9c3958023eabc2b85993d190940",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-2000000\\normalization.npz",
+      "observation_rms_sha256": "6cca61ae612700d33cbbcdae8e46d9e4997cd8916859f7255b16dbb9cb344b4f",
+      "policy_seed": 77017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\training-receipt.json",
+      "training_receipt_sha256": "abc30ac1e66c6dcbf680e39e8663e876758e93f3070f51814c6fa61078a6c685"
+    },
+    {
+      "active_actor_critic_transitions": 500000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-500000\\manifest.json",
+      "bundle_manifest_sha256": "81694093e1757167c959d9c7f8c75c515a6d7069384f84a8d9c506e58304227b",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-500000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-500000\\model.zip",
+      "checkpoint_sha256": "26d2ae032d1e18ad911ede6852f8b27a57f78806f6914122248f9098cba8cfc2",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0423735097,
+        "mean_resilience_auc": 0.4909197658,
+        "solve_rate": 0.84,
+        "solved_count": 168
+      },
+      "id": "seed-77017-ppo-500000",
+      "normalization_file_sha256": "96614ba6460b5398763b5c8739888b8899e170c1e441836983edb95fbec2347b",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-500000\\normalization.npz",
+      "observation_rms_sha256": "6cca61ae612700d33cbbcdae8e46d9e4997cd8916859f7255b16dbb9cb344b4f",
+      "policy_seed": 77017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\training-receipt.json",
+      "training_receipt_sha256": "abc30ac1e66c6dcbf680e39e8663e876758e93f3070f51814c6fa61078a6c685"
+    },
+    {
+      "active_actor_critic_transitions": 500000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-500000\\manifest.json",
+      "bundle_manifest_sha256": "877749551fcaace91c854cdd20e7733b22581d315f8836f72807a131889c79db",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-500000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-500000\\model.zip",
+      "checkpoint_sha256": "b037884d92ad956c2b9602c8af40b501ff5ff591d3f1c9ee23a6e8b9b4e781df",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0380475171,
+        "mean_resilience_auc": 0.4902082384,
+        "solve_rate": 0.835,
+        "solved_count": 167
+      },
+      "id": "seed-37017-ppo-500000",
+      "normalization_file_sha256": "0dd44e2bed7a4c2123b67907c137f9c54dce3611be2684a2f2bf73c4bf1087e6",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-500000\\normalization.npz",
+      "observation_rms_sha256": "456c8fab41d53a8d1ecc23fdf461cc9df5642726cff0f84f5bb2f94643876835",
+      "policy_seed": 37017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\training-receipt.json",
+      "training_receipt_sha256": "a88bde011f0a2b89c3e40b3f0b233e0cd8362f9c6224f2c94d9798225a7b4979"
+    },
+    {
+      "active_actor_critic_transitions": 500000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-500000\\manifest.json",
+      "bundle_manifest_sha256": "dade2a61646c35e69d1d124f0b3a7b6b42c35201ecb7e3790b931037eaf1a976",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-500000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-500000\\model.zip",
+      "checkpoint_sha256": "6dcb660649739de8d2fe56f4419b4be78029365fe5b5b907d5660c8ccfb9f64e",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0383255204,
+        "mean_resilience_auc": 0.4893720675,
+        "solve_rate": 0.835,
+        "solved_count": 167
+      },
+      "id": "seed-57017-ppo-500000",
+      "normalization_file_sha256": "a691d1e5c1ee47adb7c646112b8757fee4b2029ab8e22f63053fb65638f1c7b9",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-500000\\normalization.npz",
+      "observation_rms_sha256": "a75c02959bde3cc909e9409c980ee3685ae726a5f94bf2cb5096e2ab19252c97",
+      "policy_seed": 57017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\training-receipt.json",
+      "training_receipt_sha256": "0e8de3231bd9d962a8bc01349920db9f9ac6df5f3c2a4c602afe4845ea5dd5df"
+    },
+    {
+      "active_actor_critic_transitions": 500000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-500000\\manifest.json",
+      "bundle_manifest_sha256": "4a54779c980836465991fc1cd9b47c946c1fff5be1881d348094a7aa13d1c448",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-500000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-500000\\model.zip",
+      "checkpoint_sha256": "b8146e271923b9066dddb22e30b6e42af3eb50b357d6e5c8c080bbd65a70423e",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0377213719,
+        "mean_resilience_auc": 0.4900964084,
+        "solve_rate": 0.83,
+        "solved_count": 166
+      },
+      "id": "seed-47017-ppo-500000",
+      "normalization_file_sha256": "fa8f7426d571c2254de10594e1fd67cedf1e736974163bfe17d17557254c3de9",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-500000\\normalization.npz",
+      "observation_rms_sha256": "77156039dd87a2873fb4f1098385d2f163346f4a153a30fe728e7673a9f342ea",
+      "policy_seed": 47017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\training-receipt.json",
+      "training_receipt_sha256": "4e801f03ae33b0ac52f9acb07cb9083a19e20222aecea7ecc3ecb59ae777e50e"
+    },
+    {
+      "active_actor_critic_transitions": 200000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-200000\\manifest.json",
+      "bundle_manifest_sha256": "5b864e0672614ac02dc0d4e93b2148783105b48a6709010a9a24d9c7a2bf597c",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-200000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-200000\\model.zip",
+      "checkpoint_sha256": "ae9790505585d5e0f3c33ff1ac592dd8e4e5db66bbfb76321ca6e2d7c424ced4",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0350803605,
+        "mean_resilience_auc": 0.4887776294,
+        "solve_rate": 0.825,
+        "solved_count": 165
+      },
+      "id": "seed-67017-ppo-200000",
+      "normalization_file_sha256": "b16a627b864942d89e7a741d97d13b501b0e071feb2fcb97d00d877b2b97f7f6",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-200000\\normalization.npz",
+      "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+      "policy_seed": 67017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\training-receipt.json",
+      "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+    },
+    {
+      "active_actor_critic_transitions": 200000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-200000\\manifest.json",
+      "bundle_manifest_sha256": "6ef8f9a1b883bbdc6941b233508e926f60c51c412d953f492b8e5289aaebe473",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-200000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-200000\\model.zip",
+      "checkpoint_sha256": "17050e9926393fc5ec886edb8f07590f17dba1431f6292bd7b647a8dd5f1741b",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0346928077,
+        "mean_resilience_auc": 0.4890093425,
+        "solve_rate": 0.805,
+        "solved_count": 161
+      },
+      "id": "seed-77017-ppo-200000",
+      "normalization_file_sha256": "577ff19bc400fe935a17661b3d7908acebeeb8ec081da7fb0706a09b83ff36f5",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\checkpoints\\ppo-200000\\normalization.npz",
+      "observation_rms_sha256": "6cca61ae612700d33cbbcdae8e46d9e4997cd8916859f7255b16dbb9cb344b4f",
+      "policy_seed": 77017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-77017\\training-receipt.json",
+      "training_receipt_sha256": "abc30ac1e66c6dcbf680e39e8663e876758e93f3070f51814c6fa61078a6c685"
+    },
+    {
+      "active_actor_critic_transitions": 200000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-200000\\manifest.json",
+      "bundle_manifest_sha256": "b22cd451a4d0ddbfd1c0c0b006a6e982109dea9e7251b14bdf5a84afd3a2df41",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-200000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-200000\\model.zip",
+      "checkpoint_sha256": "fbe4282828ba7cdcf26a3cbcbca8bf4d99855cf078f17aca4b418239362c38db",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0307688698,
+        "mean_resilience_auc": 0.4879808025,
+        "solve_rate": 0.8,
+        "solved_count": 160
+      },
+      "id": "seed-37017-ppo-200000",
+      "normalization_file_sha256": "e11e77006c6a670a3137555773309d3a6196597a58f2fd3bfbc7ec2fea48ed7c",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\checkpoints\\ppo-200000\\normalization.npz",
+      "observation_rms_sha256": "456c8fab41d53a8d1ecc23fdf461cc9df5642726cff0f84f5bb2f94643876835",
+      "policy_seed": 37017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-37017\\training-receipt.json",
+      "training_receipt_sha256": "a88bde011f0a2b89c3e40b3f0b233e0cd8362f9c6224f2c94d9798225a7b4979"
+    },
+    {
+      "active_actor_critic_transitions": 200000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-200000\\manifest.json",
+      "bundle_manifest_sha256": "89051be9840cb896029ee0100de4cb22aa7dff57c1bf5e0eee441cfb9f9d068a",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-200000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-200000\\model.zip",
+      "checkpoint_sha256": "4eeb93f4173f5586afc2d31034483becb88e231f28365d4cc26956abf54af0b2",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0329997291,
+        "mean_resilience_auc": 0.4889600969,
+        "solve_rate": 0.8,
+        "solved_count": 160
+      },
+      "id": "seed-47017-ppo-200000",
+      "normalization_file_sha256": "3a4d8086c30fbf5093abe6c6c92f27dd69dcfcccb3baabdbe92808d8dfff5cba",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\checkpoints\\ppo-200000\\normalization.npz",
+      "observation_rms_sha256": "77156039dd87a2873fb4f1098385d2f163346f4a153a30fe728e7673a9f342ea",
+      "policy_seed": 47017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-47017\\training-receipt.json",
+      "training_receipt_sha256": "4e801f03ae33b0ac52f9acb07cb9083a19e20222aecea7ecc3ecb59ae777e50e"
+    },
+    {
+      "active_actor_critic_transitions": 200000,
+      "bundle_manifest_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-200000\\manifest.json",
+      "bundle_manifest_sha256": "66ad059f10e441ef574595bfeab5403e3ced125453b9bd8d2e9a9ae0d6becedd",
+      "bundle_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-200000",
+      "checkpoint_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-200000\\model.zip",
+      "checkpoint_sha256": "c2755f1dc7e0b5d5b9d5b05b0261be3d63bd0cf0e01f89f2fca05dde7c897f28",
+      "development": {
+        "case_count": 200,
+        "mean_minimum_tail_margin": 0.0320051409,
+        "mean_resilience_auc": 0.4891413451,
+        "solve_rate": 0.8,
+        "solved_count": 160
+      },
+      "id": "seed-57017-ppo-200000",
+      "normalization_file_sha256": "8e2fbd625b67b491308c9e290f98df57780c96a93b55fa297df1aacfb5831dc7",
+      "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\checkpoints\\ppo-200000\\normalization.npz",
+      "observation_rms_sha256": "a75c02959bde3cc909e9409c980ee3685ae726a5f94bf2cb5096e2ab19252c97",
+      "policy_seed": 57017,
+      "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-57017\\training-receipt.json",
+      "training_receipt_sha256": "0e8de3231bd9d962a8bc01349920db9f9ac6df5f3c2a4c602afe4845ea5dd5df"
+    }
+  ],
+  "development_case_count": 200,
+  "final_split_used": false,
+  "margin": {
+    "percentage_points": 2.0000000000000018,
+    "solved_cases": 4
+  },
+  "ranking": {
+    "primary_metric": "solved_count",
+    "resilience_auc_used_for_selection": false,
+    "tie_break_order": [
+      "earlier_active_actor_critic_transitions",
+      "lower_policy_seed"
+    ]
+  },
+  "runner_up": {
+    "case_count": 200,
+    "mean_minimum_tail_margin": 0.0474303055,
+    "mean_resilience_auc": 0.4884108993,
+    "solve_rate": 0.87,
+    "solved_count": 174
+  },
+  "runtime_versions": {
+    "gymnasium": "1.2.1",
+    "numpy": "2.3.2",
+    "onnx": "1.19.0",
+    "onnxruntime": "1.23.0",
+    "operating_system": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "stable-baselines3": "2.7.0",
+    "torch": "2.8.0"
+  },
+  "schema_version": "city-recovery-checkpoint-selection-v2",
+  "selected_checkpoint": {
+    "active_actor_critic_transitions": 1000000,
+    "id": "seed-67017-ppo-1000000",
+    "normalization_file_sha256": "5f566a43549e5ef3757ed59982f20c2e2bf65e3cd7a3c0036fa13c10a5c320e6",
+    "normalization_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000\\normalization.npz",
+    "observation_rms_sha256": "6823fd134e915a0d22d149895479a003c51711d3f2b0649c37205674365cd022",
+    "path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\checkpoints\\ppo-1000000\\model.zip",
+    "policy_seed": 67017,
+    "sha256": "4e84c74eda1334212ac3680897b3077f62e22b271b7ecc943911f9fd4aa55f22",
+    "training_receipt_path": "E:\\city-recovery-v4-study-200-attempt-01\\adopted_v3_equivalent_2m\\seed-67017\\training-receipt.json",
+    "training_receipt_sha256": "37bc81cd677ae86458c207a99758c1c295b411906e7fe1ce2ea22d26bb22398f"
+  },
+  "source_seed_sweep_summary": {
+    "path": "E:\\city-recovery-v4-study-200-attempt-01\\seed-sweep-summary.json",
+    "sha256": "7ab75187e8233aa088ea00a334c69d6d5a599e8f28841c85fc02746d6830ccc8"
+  },
+  "split": "dev",
+  "tie_break": {
+    "level": null,
+    "used": false
+  },
+  "tool": "select_checkpoint.py",
+  "winner": {
+    "case_count": 200,
+    "mean_minimum_tail_margin": 0.043992118,
+    "mean_resilience_auc": 0.4913824449,
+    "solve_rate": 0.89,
+    "solved_count": 178
+  }
+}

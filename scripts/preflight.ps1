@@ -1,6 +1,7 @@
 param(
     [ValidateSet('cpu')][string]$Profile = 'cpu',
     [ValidateRange(1, 65535)][int]$Port = 4117,
+    [AllowEmptyString()][string]$PolicyPath,
     [switch]$SkipPortCheck
 )
 $ErrorActionPreference = 'Stop'
@@ -8,10 +9,12 @@ Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'project_environment.ps1')
+. (Join-Path $PSScriptRoot 'runtime_policy.ps1')
 
 $RequiredPaths = @(
     'requirements.txt',
     'scripts/preflight_check.py',
+    'scripts/runtime_policy.ps1',
     'backend/app/main.py',
     'backend/app/models.py',
     'backend/app/persistence.py',
@@ -35,19 +38,11 @@ foreach ($RelativePath in $RequiredPaths) {
     }
 }
 
-$PolicyPathText = [string]$env:INNOVERSE_POLICY_PATH
-if ([string]::IsNullOrWhiteSpace($PolicyPathText)) {
-    throw 'INNOVERSE_POLICY_PATH is required. Set it to the ONNX policy that this runtime should serve.'
-}
-try {
-    $ResolvedPolicyPath = (Resolve-Path -LiteralPath $PolicyPathText -ErrorAction Stop).Path
-}
-catch {
-    throw "INNOVERSE_POLICY_PATH does not resolve to a readable policy file: $PolicyPathText"
-}
-if (-not (Test-Path -LiteralPath $ResolvedPolicyPath -PathType Leaf)) {
-    throw "INNOVERSE_POLICY_PATH is not a file: $ResolvedPolicyPath"
-}
+$ResolvedPolicyPath = Resolve-CityRecoveryPolicyPath `
+    -Root $Root `
+    -ExplicitPolicyPath $PolicyPath `
+    -ExplicitPolicyProvided ($PSBoundParameters.ContainsKey('PolicyPath')) `
+    -EnvironmentPolicyPath ([string]$env:INNOVERSE_POLICY_PATH)
 $env:INNOVERSE_POLICY_PATH = $ResolvedPolicyPath
 $env:INNOVERSE_PROFILE = $Profile
 

@@ -1,12 +1,20 @@
 # Training deployment plan
 
-This document records the gated path from durable training checkpoints to a served model. It is a plan, not an authorization to run compute or publish a model. Stage 0 is a pre-training prerequisite that must be implemented and verified before the next owner-authorized training run. Stages 1–5 begin only after the owner identifies that run's completed receipt and explicitly authorizes checkpoint selection and deployment work.
+This document records the gated path from durable training checkpoints to a served model. It is also the reusable acceptance contract for future owner-authorized runs; it does not authorize more training or any learned-policy final evaluation.
 
 The plan therefore has one pre-training stage and five ordered post-training stages: select on development cases, export the selected actor, prove SB3-to-ONNX parity, publish descriptive metadata, and connect the selected artifact to the application. Every performance decision in Stages 1–5 uses the 200 development cases.
 
+## Current publication status
+
+The completed five-seed sweep registered 20 development checkpoints across policy seeds `37017`, `47017`, `57017`, `67017`, and `77017`. Their 2M endpoints solved 172, 171, 171, 174, and 169 cases respectively, for mean 171.4/200 and sample standard deviation 1.82. Solve-count selection chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, four solves and two percentage points ahead of the **174 / 200** runner-up; no tie-break was needed. The complete study index is `internal/developmental_runs/v4/training-study-200-summary.json`, with its human-readable report at `benchmarks/v4/training-study-200.md`.
+
+`artifacts/city_recovery_ppo.v4.onnx` is the selected self-contained opset-17 artifact, SHA-256 `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483`. Its raw graph contract is `observation: tensor(float)[batch,73]` to `action: tensor(float)[batch,22]`. The 200-case parity receipt records 178 solves for both SB3 and ONNX, maximum action error `1.9073486328125e-06`, maximum resilience-AUC error `1.0000000050247593e-08`, zero replay mismatches, zero hard violations, and exact conservation. The neighboring manifest binds the artifact, selected checkpoint, observation normalization, selection receipt, and parity receipt.
+
+The runtime now uses that artifact without configuration. `-PolicyPath` overrides `INNOVERSE_POLICY_PATH`, which overrides the bundle; an invalid higher-priority path fails closed. Focused readiness and preflight checks verify this integration. The application-level gate has also passed: all 200 development cases ran through FastAPI `POST` → persist → `GET`, and the served policy exactly reproduced the accepted **178 / 200** solves. This is development-only deployment evidence, not a learned-v4 final result or authorization to run the final split.
+
 ## 0. Make milestone checkpoints durable before training
 
-The current `scripts/train_policy.py` writes evaluation rows and state digests to its receipt, but it does not persist model weights or the observation-normalization state. Checkpoint selection and export are therefore blocked until the trainer can publish a complete artifact bundle at every registered development milestone and at the terminal budget.
+The current `scripts/train_policy.py` publishes complete, atomic checkpoint bundles at every registered development milestone and at the terminal budget. Each bundle is bound into the training receipt and remains available for deterministic selection, export, or explicitly characterized continuation.
 
 Each bundle must be written through temporary files, flushed, atomically renamed, and then bound into the training receipt by path and SHA-256. It must contain:
 
@@ -17,7 +25,7 @@ Each bundle must be written through temporary files, flushed, atomically renamed
 - training configuration, seed set, completed transition count, and milestone ID; and
 - a canonical bundle manifest covering every file hash and the observation RMS digest.
 
-Before authorized training compute, add a fresh-process round-trip test that reloads a synthetic checkpoint bundle and proves byte-identical policy hashes, optimizer-state hashes, counters, observation RMS digest, and deterministic actions on fixed raw observations. Define continuation semantics explicitly: a bundle is always valid for selection, evaluation, and export; it is called bit-exact resumable only if vector-environment lane state, lane RNG state, and in-progress normalization returns are also captured and verified. Otherwise the receipt must label resume as non-bit-exact and must not present a restarted continuation as the uninterrupted registered run.
+Before any future authorized training compute, retain the fresh-process round-trip test that reloads a synthetic checkpoint bundle and proves byte-identical policy hashes, optimizer-state hashes, counters, observation RMS digest, and deterministic actions on fixed raw observations. A bundle is always valid for selection, evaluation, and export; it is called bit-exact resumable only if vector-environment lane state, lane RNG state, and in-progress normalization returns are also captured and verified. Otherwise the receipt must label resume as non-bit-exact and must not present a restarted continuation as the uninterrupted registered run.
 
 ## 1. Select one checkpoint on development solve rate
 
@@ -105,7 +113,7 @@ The manifest is non-enforcing: `model/policy.py` continues to validate the ONNX 
 
 ## 5. Integrate and replay through the served path
 
-Configure the application with the selected artifact through `INNOVERSE_POLICY_PATH` and its optional `INNOVERSE_POLICY_SHA256`. Keep `model/policy.py` as the single CPU inference boundary; do not add a second inference or normalization path in `backend/app/main.py`.
+Publish the selected artifact at `artifacts/city_recovery_ppo.v4.onnx`, which is the application's zero-configuration default. An explicit `-PolicyPath` takes precedence over a nonblank `INNOVERSE_POLICY_PATH`, and either overrides the bundle; `INNOVERSE_POLICY_SHA256` optionally constrains whichever path wins. Invalid explicit choices fail closed instead of falling through. Keep `model/policy.py` as the single CPU inference boundary; do not add a second inference or normalization path in `backend/app/main.py`.
 
 Verify the configured artifact through the same path used by operators:
 

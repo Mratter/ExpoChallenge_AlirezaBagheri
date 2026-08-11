@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -15,6 +16,9 @@ from backend.app.shared_evidence import canonical_hash
 from model.policy import PolicyError
 
 POLICY_SHA256 = "a" * 64
+SHIPPED_POLICY_SHA256 = (
+    "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483"
+)
 
 
 def _policy() -> SimpleNamespace:
@@ -50,7 +54,7 @@ def _result(seed: int = 8) -> dict[str, Any]:
     }
 
 
-def test_primary_routes_require_an_explicit_runtime_policy(
+def test_primary_routes_use_the_bundled_policy_without_environment_configuration(
     monkeypatch: Any,
 ) -> None:
     monkeypatch.delenv(main.POLICY_PATH_ENV, raising=False)
@@ -58,17 +62,39 @@ def test_primary_routes_require_an_explicit_runtime_policy(
     client = TestClient(main.app)
 
     assert client.get("/health/live").status_code == 200
-    for path in ("/health/ready", "/api/v1/meta"):
-        response = client.get(path)
-        assert response.status_code == 503
-        assert response.json()["error"] == {
-            "code": "DEPENDENCY_NOT_READY",
-            "message": "INNOVERSE_POLICY_PATH is required",
-            "details": [],
-        }
+    ready = client.get("/health/ready")
+    metadata = client.get("/api/v1/meta")
+
+    assert hashlib.sha256(main.DEFAULT_POLICY_PATH.read_bytes()).hexdigest() == (
+        SHIPPED_POLICY_SHA256
+    )
+    assert ready.status_code == 200
+    assert ready.json()["policy_id"] == "city_recovery_ppo.v4"
+    assert ready.json()["policy_path_stem"] == "city_recovery_ppo.v4"
+    assert ready.json()["policy_sha256"] == SHIPPED_POLICY_SHA256
+    assert ready.json()["observation_count"] == 73
+    assert ready.json()["action_count"] == 22
+    assert metadata.status_code == 200
+    assert metadata.json()["model"]["id"] == "city_recovery_ppo.v4"
+    assert metadata.json()["model"]["sha256"] == SHIPPED_POLICY_SHA256
 
 
-def test_configured_policy_uses_only_operator_selected_path_and_hash(
+def test_missing_bundled_policy_fails_closed_without_a_fixture_fallback(
+    monkeypatch: Any,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv(main.POLICY_PATH_ENV, raising=False)
+    monkeypatch.delenv(main.POLICY_SHA256_ENV, raising=False)
+    monkeypatch.setattr(main, "DEFAULT_POLICY_PATH", tmp_path / "missing-v4.onnx")
+
+    response = TestClient(main.app).get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "DEPENDENCY_NOT_READY"
+    assert "missing or unreadable" in response.json()["error"]["message"]
+
+
+def test_environment_policy_and_hash_override_the_bundled_default(
     monkeypatch: Any,
 ) -> None:
     captured: dict[str, Any] = {}

@@ -1,4 +1,4 @@
-"""Load and run one explicitly selected City Recovery ONNX policy."""
+"""Load and run the bundled or explicitly selected City Recovery ONNX policy."""
 
 from __future__ import annotations
 
@@ -15,6 +15,11 @@ import onnxruntime as ort
 OBSERVATION_COUNT = 73
 ACTION_COUNT = 22
 ACTION_BOUND = 1.0
+DEFAULT_POLICY_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "artifacts"
+    / "city_recovery_ppo.v4.onnx"
+)
 
 _INPUT_NAME = "observation"
 _OUTPUT_NAME = "action"
@@ -186,6 +191,7 @@ def load_policy(
 
 __all__ = [
     "ACTION_COUNT",
+    "DEFAULT_POLICY_PATH",
     "OBSERVATION_COUNT",
     "Policy",
     "PolicyError",

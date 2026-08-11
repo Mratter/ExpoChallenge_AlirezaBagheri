@@ -993,6 +993,20 @@ def _cpu_session(payload: bytes) -> ort.InferenceSession:
         raise ExportError("ONNX artifact is not loadable on CPU") from exc
 
 
+def _serialized_onnx_shape(
+    value_info: onnx.ValueInfoProto,
+) -> list[str | int | None]:
+    dimensions = value_info.type.tensor_type.shape.dim
+    return [
+        dimension.dim_value
+        if dimension.HasField("dim_value")
+        else dimension.dim_param
+        if dimension.HasField("dim_param")
+        else None
+        for dimension in dimensions
+    ]
+
+
 def inspect_onnx_contract(path: Path) -> dict[str, Any]:
     """Inspect the exact runtime interface and CPU-only execution contract."""
 
@@ -1007,13 +1021,35 @@ def inspect_onnx_contract(path: Path) -> dict[str, Any]:
     if any(initializer.external_data for initializer in graph.graph.initializer):
         raise ExportError("ONNX graph must be self-contained")
 
+    input_shape = ["batch", OBSERVATION_COUNT]
+    output_shape = ["batch", ACTION_COUNT]
+    graph_inputs = graph.graph.input
+    graph_outputs = graph.graph.output
+    if (
+        len(graph_inputs) != 1
+        or graph_inputs[0].name != INPUT_NAME
+        or graph_inputs[0].type.tensor_type.elem_type != onnx.TensorProto.FLOAT
+        or _serialized_onnx_shape(graph_inputs[0]) != input_shape
+    ):
+        raise ExportError(
+            "serialized ONNX input must be observation: "
+            "tensor(float)[batch, 73]"
+        )
+    if (
+        len(graph_outputs) != 1
+        or graph_outputs[0].name != OUTPUT_NAME
+        or graph_outputs[0].type.tensor_type.elem_type != onnx.TensorProto.FLOAT
+        or _serialized_onnx_shape(graph_outputs[0]) != output_shape
+    ):
+        raise ExportError(
+            "serialized ONNX output must be action: tensor(float)[batch, 22]"
+        )
+
     session = _cpu_session(payload)
     if session.get_providers() != ["CPUExecutionProvider"]:
         raise ExportError("ONNX session must use only CPUExecutionProvider")
     inputs = session.get_inputs()
     outputs = session.get_outputs()
-    input_shape = ["batch", OBSERVATION_COUNT]
-    output_shape = ["batch", ACTION_COUNT]
     if (
         len(inputs) != 1
         or inputs[0].name != INPUT_NAME
@@ -1021,7 +1057,7 @@ def inspect_onnx_contract(path: Path) -> dict[str, Any]:
         or list(inputs[0].shape) != input_shape
     ):
         raise ExportError(
-            "ONNX input must be observation: tensor(float)[batch, 73]"
+            "ONNX Runtime input must be observation: tensor(float)[batch, 73]"
         )
     if (
         len(outputs) != 1
@@ -1029,7 +1065,9 @@ def inspect_onnx_contract(path: Path) -> dict[str, Any]:
         or outputs[0].type != "tensor(float)"
         or list(outputs[0].shape) != output_shape
     ):
-        raise ExportError("ONNX output must be action: tensor(float)[batch, 22]")
+        raise ExportError(
+            "ONNX Runtime output must be action: tensor(float)[batch, 22]"
+        )
 
     smoke_shapes: list[list[int]] = []
     for batch_size in (1, 3):
@@ -1078,6 +1116,23 @@ def load_onnx_cpu_session(path: Path) -> ort.InferenceSession:
     return _cpu_session(payload)
 
 
+def _infer_and_save_onnx_shapes(path: Path) -> None:
+    """Persist inferred metadata without changing the exported computation."""
+
+    try:
+        graph = onnx.load(path, load_external_data=False)
+        inferred = onnx.shape_inference.infer_shapes(
+            graph,
+            check_type=True,
+            strict_mode=True,
+            data_prop=True,
+        )
+        onnx.checker.check_model(inferred)
+        onnx.save_model(inferred, path, save_as_external_data=False)
+    except Exception as exc:
+        raise ExportError("ONNX shape inference failed") from exc
+
+
 def export_deterministic_actor(
     model: PPO,
     normalization: ObservationNormalization,
@@ -1111,6 +1166,7 @@ def export_deterministic_actor(
                 keep_initializers_as_inputs=False,
                 dynamo=False,
             )
+        _infer_and_save_onnx_shapes(temporary)
         with temporary.open("r+b") as handle:
             handle.flush()
             os.fsync(handle.fileno())

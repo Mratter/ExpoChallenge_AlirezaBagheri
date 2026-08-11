@@ -1,7 +1,7 @@
 param(
     [ValidateSet('cpu')][string]$Profile = 'cpu',
     [ValidateRange(1, 65535)][int]$Port = 4117,
-    [string]$PolicyPath = $env:INNOVERSE_POLICY_PATH,
+    [AllowEmptyString()][string]$PolicyPath,
     [switch]$NoBrowser
 )
 $ErrorActionPreference = 'Stop'
@@ -9,20 +9,17 @@ Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'project_environment.ps1')
-if ([string]::IsNullOrWhiteSpace($PolicyPath)) {
-    throw 'A policy is required. Set INNOVERSE_POLICY_PATH or pass -PolicyPath with the ONNX file to serve.'
-}
-try {
-    $ResolvedPolicyPath = (Resolve-Path -LiteralPath $PolicyPath -ErrorAction Stop).Path
-}
-catch {
-    throw "The selected policy does not exist: $PolicyPath"
-}
-if (-not (Test-Path -LiteralPath $ResolvedPolicyPath -PathType Leaf)) {
-    throw "The selected policy is not a file: $ResolvedPolicyPath"
-}
+. (Join-Path $PSScriptRoot 'runtime_policy.ps1')
+$ResolvedPolicyPath = Resolve-CityRecoveryPolicyPath `
+    -Root $Root `
+    -ExplicitPolicyPath $PolicyPath `
+    -ExplicitPolicyProvided ($PSBoundParameters.ContainsKey('PolicyPath')) `
+    -EnvironmentPolicyPath ([string]$env:INNOVERSE_POLICY_PATH)
 $env:INNOVERSE_POLICY_PATH = $ResolvedPolicyPath
-& (Join-Path $PSScriptRoot 'preflight.ps1') -Profile $Profile -Port $Port
+& (Join-Path $PSScriptRoot 'preflight.ps1') `
+    -Profile $Profile `
+    -Port $Port `
+    -PolicyPath $ResolvedPolicyPath
 
 $Context = Get-CityRecoveryEnvironmentContext -Root $Root
 $env:INNOVERSE_PROFILE = $Profile

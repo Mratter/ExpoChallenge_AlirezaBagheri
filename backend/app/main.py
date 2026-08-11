@@ -44,7 +44,7 @@ from backend.app.recovery_exports import (
     recovery_plan_export,
 )
 from backend.app.shared_evidence import canonical_bytes
-from model.policy import Policy, PolicyError, load_policy
+from model.policy import DEFAULT_POLICY_PATH, Policy, PolicyError, load_policy
 
 APP_VERSION = "2.0.0"
 DEFAULT_SEED = 424242
@@ -84,7 +84,7 @@ def error_payload(
 
 
 def dependency_error(exc: Exception) -> CanonicalJSONResponse:
-    """Report a missing or invalid explicitly configured policy."""
+    """Report a missing or invalid bundled or configured policy."""
 
     return CanonicalJSONResponse(
         status_code=503,
@@ -109,11 +109,9 @@ def persistence_error(exc: PersistenceError) -> CanonicalJSONResponse:
 
 
 def configured_policy() -> Policy:
-    """Load only the ONNX artifact explicitly selected by the operator."""
+    """Load an operator override or the bundled v4 ONNX artifact."""
 
-    path = os.environ.get(POLICY_PATH_ENV, "").strip()
-    if not path:
-        raise PolicyError(f"{POLICY_PATH_ENV} is required")
+    path = os.environ.get(POLICY_PATH_ENV, "").strip() or DEFAULT_POLICY_PATH
     expected_sha256 = os.environ.get(POLICY_SHA256_ENV)
     if expected_sha256 is not None:
         expected_sha256 = expected_sha256.strip() or None
@@ -208,7 +206,7 @@ def health_live() -> dict[str, str]:
 
 @app.get("/health/ready", response_model=None)
 def health_ready() -> Response | dict[str, Any]:
-    """Confirm that the explicitly configured policy is ready for inference."""
+    """Confirm that the selected runtime policy is ready for inference."""
 
     try:
         policy = configured_policy()

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import gymnasium as gym
 import numpy as np
+import onnx
 import pytest
 import torch
 from gymnasium import spaces
@@ -118,6 +119,18 @@ def _write_checkpoint(path: Path) -> None:
         environment.close()
 
 
+def _serialized_onnx_shape(value_info: onnx.ValueInfoProto) -> list[str | int | None]:
+    dimensions = value_info.type.tensor_type.shape.dim
+    return [
+        dimension.dim_value
+        if dimension.HasField("dim_value")
+        else dimension.dim_param
+        if dimension.HasField("dim_param")
+        else None
+        for dimension in dimensions
+    ]
+
+
 def test_normalization_loader_uses_checkpoint_npz_contract(tmp_path: Path) -> None:
     path = tmp_path / "normalization.npz"
     _write_normalization(path)
@@ -168,8 +181,14 @@ def test_exported_actor_bakes_normalization_clips_actions_and_matches_sb3(
     normalization = load_observation_normalization(normalization_path)
     interface = export_deterministic_actor(model, normalization, onnx_path)
     inspected = inspect_onnx_contract(onnx_path)
+    serialized = onnx.load(onnx_path, load_external_data=False)
 
     assert interface == inspected
+    assert len(serialized.graph.output) == 1
+    assert _serialized_onnx_shape(serialized.graph.output[0]) == [
+        "batch",
+        ACTION_COUNT,
+    ]
     assert inspected["opset"] == ONNX_OPSET == 17
     assert inspected["providers"] == ["CPUExecutionProvider"]
     assert inspected["input"] == {
@@ -194,6 +213,30 @@ def test_exported_actor_bakes_normalization_clips_actions_and_matches_sb3(
     assert comparison["maximum_absolute_error"] <= ACTION_TOLERANCE
     assert comparison["elements_over_tolerance"] == 0
     assert comparison["passed"] is True
+
+
+def test_onnx_inspection_rejects_symbolic_serialized_action_width(
+    tmp_path: Path,
+) -> None:
+    checkpoint_path = tmp_path / "selected.zip"
+    normalization_path = tmp_path / "normalization.npz"
+    onnx_path = tmp_path / "selected.onnx"
+    _write_checkpoint(checkpoint_path)
+    _write_normalization(normalization_path)
+    model = load_sb3_checkpoint(checkpoint_path)
+    normalization = load_observation_normalization(normalization_path)
+    export_deterministic_actor(model, normalization, onnx_path)
+
+    serialized = onnx.load(onnx_path, load_external_data=False)
+    serialized.graph.output[0].type.tensor_type.shape.dim[1].dim_param = (
+        "symbolic_action_width"
+    )
+    onnx.save_model(serialized, onnx_path)
+
+    session = export_policy._cpu_session(onnx_path.read_bytes())
+    assert list(session.get_outputs()[0].shape) == ["batch", ACTION_COUNT]
+    with pytest.raises(ExportError, match="serialized ONNX output"):
+        inspect_onnx_contract(onnx_path)
 
 
 def test_development_roster_is_exact_and_exporter_cannot_import_final() -> None:
