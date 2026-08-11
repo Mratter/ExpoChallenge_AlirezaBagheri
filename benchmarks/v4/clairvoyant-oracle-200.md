@@ -7,9 +7,9 @@ The CEM oracle sees each case's complete future shock tape. It is a privileged a
 | Split | Oracle solved | Wilson 95% CI | Tuned rule | Selected MPC | Learned v4 policy |
 |---|---:|---:|---:|---:|---:|
 | Development | **187/200** | [0.8920, 0.9616] | 160/200 | 153/200 | 178/200 (accepted shipped-policy receipt) |
-| Final | **182/200** | [0.8622, 0.9423] | 147/200 | 135/200 | **not evaluated** |
+| Final | **182/200** | [0.8622, 0.9423] | 147/200 | 135/200 | 163/200 (later separate owner-authorized receipt) |
 
-The learned v4 model was not run on the final split. The final row is oracle/planner diagnostic evidence only.
+The learned v4 model was not run as part of this privileged oracle study. A later, separately owner-authorized evaluation of the already frozen shipped artifact solved 163/200 final cases; see the [canonical final report](final-results-200.md). That result did not feed back into the oracle study, training, or model selection.
 
 ## Development casewise comparison
 

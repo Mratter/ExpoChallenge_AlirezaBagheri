@@ -1,0 +1,83 @@
+{
+  "artifact": {
+    "path": "artifacts/city_recovery_ppo.v4.onnx",
+    "sha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483"
+  },
+  "authorization": {
+    "authorized_by": "repository owner",
+    "authorized_on": "2026-08-12",
+    "id": "owner-v4-final-200-2026-08-12",
+    "one_time": true,
+    "scope": "exactly one shipped v4 ONNX policy on the canonical 200-case final roster, with exactly one rollout per case"
+  },
+  "claim_path": "internal/evaluation_runs/v4/final-evaluation-200.claim.json",
+  "created_at_utc": "2026-08-11T21:29:12.466733+00:00",
+  "git": {
+    "clean": true,
+    "commit": "3a5582c553a6425d3000fe562c8ef62abbf0dbad"
+  },
+  "irreversible": true,
+  "kind": "city-recovery-v4-single-use-final-evaluation-claim",
+  "preflight_evidence_sha256": {
+    "artifact": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
+    "artifact_manifest": "7ecc9948789163febf9cc9a455e20c0d5e5fb75c70919598169f21614e1a5a06",
+    "core_sources": {
+      "backend/app/city/environment.py": "52ddc80249d3d5ad1853a0f20b60e05258d5ba692ee1d9edaa2f75edc499ab1e",
+      "backend/app/city/outcome.py": "4ef91abcab7f12363b0eac403aa188ce7c759d88a07f5ece968a026b48a9e032",
+      "backend/app/city/scenarios.py": "a28c4e998f7387b02df568605dea558fcbf62aa7a9d93f30ef86707acc1f8677",
+      "model/policy.py": "81eced960627e68e14eff9f1213ad8196b6abfecac2094486bbae2b4b4a4cad5",
+      "scripts/evaluate.py": "60e2ecbd315c3956b0ac1a098e53fd53f675415569e9e30f879bd76c08cfe3da"
+    },
+    "dev_parity_receipt": "e3b487df8221db75d58dc68eccbc9df93af16cb0e9f17b5bc60cf50a5b42ba6c",
+    "legacy_fixture": "6a08ae284fb93cff1155ce37dcec4fac1121697add0fabd9d367486be344bf0b",
+    "oracle_receipt": "baf5aa6ec8e419a50f87e744eac7779f30a53b6aab60018ff1a7043126b0b5ec",
+    "regression_gate": "97bdeb13556a2fdb9b291c62e699da739441e593ad57f6a5adc014e7ece38638"
+  },
+  "registered_result_gate": {
+    "case_count": 200,
+    "hard_violation_count": 0,
+    "maximum_conservation_residual": 0.0,
+    "solved_count": 163,
+    "wilson_95": [
+      0.7554293724,
+      0.862698072
+    ]
+  },
+  "schema_version": 1,
+  "source_identity": {
+    "backend/app/city/environment.py": "52ddc80249d3d5ad1853a0f20b60e05258d5ba692ee1d9edaa2f75edc499ab1e",
+    "backend/app/city/outcome.py": "4ef91abcab7f12363b0eac403aa188ce7c759d88a07f5ece968a026b48a9e032",
+    "backend/app/city/scenarios.py": "a28c4e998f7387b02df568605dea558fcbf62aa7a9d93f30ef86707acc1f8677",
+    "model/policy.py": "81eced960627e68e14eff9f1213ad8196b6abfecac2094486bbae2b4b4a4cad5",
+    "scripts/evaluate.py": "60e2ecbd315c3956b0ac1a098e53fd53f675415569e9e30f879bd76c08cfe3da",
+    "scripts/publish_final_evaluation_v4.py": "017c6ea61a1bb7ffe69c867b6efb4e1aff8c1ffc60584230704d3c2171f509a4"
+  },
+  "split_contract": {
+    "cartesian_case_count": 200,
+    "family_count": 5,
+    "family_ids": [
+      "v3_final_coastal_isolation",
+      "v3_final_grid_cascade",
+      "v3_final_food_access",
+      "v3_final_aftershock_corridor",
+      "v3_final_public_health"
+    ],
+    "id": "final",
+    "iteration_order": "family_order_then_ascending_seed",
+    "seed_interval": {
+      "count": 40,
+      "first": 830000,
+      "last": 830039
+    }
+  },
+  "split_contract_sha256": "3ced6de228b23abeaa65fe5a613f7511b758793f857604277c3563cd9447d0a0",
+  "status": "claimed_before_reserved_split_import",
+  "terminal_outputs": {
+    "failure": "internal/evaluation_runs/v4/final-evaluation-200.failure.json",
+    "success": "internal/evaluation_runs/v4/final-evaluation-200.success.json"
+  },
+  "timing": {
+    "started_at_utc": "2026-08-11T21:29:12.466733+00:00"
+  },
+  "tool": "publish_final_evaluation_v4.py"
+}

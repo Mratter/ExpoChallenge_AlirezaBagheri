@@ -1,7 +1,8 @@
-"""Synthetic tests for the irreversible v4 final publication runner.
+"""Synthetic and receipt-only tests for the v4 final publication runner.
 
-These tests never import the evaluator or build the reserved roster. Every
-execution path receives injected synthetic cases, evidence, and git state.
+These tests never import the real evaluator or build the reserved roster. Every
+execution path receives injected synthetic cases, evidence, and git state; the
+canonical regression reads only the already-published JSON and Markdown bytes.
 """
 
 from __future__ import annotations
@@ -22,6 +23,12 @@ from backend.app.shared_evidence import canonical_hash, file_sha256
 
 FIXED_TIME = "2026-08-12T00:00:00+00:00"
 FIXED_COMMIT = "a" * 40
+EXPECTED_CANONICAL_CLAIM_SHA256 = (
+    "438a28ef5144494cb4d4b16e93869ef6be2eb797e025c45b4e3ca631c5ba940e"
+)
+EXPECTED_CANONICAL_SUCCESS_SHA256 = (
+    "6c21f3be7dc1af8c7bbc00e671210e315e42d6211bd276eccd45adc74421f373"
+)
 
 
 def _paths(root: Path) -> publication.PublicationPaths:
@@ -442,3 +449,99 @@ def test_production_adapter_requests_one_synthetic_rollout_per_case(
     assert calls == list(range(200))
     assert result["rollout_count"] == 200
     assert len(result["rows"][publication._policy_label()]) == 200
+
+
+def test_published_final_evidence_is_byte_bound_and_canonical() -> None:
+    """Validate retained evidence only; never load a policy or build cases."""
+
+    assert publication.CLAIM_PATH.is_file()
+    assert publication.SUCCESS_PATH.is_file()
+    assert not publication.FAILURE_PATH.exists()
+    assert not publication.FAILURE_PATH.is_symlink()
+    assert publication.MARKDOWN_PATH.is_file()
+
+    assert file_sha256(publication.CLAIM_PATH) == EXPECTED_CANONICAL_CLAIM_SHA256
+    assert file_sha256(publication.SUCCESS_PATH) == EXPECTED_CANONICAL_SUCCESS_SHA256
+    claim = publication.load_json_object(
+        publication.CLAIM_PATH,
+        "canonical final claim",
+        expected_sha256=EXPECTED_CANONICAL_CLAIM_SHA256,
+    )
+    receipt = publication.load_json_object(
+        publication.SUCCESS_PATH,
+        "canonical final success receipt",
+        expected_sha256=EXPECTED_CANONICAL_SUCCESS_SHA256,
+    )
+    assert claim["status"] == "claimed_before_reserved_split_import"
+    assert receipt["claim"]["sha256"] == EXPECTED_CANONICAL_CLAIM_SHA256
+    assert receipt["artifact"]["sha256"] == publication.EXPECTED_ARTIFACT_SHA256
+
+    rows = receipt["rows"]
+    assert len(rows) == 200
+    assert len({row["row_id"] for row in rows}) == 200
+    assert receipt["rows_sha256"] == canonical_hash(rows)
+    assert all(
+        row["hard_violation_count"] == 0
+        and row["max_conservation_residual"] == 0.0
+        for row in rows
+    )
+
+    split_contract = publication.EXPECTED_FINAL_SPLIT_CONTRACT
+    assert receipt["split_contract"] == split_contract
+    assert receipt["split_contract_sha256"] == canonical_hash(split_contract)
+    identities = []
+    family_ids = split_contract["family_ids"]
+    first_seed = split_contract["seed_interval"]["first"]
+    seeds_per_family = split_contract["seed_interval"]["count"]
+    for index, row in enumerate(rows):
+        expected_family = family_ids[index // seeds_per_family]
+        expected_seed = first_seed + index % seeds_per_family
+        assert row["family_id"] == expected_family
+        assert row["case_seed"] == expected_seed
+        assert row["row_id"] == f"{expected_family}:{expected_seed}"
+        identities.append(
+            {
+                "row_id": row["row_id"],
+                "family_id": row["family_id"],
+                "case_seed": row["case_seed"],
+                "tape_seed": row["tape_seed"],
+                "tape_sha256": row["tape_sha256"],
+            }
+        )
+    assert receipt["ordered_split_identity"] == identities
+    assert receipt["ordered_split_identity_sha256"] == canonical_hash(identities)
+
+    aggregate = receipt["aggregate"]
+    assert aggregate["case_count"] == 200
+    assert aggregate["solved_count"] == 163
+    assert aggregate["solve_rate"] == 0.815
+    assert aggregate["wilson_95"] == [0.7554293724, 0.862698072]
+    assert aggregate["hard_violation_count"] == 0
+    assert aggregate["maximum_conservation_residual"] == 0.0
+    assert sum(row["solved"] for row in rows) == 163
+    assert all(receipt["invariants"].values())
+
+    per_family = receipt["per_family"]
+    assert [row["family_id"] for row in per_family] == family_ids
+    assert [row["case_count"] for row in per_family] == [40, 40, 40, 40, 40]
+    assert [row["solved_count"] for row in per_family] == [34, 31, 38, 26, 34]
+    assert all(
+        row["hard_violation_count"] == 0
+        and row["maximum_conservation_residual"] == 0.0
+        for row in per_family
+    )
+
+    comparison = receipt["oracle_comparison"]
+    assert comparison["pairing"] == {
+        "both": 162,
+        "policy_only": 1,
+        "oracle_only": 20,
+        "neither": 17,
+    }
+    assert comparison["known_feasible_union_count"] == 183
+    assert comparison["rows_sha256"] == canonical_hash(comparison["rows"])
+
+    rendered = publication.render_markdown(
+        receipt, EXPECTED_CANONICAL_SUCCESS_SHA256
+    )
+    assert publication.MARKDOWN_PATH.read_text(encoding="utf-8") == rendered

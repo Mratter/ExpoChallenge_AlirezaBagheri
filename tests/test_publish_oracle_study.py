@@ -286,7 +286,10 @@ def test_publish_study_creates_portable_hash_bound_evidence(tmp_path: Path) -> N
     )
     assert "privileged anytime achieved lower bound" in markdown
     assert "Policy only" in markdown and "Oracle only" in markdown
-    assert "**not evaluated**" in markdown
+    assert "163/200 (later separate owner-authorized receipt)" in markdown
+    assert "not run as part of this privileged oracle study" in markdown
+    assert "[canonical final report](final-results-200.md)" in markdown
+    assert "**not evaluated**" not in markdown
     assert file_sha256(HISTORICAL_RECEIPT) == historical_before == HISTORICAL_RECEIPT_SHA256
     with pytest.raises(OraclePublicationError, match="overwrite"):
         publish_study(

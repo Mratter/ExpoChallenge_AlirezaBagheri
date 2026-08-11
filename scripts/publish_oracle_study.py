@@ -734,12 +734,15 @@ def _render_markdown(
             f"{_format_ci(final_aggregate['wilson_95'])} | "
             f"{final['planner_aggregates']['tuned_rule']['solved_count']}/200 | "
             f"{final['planner_aggregates'][final_mpc_key]['solved_count']}/200 | "
-            "**not evaluated** |"
+            "163/200 (later separate owner-authorized receipt) |"
         ),
         "",
         (
-            "The learned v4 model was not run on the final split. The final row is "
-            "oracle/planner diagnostic evidence only."
+            "The learned v4 model was not run as part of this privileged oracle study. "
+            "A later, separately owner-authorized evaluation of the already frozen "
+            "shipped artifact solved 163/200 final cases; see the "
+            "[canonical final report](final-results-200.md). That result did not feed "
+            "back into the oracle study, training, or model selection."
         ),
         "",
         "## Development casewise comparison",

@@ -6,7 +6,7 @@ The shortest accurate explanation is:
 
 > Both planners start from the same public scenario and encounter the same realized disaster sequence. Each then observes its own evolving city through the same 73-field public schema and independently proposes how to use material, crews, depot stock, and preparedness investment. A shared feasibility layer makes each proposal physically valid, the simulator advances one day, and an identical six-part rule decides whether each planner solved that disaster.
 
-This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The current benchmark evidence is development-only: the primary measure is the number of synthetic disasters each planner independently **Solved** on the same 200 development tapes.
+This is a sequential planning system, not a classifier. Do not describe it with a generic “accuracy” percentage. The primary measure is the number of synthetic disasters each planner independently **Solved**: development evidence supports reproducibility and checkpoint selection, while one separately authorized held-out evaluation records the frozen shipped artifact's final result.
 
 ## See the system
 
@@ -20,7 +20,7 @@ This is a sequential planning system, not a classifier. Do not describe it with 
 | --- |
 | ![Attribution, counterfactual, export, and sustainability decision support](docs/screenshots/decision-support.png) |
 
-These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The selected 178/200 v4 policy and the historical 35/40 learned-policy result below are receipt-backed evidence, not the policy shown in the screenshots.
+These interface captures use the legacy regression fixture selected explicitly for a local demonstration. The v4 policy's **178 / 200 development-selection result**, **163 / 200 owner-authorized final result**, and historical 35/40 learned-policy result below are receipt-backed evidence, not the policy shown in the screenshots.
 
 ## Runtime and evidence truth first
 
@@ -30,7 +30,7 @@ The bundled artifact is SHA-256 `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc66
 
 ### Current development benchmark and matched headroom diagnostic
 
-The current comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. At the registered 2M endpoint, the five policy seeds (`37017`, `47017`, `57017`, `67017`, and `77017`) solved **172, 171, 171, 174, and 169** cases: mean **171.4 / 200**, sample standard deviation **1.82**. Selection then ranked all 20 complete milestone checkpoints and chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, four solves ahead of the **174 / 200** runner-up. Full SB3-to-ONNX parity reproduced all 178 solves, with zero hard violations, exact conservation, and no deterministic replay mismatches. No learned-v4 policy has been evaluated on the final split.
+The current comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. At the registered 2M endpoint, the five policy seeds (`37017`, `47017`, `57017`, `67017`, and `77017`) solved **172, 171, 171, 174, and 169** cases: mean **171.4 / 200**, population standard deviation **1.62**, and sample standard deviation **1.82**. The population value describes the complete registered five-seed sweep; the sample value describes dispersion when those seeds are treated as a sample of optimizer randomness. Selection then ranked all 20 complete milestone checkpoints and chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, four solves ahead of the **174 / 200** runner-up. Full SB3-to-ONNX parity reproduced all 178 development solves, with zero hard violations, exact conservation, and no deterministic replay mismatches.
 
 | Development method | Solved on 200 development tapes | Wilson 95% CI |
 | --- | ---: | ---: |
@@ -45,7 +45,7 @@ The fixed CEM diagnostic ran on the identical 200 development tapes and sees the
 
 The oracle is privileged, not a causal submission baseline or a model-selection input. CEM is an anytime search, so **187 / 200 is an achieved lower bound**, not a mathematical optimum, an infeasibility certificate, or a proven ceiling. Every planner in the current development table has zero hard violations and exactly `0.0` maximum conservation residual.
 
-The five-seed study and matched ablations are summarized in `benchmarks/v4/training-study-200.md`, with a digest-bound index at `internal/developmental_runs/v4/training-study-200-summary.json`. The receipt-bound cheap-planner snapshot is in `benchmarks/v4/development-baselines-200.md`, with complete ordered rows in `internal/developmental_runs/v4/development-baselines-200.json`; it is preserved byte-for-byte from before the matched oracle rerun, so its historical-only oracle note records the evidence state at publication. The selected checkpoint is recorded in `internal/developmental_runs/v4/checkpoint-selection-200.json`; `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` binds its SB3 and ONNX development rows, and `artifacts/city_recovery_ppo.v4.manifest.json` binds the published artifact to both receipts. Every current-v4 learned-policy result is development-only with `final_split_used: false`.
+The five-seed study and matched ablations are summarized in `benchmarks/v4/training-study-200.md`, with a digest-bound index at `internal/developmental_runs/v4/training-study-200-summary.json`. The receipt-bound cheap-planner snapshot is in `benchmarks/v4/development-baselines-200.md`, with complete ordered rows in `internal/developmental_runs/v4/development-baselines-200.json`; it is preserved byte-for-byte from before the matched oracle rerun, so its historical-only oracle note records the evidence state at publication. The selected checkpoint is recorded in `internal/developmental_runs/v4/checkpoint-selection-200.json`; `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` binds its SB3 and ONNX development rows, and `artifacts/city_recovery_ppo.v4.manifest.json` binds the published artifact to both receipts. These training, selection, and parity results remain development-only; the single final evaluation is separate and did not feed back into them.
 
 The matched oracle study is reported in [the 200-case clairvoyant-oracle benchmark](benchmarks/v4/clairvoyant-oracle-200.md), with complete portable [development](internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json) and [final](internal/developmental_runs/v4/clairvoyant-oracle-200-final.json) receipts. These fixed diagnostics record `model_selection_used: false`; the final receipt contains no learned-policy rollout.
 
@@ -68,18 +68,25 @@ The earlier learned-policy, BC, MPC, rule, and oracle measurements all used only
 
 The historical **37 / 40** result remains the original-subset measurement and is neither overwritten nor pooled with the expanded study. The receipt-bound historical aggregate remains byte-identical at `benchmarks/v4/development-baselines.md`, with its complete rows in `internal/developmental_runs/v4/step6-dev-baseline-table.json`. The current **187 / 200** development result is a separately receipt-bound rerun using the same registered CEM population and iteration budget. Both are anytime achieved lower bounds; neither proves a mathematical optimum.
 
-### Current 200-case final diagnostics — no learned-v4 evaluation
+### Current 200-case final results — exactly one learned-v4 evaluation
 
-| Final diagnostic | Solved on 200 final tapes | Wilson 95% CI | Scope |
+| Final method | Solved on 200 final tapes | Wilson 95% CI | Scope |
 | --- | ---: | ---: | --- |
-| Reactive heuristic | **72 / 200** | **[0.297, 0.429]** | Public deterministic regression |
-| Preparedness teacher | **139 / 200** | **[0.628, 0.755]** | Public deterministic regression |
-| Tuned constant rule | **147 / 200** | **[0.670, 0.791]** | Public deterministic oracle warm start |
-| Legacy ONNX regression fixture | **125 / 200** | **[0.556, 0.689]** | Retired-policy regression fixture |
 | Privileged clairvoyant CEM — anytime achieved lower bound | **182 / 200** | **[0.862, 0.942]** | Future-aware diagnostic; not a submission baseline |
-| Shipped v4 PPO | **Not evaluated** | — | Requires personal owner authorization |
+| **Shipped v4 PPO** | **163 / 200** | **[0.755, 0.863]** | Single owner-authorized learned-policy evaluation |
+| Tuned constant rule | **147 / 200** | **[0.670, 0.791]** | Public deterministic oracle warm start |
+| Preparedness teacher | **139 / 200** | **[0.628, 0.755]** | Public deterministic regression |
+| Selected causal MPC, `k=5` | **135 / 200** | **[0.607, 0.736]** | Causal receding-horizon diagnostic |
+| Legacy ONNX regression fixture | **125 / 200** | **[0.556, 0.689]** | Retired-policy regression fixture |
+| Reactive heuristic | **72 / 200** | **[0.297, 0.429]** | Public deterministic regression |
 
-The oracle's final run is privileged and noncausal, uses no learned policy, and cannot select or authorize a model. Every reported final diagnostic retains zero hard violations and exactly `0.0` conservation residual. The reactive, teacher, tuned-rule, and legacy rows are public or legacy diagnostic planners; the oracle is the separately authorized fixed diagnostic. The retired release's one-shot 40-case final report remains at `docs/evidence/legacy-final-40.json` as legacy evidence only. **No learned-v4 final-split result exists.**
+After development selection, export, and artifact identity were frozen, the exact shipped ONNX policy was evaluated once under explicit owner authorization. The result is **163 / 200 (81.5%) on the held-out final split**, an aggregate solved-count ratio of **89.6%** relative to the **182 / 200** achieved by a clairvoyant planner with full future-tape knowledge, and **16 cases ahead** of the strongest hand-coded planner, the tuned constant rule at **147 / 200**. Its receipt-level Wilson 95% interval is **[0.7554293724, 0.862698072]**. That final result did not select or modify the model. The [canonical final report](benchmarks/v4/final-results-200.md) is rendered from the machine [success receipt](internal/evaluation_runs/v4/final-evaluation-200.success.json); the associated [claim](internal/evaluation_runs/v4/final-evaluation-200.claim.json) binds the authorization and artifact before execution. Exactly one learned-policy final run is complete, and further reruns remain unauthorized.
+
+The matched final policy/oracle partition is **162 both solved, 1 policy-only, 20 oracle-only, and 17 neither**, for a known-feasible union of **183 / 200**. The aggregate solved-count ratio is **163 / 182 = 89.6%**, while casewise policy coverage of oracle-achieved cases is **162 / 182 = 89.0%**. These are deliberately separate: the policy-only case shows that finite CEM solved sets need not nest. The **20 oracle-only cases are directly demonstrated remaining headroom**.
+
+The oracle sees the complete future shock tape and is a privileged anytime achieved lower bound, not a causal submission baseline, proven ceiling, mathematical optimum, or infeasibility certificate. Every bound final result has zero hard violations and exactly `0.0` maximum conservation residual. The retired release's one-shot 40-case final report remains at `docs/evidence/legacy-final-40.json` as legacy evidence only.
+
+The overall Wilson interval treats the 200 case outcomes as Bernoulli observation units. These cases are clustered within five fixed scenario families with 40 seeds each, so the interval does not model within-family dependence and may slightly overstate precision; the canonical final report includes the five family-level rows to expose that heterogeneity. Likewise, the development seed-sweep standard deviations measure optimizer-seed variation on one shared development roster, not final-set sampling uncertainty.
 
 ## Quick start on a fresh Windows computer
 
@@ -343,7 +350,7 @@ The actor warm start uses four public-only DAgger iterations with beta schedule 
 
 Before PPO changes the actor, the trainer freezes every actor parameter and trains the critic alone for at least 50,000 and at most 100,000 transitions, stopping after the minimum once explained variance exceeds `0.5`. It records actor hashes, observation and return moments, explained variance, approximate KL, clip fraction, entropy loss, value loss, policy-gradient loss, and action standard deviation. The publication sweep recorded development checkpoints at 200k, 500k, 1M, and 2M for each of five seeds.
 
-Selection ranked all 20 complete checkpoints only by development solves, then earlier transition count and lower policy seed for ties. Seed `67017` at 1M won with **178 / 200**; the runner-up solved **174 / 200**, so no tie-break was needed. The selected checkpoint, frozen observation normalization, self-contained opset-17 ONNX graph, and full 200-case parity receipt are now durable.
+Selection ranked all 20 complete checkpoints only by development solves, then earlier transition count and lower policy seed for ties. Seed `67017` at 1M won with **178 / 200**; the runner-up solved **174 / 200**, so no tie-break was needed. The selected checkpoint, frozen observation normalization, self-contained opset-17 ONNX graph, and full 200-case parity receipt are now durable. After that chain was frozen, the exact shipped artifact's single owner-authorized final evaluation solved **163 / 200**; it did not alter selection.
 
 The earlier 35/40 result on the original development subset remains historical evidence at `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json`; it is not the selected publication study.
 
@@ -353,7 +360,7 @@ The earlier 35/40 result on the original development subset remains historical e
 | --- | --- | --- | --- |
 | Training | 6 × 32 (`810000–810031`) | 192 | Behavior cloning, DAgger, critic warm-up, and PPO interaction. |
 | Development | 5 × 40 (`820000–820039`) | 200 | Learning curves, policy comparison, and development-only model selection. |
-| Final | 5 × 40 (`830000–830039`) | 200 | Reserved evaluation set; the recorded fixture regression is not a learned-v4 final result. |
+| Final | 5 × 40 (`830000–830039`) | 200 | Held-out evaluation set; exactly one owner-authorized shipped-policy run is retained, and further reruns remain unauthorized. |
 
 The family sets and seed intervals are disjoint. The development evidence names its split, records that the final split was not used, and binds every result to ordered scenario rows and disaster-tape hashes.
 
@@ -382,7 +389,7 @@ The frozen definition hash is `d033c42b43ade8fff3c3b2d11f92adcf7567b4221b3b16d79
 
 The definition resists several simple ways to game a terminal score. The first check is a conjunction over sectors **and** days, so a strong sector cannot mask a weak one and a planner cannot pass by spiking only on the last day. The tail-target and resilience-AUC checks pull against each other: neither “steady but ends short” nor “neglect then sprint” passes. The terminal-pipeline check closes end-game inventory dumping.
 
-Historical calibration evidence measures the rule from both sides. The reactive baseline solves **14 / 40** on the retained legacy one-shot benchmark, while the privileged oracle sees every future shock and still fails **3 of 40** on the original development subset. That historical oracle result remains intact. On the expanded rosters, the same-budget anytime CEM achieved **187 / 200** development solves and **182 / 200** final solves, with zero hard violations and exactly `0.0` conservation residual throughout. These are constructive achieved lower bounds: failed searches do not certify that a case is impossible, and the final diagnostic is not a learned-v4 evaluation.
+Historical calibration evidence measures the rule from both sides. The reactive baseline solves **14 / 40** on the retained legacy one-shot benchmark, while the privileged oracle sees every future shock and still fails **3 of 40** on the original development subset. That historical oracle result remains intact. On the expanded rosters, the same-budget anytime CEM achieved **187 / 200** development solves and **182 / 200** final solves, with zero hard violations and exactly `0.0` conservation residual throughout. These are constructive achieved lower bounds: failed searches do not certify that a case is impossible. The separately frozen causal shipped policy solved **163 / 200** on final.
 
 ### Independent outcomes, not “winning against” the other planner
 
@@ -545,10 +552,11 @@ Generated folders such as `.venv`, `.pytest_cache`, `.ruff_cache`, `frontend/nod
 .
 ├── backend/app/city/             Physics, scenarios, outcome, planners, optimizer, environment
 ├── backend/app/                  HTTP, schemas, persistence, evidence, analysis, exports
-├── benchmarks/v4/                Development aggregate for the consolidated path
+├── benchmarks/v4/                Development, oracle, training, and final result reports
 ├── docs/                         Guided code tour, screenshots, and legacy evidence
 ├── frontend/                     React Analyst Toolbox and 3D city
-├── internal/developmental_runs/  Nonauthorizing development receipts
+├── internal/developmental_runs/  Nonauthorizing development and oracle receipts
+├── internal/evaluation_runs/     Owner-authorized final claim and success receipt
 ├── model/                        Explicit ONNX runtime boundary
 ├── scripts/                      Setup, launch, training, evaluation, headroom, contract generation
 └── tests/                        Python executable specifications and regression fixture
@@ -616,6 +624,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `build_development_baselines.py` | Rebuilds the current 200-case cheap-planner development table and machine receipt. |
 | `headroom.py` | Historical original-subset analysis and the shared MPC/CEM mechanics used by the expanded diagnostic. |
 | `run_oracle_study.py`, `publish_oracle_study.py` | Fixed 200-case development/final clairvoyant study with resumable external shards, parallel-worker fallback, and portable evidence publication. |
+| `publish_final_evaluation_v4.py` | Claim-gated one-shot final evaluator and machine-receipt/final-report publisher. |
 | `generate_frontend_contract.py` | Generates or checks the canonical Python-to-TypeScript contract. |
 
 ### Evidence and tests
@@ -630,13 +639,15 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `internal/developmental_runs/v4/development-baselines-200.json` | Current complete 200-case rows, source hashes, invariants, and paired statistics. |
 | [`benchmarks/v4/clairvoyant-oracle-200.md`](benchmarks/v4/clairvoyant-oracle-200.md) | Matched 200-case development/final privileged-oracle report and scientific disclosure. |
 | [`internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json`](internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json), [`clairvoyant-oracle-200-final.json`](internal/developmental_runs/v4/clairvoyant-oracle-200-final.json) | Portable complete oracle rows, budgets, invariants, Wilson intervals, and development policy pairing. |
+| [`benchmarks/v4/final-results-200.md`](benchmarks/v4/final-results-200.md) | Canonical human-readable final table, family breakdown, clustering caveat, and matched oracle interpretation. |
+| [`internal/evaluation_runs/v4/final-evaluation-200.claim.json`](internal/evaluation_runs/v4/final-evaluation-200.claim.json), [`final-evaluation-200.success.json`](internal/evaluation_runs/v4/final-evaluation-200.success.json) | Owner authorization claim and complete machine final receipt for the exact shipped artifact. |
 | `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Byte-identical historical aggregate and receipt from the original 40-case subset. |
 | `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Historical matched 1M-transition training and reward-comparison evidence on the original subset. |
 | `docs/evidence/legacy-final-40.json` | Historical final report for the retired release; not an active runtime dependency. |
 | `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; never a runtime fallback. |
 | `tests/test_city_*.py`, `tests/test_simulator*.py` | Physics, scenarios, outcome, planners, optimizer, and environment behavior. |
 | `tests/test_policy.py`, `tests/test_api.py`, `tests/test_recovery_*.py` | Explicit policy loading, HTTP, replay analysis, and export behavior. |
-| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_run_oracle_study.py`, `tests/test_publish_oracle_study.py`, `tests/test_development_evidence.py` | Scientific tools and current plus historical evidence. |
+| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_run_oracle_study.py`, `tests/test_publish_oracle_study.py`, `tests/test_publish_final_evaluation_v4.py`, `tests/test_development_evidence.py` | Scientific tools and current plus historical evidence. |
 | `frontend/src/*.test.ts`, `frontend/src/generated/*.test.ts` | API parsing, generated contract, view-model, and decision-support behavior. |
 
 ## Policy selection and readiness
@@ -736,7 +747,7 @@ Normal demo users do not need these commands. They run training or development a
     --workers 8
 ```
 
-`scripts/evaluate.py` also contains the reserved final split, but no current README workflow invokes it. Development selection, export, manifest generation, full SB3-to-ONNX parity, and the application-level served-path gate are complete for the bundled v4 artifact. The served gate exercised all 200 development cases through FastAPI `POST` → persist → `GET` and exactly reproduced the accepted **178 / 200** solves. The gated sequence is recorded in `docs/TRAINING_DEPLOYMENT_PLAN.md`; none of this authorizes a learned-v4 final evaluation.
+Development selection, export, manifest generation, full SB3-to-ONNX parity, and the application-level served-path gate are complete for the bundled v4 artifact. The served gate exercised all 200 development cases through FastAPI `POST` → persist → `GET` and exactly reproduced the accepted **178 / 200** development solves. Separately, the claim-gated final publisher completed exactly one owner-authorized run of that frozen artifact and recorded **163 / 200**. The gated sequence is recorded in `docs/TRAINING_DEPLOYMENT_PLAN.md`; further learned-policy final reruns remain unauthorized.
 
 ## Evidence and provenance
 
@@ -748,7 +759,8 @@ The current performance and runtime claims are bound by retained evidence:
 4. `artifacts/city_recovery_ppo.v4.manifest.json` binds the selected checkpoint, normalization state, ONNX SHA-256, interface, selection receipt, and parity receipt.
 5. `internal/developmental_runs/v4/development-baselines-200.json` and `benchmarks/v4/development-baselines-200.md` record the four cheap planners on the same 200 ordered development tapes; the original-subset training, headroom, and unsuffixed baseline files remain explicitly historical.
 6. [`benchmarks/v4/clairvoyant-oracle-200.md`](benchmarks/v4/clairvoyant-oracle-200.md) and its portable [development](internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json) and [final](internal/developmental_runs/v4/clairvoyant-oracle-200-final.json) receipts bind the fixed CEM budget, all 400 oracle rows, Wilson intervals, invariants, worker history, and the matched development-policy partition. The final receipt contains no learned-policy rollout.
-7. Focused policy, API, export, oracle-study, evidence, and consolidation tests verify the artifact contract, publication metadata, current and historical evidence, and deterministic physics anchors.
+7. [`benchmarks/v4/final-results-200.md`](benchmarks/v4/final-results-200.md) and the machine [success receipt](internal/evaluation_runs/v4/final-evaluation-200.success.json) bind the exact shipped artifact, canonical final roster, all 200 ordered rows, family results, Wilson interval, safety invariants, and oracle pairing. The preceding [claim](internal/evaluation_runs/v4/final-evaluation-200.claim.json) records owner authorization before execution.
+8. Focused policy, API, export, oracle-study, final-publication, evidence, and consolidation tests verify the artifact contract, publication metadata, current and historical evidence, and deterministic physics anchors.
 
 The bundled ONNX path configures FastAPI when no override is supplied, and the API binds persisted results to the bytes it actually loads. The legacy final JSON and legacy ONNX fixture remain separate historical/regression inputs under `docs/evidence` and `tests/fixtures`.
 
@@ -820,7 +832,7 @@ The 3D route loads a much larger rendering bundle. Close other graphics-heavy ta
 
 A concise presentation can say:
 
-> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. A registered five-seed sweep evaluated 20 checkpoints on 200 development tapes and selected seed 67017 at 1M with 178 solves, 95% Wilson interval [0.839, 0.926], four solves ahead of the runner-up. On those identical tapes, a privileged future-aware CEM achieved 187 solves: the policy's aggregate count is 95.2% of that achieved count, while the matched partition is 177 both solved, 10 oracle-only, 1 policy-only, and 12 neither. The 10 oracle-only cases are demonstrated remaining headroom; the policy-only case also makes clear that this finite anytime search is not a proven ceiling. The self-contained ONNX artifact reproduced all 178 SB3 outcomes with zero hard violations, exact conservation, and deterministic replay. A separate oracle-only final diagnostic achieved 182 / 200; no learned-v4 final result is claimed.
+> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. Five registered 2M development endpoints averaged 171.4 / 200, with population SD 1.62 and sample SD 1.82. Development-only selection ranked 20 checkpoints and chose seed 67017 at 1M with 178 / 200. After that artifact was frozen, its single owner-authorized final evaluation solved **163 / 200 (81.5%; Wilson 95% CI [0.755, 0.863])**, 16 cases ahead of the tuned constant rule. The privileged future-aware final CEM solved 182 / 200: the policy's aggregate solved-count ratio is 89.6%, while its casewise coverage of oracle-achieved cases is 89.0% because the matched partition is 162 both, 1 policy-only, 20 oracle-only, and 17 neither. CEM is an anytime achieved lower bound, not a causal submission baseline or proven ceiling. Every bound result has zero hard violations and exact conservation; further learned-policy final reruns remain unauthorized.
 
 ## Data character
 
@@ -828,4 +840,4 @@ All scenarios and shock tapes are authored and generated locally by `backend/app
 
 ---
 
-For a demo operator: run `setup.ps1`, then `run.ps1`; the bundled v4 policy needs no path argument. For a reviewer: start with `docs/CODE_TOUR.md`, `artifacts/city_recovery_ppo.v4.manifest.json`, `internal/developmental_runs/v4/checkpoint-selection-200.json`, `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json`, `model/policy.py`, and `scripts/preflight_check.py`.
+For a demo operator: run `setup.ps1`, then `run.ps1`; the bundled v4 policy needs no path argument. For a reviewer: start with `docs/CODE_TOUR.md`, `benchmarks/v4/final-results-200.md`, `internal/evaluation_runs/v4/final-evaluation-200.success.json`, `artifacts/city_recovery_ppo.v4.manifest.json`, `internal/developmental_runs/v4/checkpoint-selection-200.json`, `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json`, `model/policy.py`, and `scripts/preflight_check.py`.
