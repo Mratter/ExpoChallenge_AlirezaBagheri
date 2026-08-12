@@ -358,7 +358,7 @@ function DayInspector({ result, selectedDay, planner, onPlanner }: { result: Com
       <div className="service-ledger" role="table" aria-label={`Day ${selectedDay} intervention ledger`}>
         <div className="service-ledger-head" role="row"><span>Service</span><span>End / target</span><span>Material</span><span>Crew</span><span>Release</span><span>Preparedness</span></div>
         {services.map((service, index) => (
-          <div className="service-ledger-row" role="row" key={service}>
+          <div className="service-ledger-row" data-service={service} role="row" key={service}>
             <span className="service-key"><b>{serviceCodes[service]}</b>{serviceLabel(service)}</span>
             <span className="state-cell"><b>{percent(day.services_end[index])}</b><small>target {percent(result.scenario.recovery_targets[index])}</small><i><em style={{ width: `${day.services_end[index] * 100}%` }} /></i></span>
             <strong>{units(day.material_allocation[index])}</strong>

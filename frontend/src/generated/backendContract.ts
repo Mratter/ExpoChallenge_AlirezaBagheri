@@ -65,6 +65,35 @@ export const SHOCK_IMPACTS: Record<ShockType, Vector5> = {
   ]
 }
 
+/** Shared diorama colors plus body-derived, contrast-safe light-panel variants. */
+export const sectorPalette: Record<Service, { accent: string; body: string; ui: string }> = {
+  "transport": {
+    "accent": "#5a8290",
+    "body": "#6e8790",
+    "ui": "#54676d"
+  },
+  "housing": {
+    "accent": "#bd6b52",
+    "body": "#b98269",
+    "ui": "#8d6350"
+  },
+  "food": {
+    "accent": "#92906a",
+    "body": "#7b7f4a",
+    "ui": "#5d6138"
+  },
+  "healthcare": {
+    "accent": "#e6e2d8",
+    "body": "#aab9b4",
+    "ui": "#818d89"
+  },
+  "public_services": {
+    "accent": "#71866a",
+    "body": "#8b9a7f",
+    "ui": "#6a7561"
+  }
+}
+
 export const observationOrder = [
   "service_transport",
   "service_housing",

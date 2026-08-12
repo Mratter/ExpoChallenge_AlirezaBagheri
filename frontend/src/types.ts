@@ -18,6 +18,7 @@ export {
   observationOrder,
   requestLimits,
   scenarioFieldOrder,
+  sectorPalette,
   services,
   SHOCK_IMPACTS,
   shockTypes,

@@ -1,5 +1,6 @@
 import type { CompareResponse, DayResult, ForcedShock, Scenario, Service, ShockType } from '../types'
 import {
+  sectorPalette,
   services,
   SHOCK_IMPACTS as BACKEND_SHOCK_IMPACTS,
 } from '../generated/backendContract'
@@ -40,19 +41,24 @@ export const SERVICE_LABELS: Record<Service, string> = {
   public_services: 'Civic',
 }
 
-const DISTRICT_PRESENTATION: Readonly<Record<Service, Omit<DistrictDefinition, 'service' | 'center'>>> = {
-  housing: { label: 'Residential quarter', shortLabel: 'Housing', accent: '#bd6b52', body: '#b98269' },
-  healthcare: { label: 'Health campus', shortLabel: 'Healthcare', accent: '#e6e2d8', body: '#aab9b4' },
-  food: { label: 'Market quarter', shortLabel: 'Food', accent: '#d49a3d', body: '#c88a4c' },
-  transport: { label: 'Transit works', shortLabel: 'Transport', accent: '#5a8290', body: '#6e8790' },
-  public_services: { label: 'Civic quarter', shortLabel: 'Civic', accent: '#71866a', body: '#8b9a7f' },
+const DISTRICT_PRESENTATION: Readonly<Record<Service, Pick<DistrictDefinition, 'label' | 'shortLabel'>>> = {
+  housing: { label: 'Residential quarter', shortLabel: 'Housing' },
+  healthcare: { label: 'Health campus', shortLabel: 'Healthcare' },
+  food: { label: 'Market quarter', shortLabel: 'Food' },
+  transport: { label: 'Transit works', shortLabel: 'Transport' },
+  public_services: { label: 'Civic quarter', shortLabel: 'Civic' },
 }
 
-export const DISTRICTS: DistrictDefinition[] = CITY_DISTRICTS.map((district) => ({
-  service: district.service,
-  ...DISTRICT_PRESENTATION[district.service],
-  center: [...district.center] as [number, number, number],
-}))
+export const DISTRICTS: DistrictDefinition[] = CITY_DISTRICTS.map((district) => {
+  const colors = sectorPalette[district.service]
+  return {
+    service: district.service,
+    ...DISTRICT_PRESENTATION[district.service],
+    accent: colors.accent,
+    body: colors.body,
+    center: [...district.center] as [number, number, number],
+  }
+})
 
 export const DISTRICT_BUILDING_OFFSETS: ReadonlyArray<readonly [number, number]> = CITY_BUILDING_OFFSETS
 
