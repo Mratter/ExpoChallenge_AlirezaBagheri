@@ -82,6 +82,18 @@ The historical **37 / 40** result remains the original-subset measurement and is
 
 After development selection, export, and artifact identity were frozen, the exact shipped ONNX policy was evaluated once under explicit owner authorization. The result is **163 / 200 (81.5%) on the held-out final split**, an aggregate solved-count ratio of **89.6%** relative to the **182 / 200** achieved by a clairvoyant planner with full future-tape knowledge, and **16 cases ahead** of the strongest hand-coded planner, the tuned constant rule at **147 / 200**. Its receipt-level Wilson 95% interval is **[0.7554293724, 0.862698072]**. That final result did not select or modify the model. The [canonical final report](benchmarks/v4/final-results-200.md) is rendered from the machine [success receipt](internal/evaluation_runs/v4/final-evaluation-200.success.json); the associated [claim](internal/evaluation_runs/v4/final-evaluation-200.claim.json) binds the authorization and artifact before execution. Exactly one learned-policy final run is complete, and further reruns remain unauthorized.
 
+### Where learning helps by scenario family
+
+| Final family | Shipped v4 PPO | Tuned constant rule | Preparedness teacher | Daily budget center | Base shock probability | Severity ceiling |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Food access | **38 / 40** | **38 / 40** | 39 / 40 | 144 | 0.23 | 0.31 |
+| Coastal isolation | **34 / 40** | 30 / 40 | 26 / 40 | 157 | 0.28 | 0.35 |
+| Public health | **34 / 40** | 29 / 40 | 30 / 40 | 198 | 0.30 | 0.36 |
+| Grid cascade | **31 / 40** | 30 / 40 | 28 / 40 | 168 | 0.26 | 0.34 |
+| Aftershock corridor | **26 / 40** | 20 / 40 | 16 / 40 | **136** | **0.30** | **0.36** |
+
+All three planners record their lowest solve count on aftershock corridor. That family combines the lowest budget center, 136, with the joint-highest base shock probability, 0.30, and joint-highest severity ceiling, 0.36, making it the roster's explicitly most resource-constrained high-shock construction rather than an isolated model blind spot. The learned policy's margin is widest there—**+6** cases over the tuned rule and **+10** over the teacher—while the tuned rule ties it exactly on food access at **38 / 40**. This is a descriptive pattern across five designed families, not a causal estimate of any one parameter; it is consistent with learned allocation adding its clearest value under scarcity. The [family-analysis supplement](benchmarks/v4/final-family-analysis-200.md) records the evidence boundary and construction values without rerunning any planner.
+
 The matched final policy/oracle partition is **162 both solved, 1 policy-only, 20 oracle-only, and 17 neither**, for a known-feasible union of **183 / 200**. The aggregate solved-count ratio is **163 / 182 = 89.6%**, while casewise policy coverage of oracle-achieved cases is **162 / 182 = 89.0%**. These are deliberately separate: the policy-only case shows that finite CEM solved sets need not nest. The **20 oracle-only cases are directly demonstrated remaining headroom**.
 
 The oracle sees the complete future shock tape and is a privileged anytime achieved lower bound, not a causal submission baseline, proven ceiling, mathematical optimum, or infeasibility certificate. Every bound final result has zero hard violations and exactly `0.0` maximum conservation residual. The retired release's one-shot 40-case final report remains at `docs/evidence/legacy-final-40.json` as legacy evidence only.
@@ -569,7 +581,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | Path | Role |
 | --- | --- |
 | `physics.py` | Canonical service/hazard order, allocation math, logistics constants, shock mechanics, and conservation measurements. |
-| `scenarios.py` | Training, development, and reserved final families plus deterministic tape generation. |
+| `scenarios.py` | Training, development, and held-out final families plus deterministic tape generation. |
 | `outcome.py` | The six-check absolute outcome and trajectory summaries. |
 | `planners.py` | Reactive heuristic, preparedness teacher, tuned rule, and shared weight-to-logit conversion. |
 | `optimizer.py` | OR-Tools allocation proposals used by headroom analysis. |
@@ -640,6 +652,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | [`benchmarks/v4/clairvoyant-oracle-200.md`](benchmarks/v4/clairvoyant-oracle-200.md) | Matched 200-case development/final privileged-oracle report and scientific disclosure. |
 | [`internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json`](internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json), [`clairvoyant-oracle-200-final.json`](internal/developmental_runs/v4/clairvoyant-oracle-200-final.json) | Portable complete oracle rows, budgets, invariants, Wilson intervals, and development policy pairing. |
 | [`benchmarks/v4/final-results-200.md`](benchmarks/v4/final-results-200.md) | Canonical human-readable final table, family breakdown, clustering caveat, and matched oracle interpretation. |
+| [`benchmarks/v4/final-family-analysis-200.md`](benchmarks/v4/final-family-analysis-200.md) | Descriptive final-family comparison of the shipped policy, tuned rule, and teacher against the registered budget and shock construction. |
 | [`internal/evaluation_runs/v4/final-evaluation-200.claim.json`](internal/evaluation_runs/v4/final-evaluation-200.claim.json), [`final-evaluation-200.success.json`](internal/evaluation_runs/v4/final-evaluation-200.success.json) | Owner authorization claim and complete machine final receipt for the exact shipped artifact. |
 | `benchmarks/v4/development-baselines.md`, `internal/developmental_runs/v4/step6-dev-baseline-table.json` | Byte-identical historical aggregate and receipt from the original 40-case subset. |
 | `internal/developmental_runs/v4/step3e-matched-reward-1m-seed-37017-attempt-02.json` | Historical matched 1M-transition training and reward-comparison evidence on the original subset. |

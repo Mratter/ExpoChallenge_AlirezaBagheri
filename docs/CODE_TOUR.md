@@ -12,6 +12,7 @@ This repository is organized around one dependency rule: city mechanics are the 
 | Rebuild current development evidence | `scripts/build_development_baselines.py` | `scripts/evaluate.py`, `benchmarks/v4/development-baselines-200.md`, `internal/developmental_runs/v4/development-baselines-200.json` |
 | Study achievable headroom | `scripts/run_oracle_study.py` | `scripts/headroom.py`, `backend/app/city/planners.py`, `backend/app/city/optimizer.py`, `backend/app/city/outcome.py` |
 | Review the held-out result | `benchmarks/v4/final-results-200.md` | `internal/evaluation_runs/v4/final-evaluation-200.success.json`, `scripts/publish_final_evaluation_v4.py` |
+| Compare final scenario families | `benchmarks/v4/final-family-analysis-200.md` | final success receipt, matched oracle receipt, `backend/app/city/scenarios.py` |
 | Work on the browser application | `frontend/src/App.tsx` | `frontend/src/generated/backendContract.ts`, `frontend/src/api.ts`, `frontend/src/analysisApi.ts`, `frontend/src/DecisionAnalysis.tsx` |
 
 ## The dependency shape
@@ -54,7 +55,7 @@ Then read `backend/app/shared_evidence.py`. It provides canonical JSON bytes and
 
 Begin with `backend/app/city/physics.py`. It is the numerical foundation: service and hazard order, allocation projection, action proposals, depot damage, throughput, transfers, capped landing, and conservation measurements. The remaining city modules use these functions instead of reimplementing allocation or logistics rules.
 
-Continue with `backend/app/city/scenarios.py`. It defines the disjoint canonical rosters—192 training cases (6 families × 32 seeds), 200 development cases (5 × 40), and 200 reserved final cases (5 × 40)—and turns a validated scenario plus seed into a deterministic disaster tape. This is where split membership and shock realization become concrete.
+Continue with `backend/app/city/scenarios.py`. It defines the disjoint canonical rosters—192 training cases (6 families × 32 seeds), 200 development cases (5 × 40), and 200 held-out final cases (5 × 40)—and turns a validated scenario plus seed into a deterministic disaster tape. This is where split membership and shock realization become concrete; exactly one learned-policy evaluation of the final roster is retained.
 
 Read `backend/app/city/outcome.py` beside it. Outcome calculation is deliberately separate from state transition code. `absolute_outcome` evaluates the canonical solved conjunction; `summarize_trajectory` derives the aggregate evidence used by the API, evaluation tools, and analysis views.
 
@@ -93,6 +94,8 @@ A comparison request therefore follows a compact path: validate the request, loa
 The oracle achieved **187 / 200** development solves and **182 / 200** final solves. Its matched development comparison with the shipped policy records **177 both solved, 1 policy-only, 10 oracle-only, and 12 neither**; the 10 oracle-only rows are the remaining provable headroom. The oracle sees the complete future shock tape, is not a submission baseline or model-selection input, and provides an anytime achieved lower bound rather than a proof of optimality. All oracle rows have zero hard violations and exactly `0.0` conservation residual. Normal runtime policies remain causal public-state planners.
 
 On the final roster, the causal shipped policy solved **163 / 200**, **16 cases ahead** of the tuned constant rule at 147, while the privileged oracle solved **182 / 200**. Their exact pairing is **162 both, 1 policy-only, 20 oracle-only, and 17 neither**. The aggregate policy/oracle solved-count ratio is **89.6%**; casewise policy coverage of oracle-achieved cases is **89.0%**. The distinction matters because the finite anytime oracle has one policy-only case and is not a proven ceiling. The receipt-level Wilson interval for the shipped policy is **[0.7554293724, 0.862698072]**; it treats cases as Bernoulli units and does not model dependence within the five fixed 40-case scenario families, so the final report also exposes family-level results.
+
+The [final family-analysis supplement](../benchmarks/v4/final-family-analysis-200.md) joins the retained shipped-policy and tuned-rule rows with the deterministic teacher breakdown and registered family construction. All three planners have their lowest solve count on aftershock corridor (**26 / 40**, **20 / 40**, and **16 / 40**). That family has the lowest budget center, 136, alongside the joint-highest base shock probability, 0.30, and severity ceiling, 0.36. The learned policy's margins are widest there—**+6** over the tuned rule and **+10** over the teacher—whereas the tuned rule ties it at **38 / 40** on food access. This is descriptive evidence across five designed families, not a causal parameter ablation.
 
 `scripts/generate_frontend_contract.py` is the cross-language boundary. It imports canonical service, hazard, observation, action, request, and outcome values and renders `frontend/src/generated/backendContract.ts`. Run it with `--check` after changing a value it projects.
 
