@@ -368,7 +368,6 @@ def build_counterfactual(
         )
 
     selected_index = request.day - 1
-    original_selected = original_trajectory[selected_index]
     changed_selected = counterfactual_trajectory[selected_index]
     treatment = {
         "day": request.day,

@@ -1,10 +1,9 @@
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
-import * as THREE from 'three'
+import { useRef } from 'react'
 import type { Group, Mesh, MeshStandardMaterial } from 'three'
 import type { CompareResponse, Service, ShockType } from '../types'
-import { DISTRICTS, SERVICE_LABELS } from './model'
+import { DISTRICTS } from './model'
 import {
   disasterWind,
   intensityBand,
@@ -277,7 +276,7 @@ function EpidemicLogistics({ result, dayIndex }: { result: CompareResponse; dayI
         <Tent key={index} position={[campus[0] - 4 + index * 1.55, 0.3, campus[2] + 4.8]} color="#78928d" scale={0.82} />
       ))}
       <GeneratorTrailer position={[campus[0] + 4.2, 0.3, campus[2] + 3.8]} />
-      {['food', 'transport'].map((service, index) => {
+      {['food', 'transport'].map((service) => {
         const district = DISTRICTS.find((item) => item.service === service as Service)!
         return (
           <group key={service} position={[district.center[0] + 3.9, 0.3, district.center[2] - 4.4]}>

@@ -139,7 +139,7 @@ export function repairPlansForDay(
   services: readonly Service[] = CANONICAL_SERVICES,
   inactiveServices: readonly Service[] = [],
 ): RepairPlan[] {
-  return DISTRICTS.flatMap((district, districtIndex) => {
+  return DISTRICTS.flatMap((district) => {
     if (inactiveServices.includes(district.service)) return []
     const index = serviceOffset(services, district.service)
     const priorLevel = previous?.services_end[index] ?? day.services_after_shock[index]

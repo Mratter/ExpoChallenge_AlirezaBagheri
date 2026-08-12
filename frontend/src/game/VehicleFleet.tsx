@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Group, InstancedMesh } from 'three'
-import type { CompareResponse, DayResult, Service } from '../types'
+import type { CompareResponse, Service } from '../types'
 import { DISTRICTS } from './model'
 import {
   HEAVY_TRUCK_CAPACITY,
