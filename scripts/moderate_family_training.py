@@ -92,6 +92,7 @@ SOURCE_PATHS = (
     "scripts/moderate_family_training.py",
     "scripts/train_policy.py",
     "scripts/training_artifacts.py",
+    "backend/app/shared_evidence.py",
     "backend/app/city/environment.py",
     "backend/app/city/scenarios.py",
     "backend/app/city/planners.py",

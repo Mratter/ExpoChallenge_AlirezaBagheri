@@ -111,6 +111,7 @@ def test_shipped_policy_selects_weights_and_tuned_is_context_only_when_different
     assert receipt["selection_policy"]["artifact_sha256"] == SHIPPED_ARTIFACT_SHA256
     assert "scripts/train_policy.py" in receipt["source_identity"]
     assert "scripts/training_artifacts.py" in receipt["source_identity"]
+    assert "backend/app/shared_evidence.py" in receipt["source_identity"]
     assert set(receipt["source_identity"]) == set(SOURCE_PATHS)
     assert receipt["ranking"]["ranked_family_ids"][:2] == [ids[1], ids[3]]
     assert receipt["sampler"]["hardest_family_ids"] == [ids[1], ids[3]]
@@ -125,7 +126,11 @@ def test_shipped_policy_selects_weights_and_tuned_is_context_only_when_different
     assert validate_difficulty_receipt(path)["sampler"] == receipt["sampler"]
 
     for index, relative in enumerate(
-        ("scripts/train_policy.py", "scripts/training_artifacts.py")
+        (
+            "scripts/train_policy.py",
+            "scripts/training_artifacts.py",
+            "backend/app/shared_evidence.py",
+        )
     ):
         tampered = json.loads(json.dumps(receipt))
         tampered["source_identity"][relative] = "0" * 64
@@ -133,6 +138,13 @@ def test_shipped_policy_selects_weights_and_tuned_is_context_only_when_different
         tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
         with pytest.raises(ModerateStudyError, match="source identity drifted"):
             validate_difficulty_receipt(tampered_path)
+
+    incomplete = json.loads(json.dumps(receipt))
+    incomplete["source_identity"].pop("backend/app/shared_evidence.py")
+    incomplete_path = tmp_path / "difficulty-incomplete.json"
+    incomplete_path.write_text(json.dumps(incomplete), encoding="utf-8")
+    with pytest.raises(ModerateStudyError, match="source identity is incomplete"):
+        validate_difficulty_receipt(incomplete_path)
 
 
 def test_tuned_ranking_is_omitted_when_it_matches_shipped() -> None:
