@@ -36,17 +36,17 @@ def _training_observation() -> np.ndarray:
     (
         (
             reactive_heuristic_action,
-            "0e72fd33654acfeb9067bdd9ced21b1f1eb0d956db53f1d8df332438bc13c063",
+            "4ec28b0c78e9d1a97d2616d898d8677f3a794eeb0a2b9d7c5c5e17e48595c3d2",
             "7f45dcd9168143daaf3ba131bfd862bf7929d05838e96f6c3750ace3b06dd8c7",
         ),
         (
             preparedness_teacher_action,
-            "97522b127c69433254512dd9d6244aaeedf1ca32fc58cd7c86fabc741aa31910",
+            "90144ae8579a0df68f2ebb5a0c325effe550d010857ccf8d1f597c561912171a",
             "06c3163603e1ef36a5c507a96e2b919859eeeba1da505d96ed2724db4f1e10d5",
         ),
         (
             tuned_rule_action,
-            "4d7b39e34e84748ab624a252f80ef2e66f2d8468ef739ba3860e70d0683910e6",
+            "51b47d8a2de60e823d1eb81a9d5afaa76492a52ed4c8fcf77721e82329376088",
             "0ac8012466e295df746e14122d9e178dfc89a17f0ec16902e2aa125fd5afefb9",
         ),
     ),
@@ -62,7 +62,11 @@ def test_planner_matches_frozen_public_action_and_evidence(
     assert action.dtype == np.float64
     assert np.all(np.isfinite(action))
     assert np.all(action >= -1.0) and np.all(action <= 1.0)
-    assert canonical_hash(action.tolist()) == action_sha256
+    # NumPy's fractional powers can differ by a few final bits across libm
+    # implementations. Lock the planner's meaningful eight-decimal action
+    # contract while the downstream trajectory regressions guard behavior.
+    rounded_action = [round(float(value), 8) for value in action]
+    assert canonical_hash(rounded_action) == action_sha256
     assert canonical_hash(evidence) == evidence_sha256
 
 
