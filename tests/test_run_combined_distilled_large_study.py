@@ -544,7 +544,9 @@ def test_output_root_must_be_external_and_not_a_drive_root() -> None:
             combined.ROOT / "would-be-output", "--output-root"
         )
     with pytest.raises(combined.CombinedStudyError, match="filesystem root"):
-        combined._require_external_root(Path("E:/"), "--output-root")
+        combined._require_external_root(
+            Path(combined.ROOT.anchor), "--output-root"
+        )
 
 
 def test_module_has_no_final_split_dependency() -> None:
