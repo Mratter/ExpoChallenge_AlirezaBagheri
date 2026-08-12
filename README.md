@@ -47,6 +47,8 @@ The oracle is privileged, not a causal submission baseline or a model-selection 
 
 The five-seed study and matched ablations are summarized in `benchmarks/v4/training-study-200.md`, with a digest-bound index at `internal/developmental_runs/v4/training-study-200-summary.json`. The receipt-bound cheap-planner snapshot is in `benchmarks/v4/development-baselines-200.md`, with complete ordered rows in `internal/developmental_runs/v4/development-baselines-200.json`; it is preserved byte-for-byte from before the matched oracle rerun, so its historical-only oracle note records the evidence state at publication. The selected checkpoint is recorded in `internal/developmental_runs/v4/checkpoint-selection-200.json`; `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` binds its SB3 and ONNX development rows, and `artifacts/city_recovery_ppo.v4.manifest.json` binds the published artifact to both receipts. These training, selection, and parity results remain development-only; the single final evaluation is separate and did not feed back into them.
 
+A later development-only oracle-distillation study tested a fixed offline actor learned from privileged CEM trajectories, followed by the adopted critic warm-up and PPO configuration. Its three 2M endpoints solved **178, 174, and 170 / 200** cases: mean **174.0**, population standard deviation **3.27**, and sample standard deviation **4.0**. That mean is 2.6 cases above the original five-seed endpoint mean, but the best registered checkpoint only tied the shipped checkpoint at **178 / 200** and missed the preregistered **183 / 200** best-checkpoint threshold. The conjunctive gate therefore did not promote it. This null applies only to the fixed single-pass offline oracle-BC actor, adopted optimizer, and 2M budget; distribution shift remains unresolved. The complete portable result is in [the oracle-distilled PPO report](benchmarks/v4/oracle-distilled-ppo-study-200.md) and [machine receipt](internal/developmental_runs/v4/oracle-distilled-ppo-study-200.json). No final case was used, and the shipped artifact remains unchanged.
+
 The matched oracle study is reported in [the 200-case clairvoyant-oracle benchmark](benchmarks/v4/clairvoyant-oracle-200.md), with complete portable [development](internal/developmental_runs/v4/clairvoyant-oracle-200-dev.json) and [final](internal/developmental_runs/v4/clairvoyant-oracle-200-final.json) receipts. These fixed diagnostics record `model_selection_used: false`; the final receipt contains no learned-policy rollout.
 
 ### Historical original 40-case development subset
@@ -636,6 +638,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `build_development_baselines.py` | Rebuilds the current 200-case cheap-planner development table and machine receipt. |
 | `headroom.py` | Historical original-subset analysis and the shared MPC/CEM mechanics used by the expanded diagnostic. |
 | `run_oracle_study.py`, `publish_oracle_study.py` | Fixed 200-case development/final clairvoyant study with resumable external shards, parallel-worker fallback, and portable evidence publication. |
+| `run_training_oracle_trajectories.py`, `train_oracle_bc_student.py`, `run_distilled_ppo_study.py`, `publish_oracle_distilled_ppo_evidence.py` | Training-only privileged demonstrations, fixed offline student fit, three-seed DEV continuation, and portable post-release evidence publication. |
 | `publish_final_evaluation_v4.py` | Claim-gated one-shot final evaluator and machine-receipt/final-report publisher. |
 | `generate_frontend_contract.py` | Generates or checks the canonical Python-to-TypeScript contract. |
 
@@ -645,6 +648,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | --- | --- |
 | `artifacts/city_recovery_ppo.v4.onnx`, `artifacts/city_recovery_ppo.v4.manifest.json` | Bundled parity-approved policy and descriptive publication metadata. |
 | `benchmarks/v4/training-study-200.md`, `internal/developmental_runs/v4/training-study-200-summary.json` | Human-readable five-seed/ablation report and digest-bound machine summary. |
+| [`benchmarks/v4/oracle-distilled-ppo-study-200.md`](benchmarks/v4/oracle-distilled-ppo-study-200.md), [`internal/developmental_runs/v4/oracle-distilled-ppo-study-200.json`](internal/developmental_runs/v4/oracle-distilled-ppo-study-200.json) | Development-only oracle-distillation report and portable per-case evidence for all nine registered candidates. |
 | `internal/developmental_runs/v4/checkpoint-selection-200.json` | Five-seed, 20-checkpoint development selection receipt. |
 | `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` | Complete 200-case SB3-to-ONNX parity receipt for the selected policy. |
 | `benchmarks/v4/development-baselines-200.md` | Current human-readable 200-tape cheap-planner development aggregate. |
@@ -766,7 +770,7 @@ Development selection, export, manifest generation, full SB3-to-ONNX parity, and
 
 The current performance and runtime claims are bound by retained evidence:
 
-1. `internal/developmental_runs/v4/training-study-200-summary.json` and `benchmarks/v4/training-study-200.md` bind the five-seed baseline, matched ablations, selection, and publication chain without using the final split.
+1. `internal/developmental_runs/v4/training-study-200-summary.json` and `benchmarks/v4/training-study-200.md` bind the five-seed baseline, matched ablations, selection, and publication chain without using the final split. The later [oracle-distilled PPO receipt](internal/developmental_runs/v4/oracle-distilled-ppo-study-200.json) and [report](benchmarks/v4/oracle-distilled-ppo-study-200.md) retain all nine post-release DEV candidates, their exact per-case rows, upstream identities, and the non-promotion decision; they do not alter the shipped chain.
 2. `internal/developmental_runs/v4/checkpoint-selection-200.json` ranks 20 complete checkpoints from five seeds and selects seed `67017` at 1M with 178/200 development solves.
 3. `internal/developmental_runs/v4/city_recovery_ppo.v4.parity.json` proves all 6,000 action vectors, 132,000 action elements, outcomes, AUC values, safety checks, conservation checks, and deterministic replays across the 200 development cases.
 4. `artifacts/city_recovery_ppo.v4.manifest.json` binds the selected checkpoint, normalization state, ONNX SHA-256, interface, selection receipt, and parity receipt.
