@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -95,6 +98,111 @@ def test_actor_transplant_keeps_distilled_actor_and_fresh_critic() -> None:
     assert train_policy.state_digest(study._critic_entries(merged)) != (
         train_policy.state_digest(study._critic_entries(distilled))
     )
+
+
+def test_coordinator_and_worker_bind_same_critic_across_runtime_contexts() -> None:
+    seed = 37_017
+    coordinator_sha256 = study.fresh_critic_state_sha256(seed)
+    worker_script = """
+import json
+import torch
+from scripts import run_distilled_ppo_study as study
+
+before = {
+    "intraop_threads": torch.get_num_threads(),
+    "interop_threads": torch.get_num_interop_threads(),
+    "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+    "warn_only": torch.is_deterministic_algorithms_warn_only_enabled(),
+}
+critic_sha256 = study.fresh_critic_state_sha256(37_017)
+after = {
+    "intraop_threads": torch.get_num_threads(),
+    "interop_threads": torch.get_num_interop_threads(),
+    "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+    "warn_only": torch.is_deterministic_algorithms_warn_only_enabled(),
+}
+print(json.dumps({"before": before, "after": after, "critic": critic_sha256}))
+"""
+    environment = os.environ.copy()
+    for variable in (
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        environment[variable] = "2"
+    completed = subprocess.run(
+        [sys.executable, "-c", worker_script],
+        cwd=study.ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    worker = json.loads(completed.stdout)
+
+    assert worker["before"] != worker["after"]
+    assert worker["after"] == {
+        "intraop_threads": study.TORCH_INTRAOP_THREADS,
+        "interop_threads": study.TORCH_INTEROP_THREADS,
+        "deterministic_algorithms": True,
+        "warn_only": False,
+    }
+    assert worker["critic"] == coordinator_sha256
+
+
+@pytest.mark.parametrize("mode", ("wrong", "extra"))
+def test_trainer_torch_proxy_rejects_wrong_or_extra_setup_and_restores(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+) -> None:
+    original_train_policy_torch = train_policy.torch
+
+    def drifted_main(_argv: list[str]) -> int:
+        if mode == "wrong":
+            train_policy.torch.set_num_threads(
+                study.TORCH_INTRAOP_THREADS + 1
+            )
+        else:
+            train_policy.torch.set_num_threads(study.TORCH_INTRAOP_THREADS)
+            train_policy.torch.set_num_interop_threads(
+                study.TORCH_INTEROP_THREADS
+            )
+            train_policy.torch.use_deterministic_algorithms(True)
+            train_policy.torch.set_num_interop_threads(
+                study.TORCH_INTEROP_THREADS
+            )
+        return 0
+
+    monkeypatch.setattr(train_policy, "main", drifted_main)
+    with pytest.raises(
+        study.DistilledPPOStudyError,
+        match="Torch runtime setup drifted",
+    ):
+        study._run_train_policy_main([])
+    assert train_policy.torch is original_train_policy_torch
+
+
+def test_trainer_torch_proxy_restores_when_trainer_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class TrainerFailure(RuntimeError):
+        pass
+
+    original_train_policy_torch = train_policy.torch
+
+    def failed_main(_argv: list[str]) -> int:
+        train_policy.torch.set_num_threads(study.TORCH_INTRAOP_THREADS)
+        train_policy.torch.set_num_interop_threads(
+            study.TORCH_INTEROP_THREADS
+        )
+        train_policy.torch.use_deterministic_algorithms(True)
+        raise TrainerFailure("synthetic trainer failure")
+
+    monkeypatch.setattr(train_policy, "main", failed_main)
+    with pytest.raises(TrainerFailure, match="synthetic trainer failure"):
+        study._run_train_policy_main([])
+    assert train_policy.torch is original_train_policy_torch
 
 
 def test_actor_transplant_rejects_schema_or_shape_drift() -> None:
@@ -252,6 +360,13 @@ def test_worker_path_never_calls_legacy_bc_or_dagger_collectors(
 
     def fake_main(_argv: list[str]) -> int:
         calls["main"] += 1
+        assert torch.get_num_threads() == study.TORCH_INTRAOP_THREADS
+        assert torch.get_num_interop_threads() == study.TORCH_INTEROP_THREADS
+        assert torch.are_deterministic_algorithms_enabled()
+        assert not torch.is_deterministic_algorithms_warn_only_enabled()
+        train_policy.torch.set_num_threads(min(12, os.cpu_count() or 1))
+        train_policy.torch.set_num_interop_threads(1)
+        train_policy.torch.use_deterministic_algorithms(True)
         observations, targets = train_policy.behavior_cloning_dataset()
         assert observations.shape == (1, 73)
         assert targets.shape == (1, 22)
@@ -295,6 +410,7 @@ def test_worker_path_never_calls_legacy_bc_or_dagger_collectors(
     )
     contract = {
         "tool": study.TOOL_ID,
+        **study._torch_runtime_binding(),
         "git_commit": "synthetic-commit",
         "source_identity": sources,
         "source_identity_sha256": canonical_hash(sources),
@@ -317,6 +433,7 @@ def test_worker_path_never_calls_legacy_bc_or_dagger_collectors(
     assert study._run_worker(tmp_path.resolve(), seed) == 19
     assert calls == {"legacy_bc": 0, "dagger": 0, "main": 1}
     assert train_policy.behavior_cloning_dataset is legacy_bc_bomb
+    assert train_policy.torch is torch
 
 
 def test_registered_trainer_config_is_exact_and_hashes_are_per_seed() -> None:
@@ -344,6 +461,13 @@ def test_registered_trainer_config_is_exact_and_hashes_are_per_seed() -> None:
         assert config["critic_warmup_max_transitions"] == 100_000
         assert config["freeze_observation_rms"] is True
         distillation = config["distillation_experiment"]
+        assert distillation["torch_runtime"] == study._resolved_torch_runtime()
+        assert distillation["torch_runtime_sha256"] == canonical_hash(
+            distillation["torch_runtime"]
+        )
+        assert distillation["torch_runtime"][
+            "deterministic_algorithms_warn_only"
+        ] is False
         assert distillation["source_actor_state_sha256"] == "a" * 64
         assert distillation["fresh_critic_initialized_from_each_policy_seed"] is True
         assert distillation["source_evidence_hash_independent_of_training_config_hash"] is True
@@ -803,6 +927,29 @@ def test_training_receipt_rejects_bundle_config_or_milestone_drift(
         )
 
 
+def test_training_receipt_rejects_self_consistent_mutated_torch_runtime(
+    tmp_path: Path,
+) -> None:
+    receipt_path, _, reference = _fake_training_receipt(tmp_path)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    distillation = receipt["config"]["distillation_experiment"]
+    distillation["torch_runtime"]["interop_threads"] += 1
+    distillation["torch_runtime_sha256"] = canonical_hash(
+        distillation["torch_runtime"]
+    )
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    with pytest.raises(
+        study.DistilledPPOStudyError,
+        match="training config Torch runtime binding drifted",
+    ):
+        study.validate_training_receipt(
+            receipt_path,
+            37_017,
+            reference,
+        )
+
+
 @pytest.mark.parametrize(
     "mutation",
     (
@@ -898,6 +1045,7 @@ def test_protocol_is_create_new_and_resume_fails_closed(tmp_path: Path) -> None:
     output_root = tmp_path / "study"
     contract = {
         "tool": study.TOOL_ID,
+        **study._torch_runtime_binding(),
         "source_identity_sha256": "a" * 64,
         "registered_training_config_sha256_by_seed": {"37017": "b" * 64},
     }
@@ -912,6 +1060,28 @@ def test_protocol_is_create_new_and_resume_fails_closed(tmp_path: Path) -> None:
     protocol_path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(study.DistilledPPOStudyError, match="differs"):
         study._validate_protocol(output_root, contract)
+
+
+def test_protocol_rejects_self_consistent_mutated_torch_runtime(
+    tmp_path: Path,
+) -> None:
+    output_root = tmp_path / "study"
+    contract = {"tool": study.TOOL_ID, **study._torch_runtime_binding()}
+    protocol_path = study._create_study_protocol(output_root, contract)
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    mutated = protocol["contract"]
+    mutated["torch_runtime"]["intraop_threads"] += 1
+    mutated["torch_runtime_sha256"] = canonical_hash(
+        mutated["torch_runtime"]
+    )
+    protocol["contract_sha256"] = canonical_hash(mutated)
+    protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
+
+    with pytest.raises(
+        study.DistilledPPOStudyError,
+        match="existing study protocol Torch runtime binding drifted",
+    ):
+        study._validate_protocol(output_root, mutated)
 
 
 def test_summary_publication_is_idempotent_but_rejects_drift(

@@ -85,6 +85,8 @@ INCUMBENT_ENDPOINT_SAMPLE_STD = 1.816590212458495
 PROMOTION_BEST_SOLVES = 183
 PROMOTION_ENDPOINT_SOLVES = 172
 PROMOTION_ENDPOINT_SEED_COUNT = 2
+TORCH_INTRAOP_THREADS = min(12, os.cpu_count() or 1)
+TORCH_INTEROP_THREADS = 1
 CHECKPOINT_REFERENCE_FIELDS = {
     "checkpoint_id",
     "manifest_path",
@@ -119,6 +121,145 @@ DEFAULT_SELECTION_RECEIPT = (
 
 class DistilledPPOStudyError(RuntimeError):
     """Raised when the fixed distilled-PPO study contract cannot be honored."""
+
+
+def _canonicalize_torch_runtime() -> None:
+    """Match the trainer's byte-defining Torch runtime before model creation."""
+
+    try:
+        torch.set_num_threads(TORCH_INTRAOP_THREADS)
+        if torch.get_num_interop_threads() != TORCH_INTEROP_THREADS:
+            torch.set_num_interop_threads(TORCH_INTEROP_THREADS)
+        torch.use_deterministic_algorithms(True, warn_only=False)
+    except RuntimeError as exc:
+        raise DistilledPPOStudyError(
+            "Torch runtime could not be canonicalized before critic construction"
+        ) from exc
+    _assert_canonical_torch_runtime()
+
+
+def _assert_canonical_torch_runtime() -> None:
+    """Fail closed if the byte-defining Torch context has moved."""
+
+    if (
+        torch.get_num_threads() != TORCH_INTRAOP_THREADS
+        or torch.get_num_interop_threads() != TORCH_INTEROP_THREADS
+        or not torch.are_deterministic_algorithms_enabled()
+        or torch.is_deterministic_algorithms_warn_only_enabled()
+    ):
+        raise DistilledPPOStudyError("canonical Torch runtime binding drifted")
+
+
+def _resolved_torch_runtime() -> dict[str, Any]:
+    """Return the canonical byte-defining Torch context."""
+
+    _canonicalize_torch_runtime()
+    return {
+        "device": "cpu",
+        "torch_version": str(torch.__version__),
+        "intraop_threads": torch.get_num_threads(),
+        "interop_threads": torch.get_num_interop_threads(),
+        "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+        "deterministic_algorithms_warn_only": (
+            torch.is_deterministic_algorithms_warn_only_enabled()
+        ),
+    }
+
+
+def _torch_runtime_binding() -> dict[str, Any]:
+    runtime = _resolved_torch_runtime()
+    return {
+        "torch_runtime": runtime,
+        "torch_runtime_sha256": canonical_hash(runtime),
+    }
+
+
+def _validate_torch_runtime_binding(
+    value: Mapping[str, Any],
+    *,
+    label: str,
+) -> None:
+    current = _resolved_torch_runtime()
+    recorded = value.get("torch_runtime")
+    recorded_sha256 = value.get("torch_runtime_sha256")
+    if (
+        not isinstance(recorded, dict)
+        or recorded != current
+        or recorded_sha256 != canonical_hash(recorded)
+        or recorded_sha256 != canonical_hash(current)
+    ):
+        raise DistilledPPOStudyError(f"{label} Torch runtime binding drifted")
+
+
+def _run_train_policy_main(argv: Sequence[str]) -> int:
+    """Enter the canonical trainer without repeating Torch's one-shot setter."""
+
+    _canonicalize_torch_runtime()
+    original_train_policy_torch = train_policy.torch
+    duplicate_calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
+
+    class TrainerTorchProxy:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(torch, name)
+
+        def set_num_threads(self, *args: Any, **kwargs: Any) -> None:
+            self._record("set_num_threads", args, kwargs)
+            torch.set_num_threads(*args, **kwargs)
+
+        def set_num_interop_threads(self, *args: Any, **kwargs: Any) -> None:
+            # This setter is process-global and one-shot; the registered
+            # duplicate call is checked but intentionally not repeated.
+            self._record("set_num_interop_threads", args, kwargs)
+
+        def use_deterministic_algorithms(
+            self,
+            *args: Any,
+            **kwargs: Any,
+        ) -> None:
+            self._record("use_deterministic_algorithms", args, kwargs)
+            torch.use_deterministic_algorithms(*args, **kwargs)
+
+        @staticmethod
+        def _record(
+            name: str,
+            args: tuple[Any, ...],
+            kwargs: dict[str, Any],
+        ) -> None:
+            duplicate_calls.append((name, args, kwargs))
+            expected = [
+                ("set_num_threads", (TORCH_INTRAOP_THREADS,), {}),
+                ("set_num_interop_threads", (TORCH_INTEROP_THREADS,), {}),
+                (
+                    "use_deterministic_algorithms",
+                    (True,),
+                    {},
+                ),
+            ]
+            if duplicate_calls != expected[: len(duplicate_calls)]:
+                raise DistilledPPOStudyError(
+                    "train_policy.main Torch runtime setup drifted"
+                )
+
+    expected_calls = [
+        ("set_num_threads", (TORCH_INTRAOP_THREADS,), {}),
+        ("set_num_interop_threads", (TORCH_INTEROP_THREADS,), {}),
+        (
+            "use_deterministic_algorithms",
+            (True,),
+            {},
+        ),
+    ]
+    train_policy.torch = TrainerTorchProxy()
+    try:
+        result = train_policy.main(argv)
+        if duplicate_calls != expected_calls:
+            raise DistilledPPOStudyError(
+                "train_policy.main did not perform its registered Torch runtime setup"
+            )
+        _assert_canonical_torch_runtime()
+        return result
+    finally:
+        train_policy.torch = original_train_policy_torch
 
 
 def _utc_now() -> str:
@@ -525,6 +666,7 @@ def _normalization_state_for_trainer(
 def distillation_config(student_reference: dict[str, Any]) -> dict[str, Any]:
     checkpoint = student_reference["checkpoint"]
     return {
+        **_torch_runtime_binding(),
         "study_tool": TOOL_ID,
         "initialization_method": "approved_external_oracle_bc_actor",
         "single_pass_behavior_cloning": True,
@@ -560,6 +702,7 @@ def distillation_config(student_reference: dict[str, Any]) -> dict[str, Any]:
 def fresh_critic_state_sha256(seed: int) -> str:
     """Rebuild and hash the canonical random critic for one PPO seed."""
 
+    _canonicalize_torch_runtime()
     if seed not in POLICY_SEEDS:
         raise DistilledPPOStudyError(f"unregistered policy seed: {seed}")
     fresh_state = train_policy.untrained_policy_state(
@@ -638,6 +781,7 @@ def inject_distilled_initialization(
         ent_coef: float,
         normalize_observation: bool = True,
     ) -> tuple[dict[str, torch.Tensor], dict[str, Any], dict[str, Any]]:
+        _canonicalize_torch_runtime()
         if (
             seed not in POLICY_SEEDS
             or epochs != 15
@@ -1078,6 +1222,8 @@ def study_contract(
     student_reference: dict[str, Any],
     incumbent_reference: dict[str, Any],
 ) -> dict[str, Any]:
+    _canonicalize_torch_runtime()
+    runtime_binding = _torch_runtime_binding()
     sources = source_identity()
     configs = {
         str(seed): expected_training_config(seed, student_reference)
@@ -1098,6 +1244,7 @@ def study_contract(
     return {
         "schema_version": SCHEMA_VERSION,
         "tool": TOOL_ID,
+        **runtime_binding,
         "git_commit": _git_commit(),
         "source_identity": sources,
         "source_identity_sha256": canonical_hash(sources),
@@ -1325,10 +1472,24 @@ def validate_training_receipt(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Validate one complete canonical run and its ordered DEV bundles."""
 
+    _canonicalize_torch_runtime()
     if seed not in POLICY_SEEDS:
         raise DistilledPPOStudyError(f"unregistered policy seed: {seed}")
     receipt = _load_json(path, f"distilled PPO seed {seed} receipt")
     config = receipt.get("config")
+    if not isinstance(config, dict):
+        raise DistilledPPOStudyError(
+            f"distilled PPO receipt config drifted: seed {seed}"
+        )
+    distillation = config.get("distillation_experiment")
+    if not isinstance(distillation, dict):
+        raise DistilledPPOStudyError(
+            f"distilled PPO receipt distillation config drifted: seed {seed}"
+        )
+    _validate_torch_runtime_binding(
+        distillation,
+        label=f"distilled PPO seed {seed} training config",
+    )
     expected_config = expected_training_config(seed, student_reference)
     checks = receipt.get("checks")
     transition_counts = receipt.get("transition_counts")
@@ -1736,6 +1897,13 @@ def build_summary(
 
 def _validate_protocol(output_root: Path, contract: dict[str, Any]) -> None:
     protocol = _load_json(output_root / "protocol.json", "study protocol")
+    recorded_contract = protocol.get("contract")
+    if not isinstance(recorded_contract, dict):
+        raise DistilledPPOStudyError("existing study protocol contract is missing")
+    _validate_torch_runtime_binding(
+        recorded_contract,
+        label="existing study protocol",
+    )
     if (
         protocol.get("contract_sha256") != canonical_hash(contract)
         or protocol.get("contract") != contract
@@ -1826,10 +1994,13 @@ def _run_one_seed(
 
 
 def _run_worker(output_root: Path, seed: int) -> int:
+    _canonicalize_torch_runtime()
     if seed not in POLICY_SEEDS:
         raise DistilledPPOStudyError(f"unregistered policy seed: {seed}")
     protocol = _load_json(output_root / "protocol.json", "study protocol")
     contract = protocol.get("contract")
+    if isinstance(contract, dict):
+        _validate_torch_runtime_binding(contract, label="worker protocol")
     if (
         not isinstance(contract, dict)
         or protocol.get("contract_sha256") != canonical_hash(contract)
@@ -1849,9 +2020,24 @@ def _run_worker(output_root: Path, seed: int) -> int:
     if student_reference != contract.get("approved_student_reference"):
         raise DistilledPPOStudyError("worker student evidence binding drifted")
     expected_config = expected_training_config(seed, student_reference)
+    registered_config = contract.get("registered_training_configs", {}).get(
+        str(seed)
+    )
+    registered_distillation = (
+        registered_config.get("distillation_experiment")
+        if isinstance(registered_config, dict)
+        else None
+    )
+    if not isinstance(registered_distillation, dict):
+        raise DistilledPPOStudyError(
+            "worker registered Torch runtime binding is missing"
+        )
+    _validate_torch_runtime_binding(
+        registered_distillation,
+        label=f"worker seed {seed} training config",
+    )
     if (
-        contract.get("registered_training_configs", {}).get(str(seed))
-        != expected_config
+        registered_config != expected_config
         or contract.get("registered_training_config_sha256_by_seed", {}).get(
             str(seed)
         )
@@ -1860,7 +2046,7 @@ def _run_worker(output_root: Path, seed: int) -> int:
         raise DistilledPPOStudyError("worker registered config binding drifted")
     train_policy.reset_policy_seed(seed)
     with inject_distilled_initialization(student_reference):
-        return train_policy.main(trainer_arguments(output_root, seed))
+        return _run_train_policy_main(trainer_arguments(output_root, seed))
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -1900,6 +2086,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _canonicalize_torch_runtime()
     args = _parse_args(argv)
     output_root = _require_external_root(args.output_root, "output root")
     approved_root = APPROVED_STUDENT_ROOT.resolve()
