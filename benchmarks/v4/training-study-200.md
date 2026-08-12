@@ -1,5 +1,13 @@
 # Training study: 200-case development protocol
 
+<!-- BEGIN ACHIEVED-COUNT REPORTING OVERLAY -->
+## Demonstrated-achievable reference
+
+**Demonstrated-achievable reference denominator = the 187 of 200 development cases solved by the privileged future-aware CEM run; its 13 search failures are not proofs of infeasibility.**
+
+The five registered 2M endpoints average **171.4/200 raw**, or **171.4/187 = 91.7%** of that achieved-count reference; selection chose **178/200 raw**, or **178/187 = 95.2%**. The mean answers reproducibility across optimizer seeds, while 178 answers development checkpoint selection. No Wilson interval is reported for the optimizer-seed mean; the achieved-count ratios are descriptive and post-hoc.
+<!-- END ACHIEVED-COUNT REPORTING OVERLAY -->
+
 This is development-only evidence. Every training endpoint, checkpoint selection row, and SB3-to-ONNX parity row uses the 200-case development roster. The final split was not used, so none of the numbers below is a final-split performance claim. The complete tracked digest and receipt index is in [`training-study-200-summary.json`](../../internal/developmental_runs/v4/training-study-200-summary.json).
 
 ## Five-seed baseline

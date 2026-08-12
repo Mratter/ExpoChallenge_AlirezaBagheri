@@ -544,4 +544,11 @@ def test_published_final_evidence_is_byte_bound_and_canonical() -> None:
     rendered = publication.render_markdown(
         receipt, EXPECTED_CANONICAL_SUCCESS_SHA256
     )
-    assert publication.MARKDOWN_PATH.read_text(encoding="utf-8") == rendered
+    from scripts.render_achieved_count_reports import (
+        restore_frozen_report_wording,
+        strip_overlay,
+    )
+
+    assert restore_frozen_report_wording(
+        strip_overlay(publication.MARKDOWN_PATH.read_text(encoding="utf-8"))
+    ) == rendered

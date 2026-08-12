@@ -1,5 +1,29 @@
 # Final 200-case results
 
+<!-- BEGIN ACHIEVED-COUNT REPORTING OVERLAY -->
+## Demonstrated-achievable reference
+
+The shipped v4 policy solved **163/182 = 89.6%** relative to the privileged CEM achieved-count reference (Wilson 95% **[84.3%, 93.2%]**), alongside its raw **163/200** held-out result.
+
+**Demonstrated-achievable reference denominator = the 182 of 200 final cases solved by the privileged future-aware CEM run; its 18 search failures are not proofs of infeasibility.**
+
+| Method | Raw solved / 200 | Achieved-count ratio (/182 reference) | Wilson 95% CI on /182 |
+|---|---:|---:|---:|
+| Privileged CEM | 182/200 | 182/182 = 100.0% | [0.9793, 1.0000] |
+| Shipped v4 PPO | 163/200 | 163/182 = 89.6% | [0.8427, 0.9321] |
+| Tuned rule | 147/200 | 147/182 = 80.8% | [0.7443, 0.8584] |
+| Preparedness teacher | 139/200 | 139/182 = 76.4% | [0.6970, 0.8196] |
+| Selected MPC | 135/200 | 135/182 = 74.2% | [0.6736, 0.7999] |
+| Legacy fixture | 125/200 | 125/182 = 68.7% | [0.6162, 0.7497] |
+| Reactive heuristic | 72/200 | 72/182 = 39.6% | [0.3274, 0.4681] |
+
+The headline ratio compares aggregate solved counts, not a contained case set: casewise policy coverage is **162/182 = 89.0%** because one case is policy-only. The two recorded methods jointly demonstrate solutions on **183/200** cases; 20 oracle-only cases demonstrate remaining headroom.
+
+Receipt audit of the oracle's 18 failed searches found **15/18** with nonnegative minimum tail margin (mean +0.03391065; range -0.01072877 to +0.11473788). Failed-check occurrences were 14 resilience-AUC, 9 critical-day-cap, and 3 assessment-tail checks, with overlaps. The portable receipt does not retain numeric day-cap excess, and these search failures do not prove infeasibility.
+
+The /182 intervals are descriptive post-hoc Wilson intervals. They and the raw /200 interval treat cases as Bernoulli units and do not model clustering within five fixed scenario families.
+<!-- END ACHIEVED-COUNT REPORTING OVERLAY -->
+
 The shipped v4 row is the single owner-authorized learned-policy final evaluation. The final result was not used for model selection or training.
 
 | Method | Solved | Rate | Wilson 95% CI | Scope |
@@ -28,7 +52,7 @@ The clairvoyant CEM sees the complete future shock tape. It is a privileged anyt
 
 ## Matched shipped-policy / oracle cases
 
-| Both | Policy only | Oracle only | Neither | Known-feasible union |
+| Both | Policy only | Oracle only | Neither | Demonstrated union |
 |---:|---:|---:|---:|---:|
 | 162 | 1 | 20 | 17 | 183/200 |
 

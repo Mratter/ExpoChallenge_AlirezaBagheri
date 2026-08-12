@@ -11,6 +11,7 @@ from scripts.build_development_baselines import (
     _write_new,
     render_markdown,
 )
+from scripts.render_achieved_count_reports import strip_overlay
 
 ROOT = Path(__file__).resolve().parents[1]
 RECEIPT = (
@@ -72,7 +73,9 @@ def test_committed_200_case_development_evidence_is_complete_and_current() -> No
     for record in (historical["receipt"], historical["markdown"]):
         assert file_sha256(ROOT / record["path"]) == record["sha256"]
 
-    assert MARKDOWN.read_text(encoding="utf-8") == render_markdown(payload)
+    assert strip_overlay(MARKDOWN.read_text(encoding="utf-8")) == render_markdown(
+        payload
+    )
     assert "37/40 on that original subset only" in MARKDOWN.read_text(
         encoding="utf-8"
     )

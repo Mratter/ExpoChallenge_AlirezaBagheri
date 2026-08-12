@@ -30,18 +30,19 @@ The bundled artifact is SHA-256 `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc66
 
 ### Current development benchmark and matched headroom diagnostic
 
-The current comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. At the registered 2M endpoint, the five policy seeds (`37017`, `47017`, `57017`, `67017`, and `77017`) solved **172, 171, 171, 174, and 169** cases: mean **171.4 / 200**, population standard deviation **1.62**, and sample standard deviation **1.82**. The population value describes the complete registered five-seed sweep; the sample value describes dispersion when those seeds are treated as a sample of optimizer randomness. Selection then ranked all 20 complete milestone checkpoints and chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, four solves ahead of the **174 / 200** runner-up. Full SB3-to-ONNX parity reproduced all 178 development solves, with zero hard violations, exact conservation, and no deterministic replay mismatches.
+The current comparison covers the expanded roster of 200 development tapes: five unchanged scenario families crossed with 40 seeds. **Demonstrated-achievable reference denominator = the 187 of 200 development cases solved by the privileged future-aware CEM run; its 13 search failures are not proofs of infeasibility.** At the registered 2M endpoint, the five policy seeds (`37017`, `47017`, `57017`, `67017`, and `77017`) solved **172, 171, 171, 174, and 169** cases: mean **171.4 / 200**, or **171.4 / 187 = 91.7%** of that achieved-count reference, with population standard deviation **1.62** and sample standard deviation **1.82**. No Wilson interval is reported for the optimizer-seed mean. The population value describes the complete registered five-seed sweep; the sample value describes dispersion when those seeds are treated as a sample of optimizer randomness. Selection then ranked all 20 complete milestone checkpoints and chose seed `67017` at 1M active actor-critic transitions with **178 / 200**, or **178 / 187 = 95.2%** of the achieved-count reference (descriptive post-hoc Wilson 95% **[0.9111, 0.9745]**), four solves ahead of the **174 / 200** runner-up. Full SB3-to-ONNX parity reproduced all 178 development solves, with zero hard violations, exact conservation, and no deterministic replay mismatches.
 
-| Development method | Solved on 200 development tapes | Wilson 95% CI |
-| --- | ---: | ---: |
-| **Selected v4 PPO, seed 67017 at 1M** | **178 / 200** | **[0.839, 0.926]** |
-| Privileged clairvoyant CEM — anytime achieved lower bound | **187 / 200** | **[0.892, 0.962]** |
-| Reactive heuristic | **91 / 200** | **[0.387, 0.524]** |
-| Preparedness teacher | **151 / 200** | **[0.691, 0.809]** |
-| **Tuned constant rule** | **160 / 200** | **[0.739, 0.850]** |
-| Legacy ONNX regression fixture | **141 / 200** | **[0.638, 0.764]** |
+| Development method | Raw solved / 200 | Achieved-count ratio (/187 reference) | Descriptive Wilson 95% CI on /187 |
+| --- | ---: | ---: | ---: |
+| **Selected v4 PPO, seed 67017 at 1M** | **178 / 200** | **178 / 187 = 95.2%** | **[0.9111, 0.9745]** |
+| Privileged clairvoyant CEM — anytime achieved lower bound | **187 / 200** | **187 / 187 = 100.0%** | **[0.9799, 1.0000]** |
+| Reactive heuristic | **91 / 200** | **91 / 187 = 48.7%** | **[0.4160, 0.5578]** |
+| Preparedness teacher | **151 / 200** | **151 / 187 = 80.7%** | **[0.7450, 0.8576]** |
+| **Tuned constant rule** | **160 / 200** | **160 / 187 = 85.6%** | **[0.7981, 0.8988]** |
+| Selected causal MPC, `k=5` | **153 / 200** | **153 / 187 = 81.8%** | **[0.7567, 0.8669]** |
+| Legacy ONNX regression fixture | **141 / 200** | **141 / 187 = 75.4%** | **[0.6876, 0.8102]** |
 
-The fixed CEM diagnostic ran on the identical 200 development tapes and sees the complete future shock tape. Against the shipped v4 policy, the matched partition is **177 both solved, 10 oracle-only, 1 policy-only, and 12 neither**; the union therefore demonstrates feasible solutions on **188 / 200** cases. The **10 oracle-only cases are the remaining provable headroom** for the shipped policy. The policy's aggregate solved count is **178 / 187 = 95.2%** of the oracle's achieved count, while its case-matched coverage is **177 / 187 = 94.7%** of the oracle-solved cases. Those percentages are deliberately distinguished because the one policy-only case makes the solved sets non-nested.
+The fixed CEM diagnostic ran on the identical 200 development tapes and sees the complete future shock tape. Against the shipped v4 policy, the matched partition is **177 both solved, 10 oracle-only, 1 policy-only, and 12 neither**; the two methods jointly demonstrate solutions on **188 / 200** cases. The **10 oracle-only cases are the remaining provable headroom** for the shipped policy. The policy's aggregate solved count is **178 / 187 = 95.2%** of the oracle's achieved count, while its case-matched coverage is **177 / 187 = 94.7%** of the oracle-solved cases. Those percentages are deliberately distinguished because the one policy-only case makes the solved sets non-nested.
 
 The oracle is privileged, not a causal submission baseline or a model-selection input. CEM is an anytime search, so **187 / 200 is an achieved lower bound**, not a mathematical optimum, an infeasibility certificate, or a proven ceiling. Every planner in the current development table has zero hard violations and exactly `0.0` maximum conservation residual.
 
@@ -76,17 +77,21 @@ The historical **37 / 40** result remains the original-subset measurement and is
 
 ### Current 200-case final results — exactly one learned-v4 evaluation
 
-| Final method | Solved on 200 final tapes | Wilson 95% CI | Scope |
-| --- | ---: | ---: | --- |
-| Privileged clairvoyant CEM — anytime achieved lower bound | **182 / 200** | **[0.862, 0.942]** | Future-aware diagnostic; not a submission baseline |
-| **Shipped v4 PPO** | **163 / 200** | **[0.755, 0.863]** | Single owner-authorized learned-policy evaluation |
-| Tuned constant rule | **147 / 200** | **[0.670, 0.791]** | Public deterministic oracle warm start |
-| Preparedness teacher | **139 / 200** | **[0.628, 0.755]** | Public deterministic regression |
-| Selected causal MPC, `k=5` | **135 / 200** | **[0.607, 0.736]** | Causal receding-horizon diagnostic |
-| Legacy ONNX regression fixture | **125 / 200** | **[0.556, 0.689]** | Retired-policy regression fixture |
-| Reactive heuristic | **72 / 200** | **[0.297, 0.429]** | Public deterministic regression |
+The shipped v4 policy solved **163 / 182 = 89.6%** relative to the privileged CEM achieved-count reference (descriptive post-hoc Wilson 95% **[84.3%, 93.2%]**), alongside its raw **163 / 200 (81.5%)** held-out result.
 
-After development selection, export, and artifact identity were frozen, the exact shipped ONNX policy was evaluated once under explicit owner authorization. The result is **163 / 200 (81.5%) on the held-out final split**, an aggregate solved-count ratio of **89.6%** relative to the **182 / 200** achieved by a clairvoyant planner with full future-tape knowledge, and **16 cases ahead** of the strongest hand-coded planner, the tuned constant rule at **147 / 200**. Its receipt-level Wilson 95% interval is **[0.7554293724, 0.862698072]**. That final result did not select or modify the model. The [canonical final report](benchmarks/v4/final-results-200.md) is rendered from the machine [success receipt](internal/evaluation_runs/v4/final-evaluation-200.success.json); the associated [claim](internal/evaluation_runs/v4/final-evaluation-200.claim.json) binds the authorization and artifact before execution. Exactly one learned-policy final run is complete, and further reruns remain unauthorized.
+**Demonstrated-achievable reference denominator = the 182 of 200 final cases solved by the privileged future-aware CEM run; its 18 search failures are not proofs of infeasibility.**
+
+| Final method | Raw solved / 200 | Achieved-count ratio (/182 reference) | Descriptive Wilson 95% CI on /182 | Scope |
+| --- | ---: | ---: | ---: | --- |
+| Privileged clairvoyant CEM — anytime achieved lower bound | **182 / 200** | **182 / 182 = 100.0%** | **[0.9793, 1.0000]** | Future-aware diagnostic; not a submission baseline |
+| **Shipped v4 PPO** | **163 / 200** | **163 / 182 = 89.6%** | **[0.8427, 0.9321]** | Single owner-authorized learned-policy evaluation |
+| Tuned constant rule | **147 / 200** | **147 / 182 = 80.8%** | **[0.7443, 0.8584]** | Public deterministic oracle warm start |
+| Preparedness teacher | **139 / 200** | **139 / 182 = 76.4%** | **[0.6970, 0.8196]** | Public deterministic regression |
+| Selected causal MPC, `k=5` | **135 / 200** | **135 / 182 = 74.2%** | **[0.6736, 0.7999]** | Causal receding-horizon diagnostic |
+| Legacy ONNX regression fixture | **125 / 200** | **125 / 182 = 68.7%** | **[0.6162, 0.7497]** | Retired-policy regression fixture |
+| Reactive heuristic | **72 / 200** | **72 / 182 = 39.6%** | **[0.3274, 0.4681]** | Public deterministic regression |
+
+After development selection, export, and artifact identity were frozen, the exact shipped ONNX policy was evaluated once under explicit owner authorization. The result is **163 / 182 = 89.6%** of the privileged CEM achieved-count reference (descriptive post-hoc Wilson 95% **[0.8427, 0.9321]**), alongside its raw **163 / 200 (81.5%)** held-out result and receipt-level Wilson 95% **[0.7554293724, 0.862698072]**. It is **16 cases ahead** of the strongest hand-coded planner, the tuned constant rule at **147 / 200**. That final result did not select or modify the model. The [canonical final report](benchmarks/v4/final-results-200.md) is the frozen receipt-rendered report plus a marker-bounded reporting overlay derived from immutable evidence; the machine [success receipt](internal/evaluation_runs/v4/final-evaluation-200.success.json) and associated [claim](internal/evaluation_runs/v4/final-evaluation-200.claim.json) remain byte-identical and bind the authorization and artifact before execution. Exactly one learned-policy final run is complete, and further reruns remain unauthorized.
 
 ### Where learning helps by scenario family
 
@@ -100,7 +105,7 @@ After development selection, export, and artifact identity were frozen, the exac
 
 All three planners record their lowest solve count on aftershock corridor. That family combines the lowest budget center, 136, with the joint-highest base shock probability, 0.30, and joint-highest severity ceiling, 0.36, making it the roster's explicitly most resource-constrained high-shock construction rather than an isolated model blind spot. The learned policy's margin is widest there—**+6** cases over the tuned rule and **+10** over the teacher—while the tuned rule ties it exactly on food access at **38 / 40**. This is a descriptive pattern across five designed families, not a causal estimate of any one parameter; it is consistent with learned allocation adding its clearest value under scarcity. The [family-analysis supplement](benchmarks/v4/final-family-analysis-200.md) records the evidence boundary and construction values without rerunning any planner.
 
-The matched final policy/oracle partition is **162 both solved, 1 policy-only, 20 oracle-only, and 17 neither**, for a known-feasible union of **183 / 200**. The aggregate solved-count ratio is **163 / 182 = 89.6%**, while casewise policy coverage of oracle-achieved cases is **162 / 182 = 89.0%**. These are deliberately separate: the policy-only case shows that finite CEM solved sets need not nest. The **20 oracle-only cases are directly demonstrated remaining headroom**.
+The matched final policy/oracle partition is **162 both solved, 1 policy-only, 20 oracle-only, and 17 neither**; the two methods jointly demonstrate solutions on **183 / 200** cases. The aggregate solved-count ratio is **163 / 182 = 89.6%**, while casewise policy coverage of oracle-achieved cases is **162 / 182 = 89.0%**. These are deliberately separate: the policy-only case shows that finite CEM solved sets need not nest. The **20 oracle-only cases are directly demonstrated remaining headroom**.
 
 The oracle sees the complete future shock tape and is a privileged anytime achieved lower bound, not a causal submission baseline, proven ceiling, mathematical optimum, or infeasibility certificate. Every bound final result has zero hard violations and exactly `0.0` maximum conservation residual. The retired release's one-shot 40-case final report remains at `docs/evidence/legacy-final-40.json` as legacy evidence only.
 
@@ -646,6 +651,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `run_large_architecture_study.py`, `publish_network_capacity_evidence.py` | Preregistered paired-LR large-network study and portable DEV-only publication for all 18 selectable candidates. |
 | `moderate_family_training.py`, `publish_moderate_family_evidence.py` | TRAIN-only family ranking, deterministic 2:1 sampling, three-seed DEV study, and portable evidence publication. |
 | `publish_final_evaluation_v4.py` | Claim-gated one-shot final evaluator and machine-receipt/final-report publisher. |
+| `reporting_denominators.py`, `render_achieved_count_reports.py` | Receipt-bound achieved-count arithmetic and marker-bounded reporting overlays; stripping the overlay and reversing the exact legacy union-label modernization reproduces the frozen publisher output. |
 | `generate_frontend_contract.py` | Generates or checks the canonical Python-to-TypeScript contract. |
 
 ### Evidence and tests
@@ -672,7 +678,7 @@ For a guided reading order rather than a flat inventory, start with `docs/CODE_T
 | `tests/fixtures/legacy_policy.onnx` | Legacy ONNX regression/evaluation fixture; never a runtime fallback. |
 | `tests/test_city_*.py`, `tests/test_simulator*.py` | Physics, scenarios, outcome, planners, optimizer, and environment behavior. |
 | `tests/test_policy.py`, `tests/test_api.py`, `tests/test_recovery_*.py` | Explicit policy loading, HTTP, replay analysis, and export behavior. |
-| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_run_oracle_study.py`, `tests/test_publish_oracle_study.py`, `tests/test_oracle_distilled_ppo_evidence.py`, `tests/test_network_capacity_evidence.py`, `tests/test_moderate_family_training.py`, `tests/test_moderate_family_evidence.py`, `tests/test_publish_final_evaluation_v4.py`, `tests/test_development_evidence.py` | Scientific tools and current plus historical evidence. |
+| `tests/test_train_policy.py`, `tests/test_evaluate.py`, `tests/test_build_development_baselines.py`, `tests/test_headroom.py`, `tests/test_run_oracle_study.py`, `tests/test_publish_oracle_study.py`, `tests/test_oracle_distilled_ppo_evidence.py`, `tests/test_network_capacity_evidence.py`, `tests/test_moderate_family_training.py`, `tests/test_moderate_family_evidence.py`, `tests/test_publish_final_evaluation_v4.py`, `tests/test_achieved_count_reporting.py`, `tests/test_development_evidence.py` | Scientific tools, reporting overlays, and current plus historical evidence. |
 | `frontend/src/*.test.ts`, `frontend/src/generated/*.test.ts` | API parsing, generated contract, view-model, and decision-support behavior. |
 
 ## Policy selection and readiness
@@ -857,7 +863,7 @@ The 3D route loads a much larger rendering bundle. Close other graphics-heavy ta
 
 A concise presentation can say:
 
-> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. Five registered 2M development endpoints averaged 171.4 / 200, with population SD 1.62 and sample SD 1.82. Development-only selection ranked 20 checkpoints and chose seed 67017 at 1M with 178 / 200. After that artifact was frozen, its single owner-authorized final evaluation solved **163 / 200 (81.5%; Wilson 95% CI [0.755, 0.863])**, 16 cases ahead of the tuned constant rule. The privileged future-aware final CEM solved 182 / 200: the policy's aggregate solved-count ratio is 89.6%, while its casewise coverage of oracle-achieved cases is 89.0% because the matched partition is 162 both, 1 policy-only, 20 oracle-only, and 17 neither. CEM is an anytime achieved lower bound, not a causal submission baseline or proven ceiling. Every bound result has zero hard violations and exact conservation; further learned-policy final reruns remain unauthorized.
+> We built a sequential planner for a five-service synthetic city-recovery environment. A candidate receives 73 causal public-state inputs and proposes 22 continuous controls for material, crews, depot release, and preparedness; a deterministic feasibility layer applies the same physical rules to every planner. **Demonstrated-achievable reference denominator = the 187 of 200 development cases solved by the privileged future-aware CEM run; its 13 search failures are not proofs of infeasibility.** Five registered 2M development endpoints averaged 171.4 / 200, or 171.4 / 187 = 91.7% of that achieved-count reference, with population SD 1.62 and sample SD 1.82; development-only selection chose 178 / 200, or 178 / 187 = 95.2%. **Demonstrated-achievable reference denominator = the 182 of 200 final cases solved by the privileged future-aware CEM run; its 18 search failures are not proofs of infeasibility.** After the artifact was frozen, its single owner-authorized final evaluation solved **163 / 182 = 89.6% (descriptive post-hoc Wilson 95% CI [0.843, 0.932])** of that achieved-count reference, alongside the raw **163 / 200 (81.5%; receipt Wilson 95% CI [0.755, 0.863])**, 16 cases ahead of the tuned constant rule. Casewise coverage is 162 / 182 = 89.0% because the matched partition is 162 both, 1 policy-only, 20 oracle-only, and 17 neither. CEM is an anytime achieved lower bound, not a causal submission baseline or proven ceiling. Every bound result has zero hard violations and exact conservation; further learned-policy final reruns remain unauthorized.
 
 ## Data character
 

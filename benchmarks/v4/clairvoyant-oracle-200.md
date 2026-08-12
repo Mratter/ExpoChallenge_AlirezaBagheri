@@ -1,5 +1,26 @@
 # Matched 200-case privileged clairvoyant-oracle study
 
+<!-- BEGIN ACHIEVED-COUNT REPORTING OVERLAY -->
+## Demonstrated-achievable reference
+
+**Demonstrated-achievable reference denominator = the 187 of 200 development cases solved by the privileged future-aware CEM run; its 13 search failures are not proofs of infeasibility.**
+
+| Development result | Raw solved / 200 | Achieved-count ratio (/187 reference) | Wilson 95% CI on /187 |
+|---|---:|---:|---:|
+| Privileged CEM | 187/200 | 187/187 = 100.0% | [0.9799, 1.0000] |
+| Selected shipped v4 | 178/200 | 178/187 = 95.2% | [0.9111, 0.9745] |
+| Five-seed 2M endpoint mean | 171.4/200 | 171.4/187 = 91.7% | not reported: optimizer-seed mean |
+| Tuned rule | 160/200 | 160/187 = 85.6% | [0.7981, 0.8988] |
+| Preparedness teacher | 151/200 | 151/187 = 80.7% | [0.7450, 0.8576] |
+| Selected MPC | 153/200 | 153/187 = 81.8% | [0.7567, 0.8669] |
+| Legacy fixture | 141/200 | 141/187 = 75.4% | [0.6876, 0.8102] |
+| Reactive heuristic | 91/200 | 91/187 = 48.7% | [0.4160, 0.5578] |
+
+The headline **178/187 = 95.2%** is an aggregate achieved-count ratio; casewise policy coverage is **177/187 = 94.7%** because one case is policy-only. The two methods jointly demonstrate solutions on **188/200** cases, and 10 oracle-only cases demonstrate remaining headroom. Ratios and intervals are descriptive and post-hoc.
+
+On final, the same fixed CEM protocol solved **182/200** and the separately authorized frozen policy solved **163/200**. The **163/182 = 89.6%** headline is an aggregate achieved-count ratio; casewise coverage is **162/182 = 89.0%** because one case is policy-only, and the two methods jointly demonstrate solutions on **183/200** cases.
+<!-- END ACHIEVED-COUNT REPORTING OVERLAY -->
+
 The CEM oracle sees each case's complete future shock tape. It is a privileged anytime achieved lower bound, **not** a submission baseline, a proven mathematical optimum, or an infeasibility certificate.
 
 ## Matched split results
@@ -15,7 +36,7 @@ The learned v4 model was not run as part of this privileged oracle study. A late
 
 The comparison joins the oracle rows to the already accepted shipped-ONNX development parity receipt; it does not rerun the model.
 
-| Both solve | Policy only | Oracle only | Neither | Known-feasible union |
+| Both solve | Policy only | Oracle only | Neither | Demonstrated union |
 |---:|---:|---:|---:|---:|
 | 177 | 1 | **10** | 12 | 188/200 |
 
