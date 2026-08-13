@@ -7,9 +7,11 @@ import './landing.css'
 type EvidenceSeries = (typeof mariaRetrospective.series)[keyof typeof mariaRetrospective.series]
 type SeriesKey = keyof typeof mariaRetrospective.series
 
-const seriesOrder: readonly SeriesKey[] = ['historical', 'v4', 'reactive']
+const retrospectiveSeriesOrder = ['historical', 'v4'] as const satisfies readonly SeriesKey[]
+const runtimeComparisonIds = ['v4', 'reactive'] as const
 const milestoneDays = mariaRetrospective.display.milestoneDays
 const normalizedAxisTicks = [0, 0.25, 0.5, 0.75, 1] as const
+const landingCaption = 'The historical line is a project-derived index from official records. The shipped v4 line is a simulated alternative in the frozen model, not an observed or causal real-world outcome.'
 
 function formatIndex(value: number): string {
   const { indexMin, indexMax } = mariaRetrospective.display
@@ -61,7 +63,7 @@ function RecoveryChart({ service, compact = false }: { service?: Service; compac
   const observationDays = service ? mariaRetrospective.observationDays[service] : observationUnion()
   const label = service ? mariaRetrospective.serviceLabels[service] : 'Overall recovery'
   const historical = seriesForService(mariaRetrospective.series.historical, service)
-  const chartDescription = seriesOrder.map((key) => {
+  const chartDescription = retrospectiveSeriesOrder.map((key) => {
     const values = seriesForService(mariaRetrospective.series[key], service)
     return `${mariaRetrospective.series[key].label} ends at ${formatIndex(values.at(-1) ?? 0)} index points`
   }).join('; ')
@@ -73,7 +75,7 @@ function RecoveryChart({ service, compact = false }: { service?: Service; compac
       role="img"
       aria-labelledby={`${titleId} ${descriptionId}`}
     >
-      <title id={titleId}>{label}, days {horizonStart} through {dayEnd}</title>
+      <title id={titleId}>{`${label}, days ${horizonStart} through ${dayEnd}`}</title>
       <desc id={descriptionId}>{chartDescription}. Historical dots mark dates with source observations.</desc>
       <g transform={`translate(${margin.left} ${margin.top})`}>
         {!compact ? <text className="landing-chart-axis-title" x={-39} y={plotHeight / 2} textAnchor="middle" transform={`rotate(-90 -39 ${plotHeight / 2})`}>Derived recovery index</text> : null}
@@ -90,7 +92,7 @@ function RecoveryChart({ service, compact = false }: { service?: Service; compac
           const x = ((day - horizonStart) / horizonSpan) * plotWidth
           return <text className="landing-chart-tick" key={day} x={x} y={plotHeight + 20} textAnchor={day === horizonStart ? 'start' : day === dayEnd ? 'end' : 'middle'}>D{day}</text>
         })}
-        {seriesOrder.map((key) => (
+        {retrospectiveSeriesOrder.map((key) => (
           <path
             className={`landing-chart-line landing-chart-${key}`}
             d={linePath(seriesForService(mariaRetrospective.series[key], service), plotWidth, plotHeight)}
@@ -105,7 +107,7 @@ function RecoveryChart({ service, compact = false }: { service?: Service; compac
             key={day}
             r={compact ? 2.5 : 3.5}
           >
-            <title>{mariaRetrospective.dates[day]}: {service ? 'official service observation used in the reconstruction' : 'date anchored by one or more official service observations; overall value remains project-derived'}</title>
+            <title>{`${mariaRetrospective.dates[day]}: ${service ? 'official service observation used in the reconstruction' : 'date anchored by one or more official service observations; overall value remains project-derived'}`}</title>
           </circle>
         ))}
       </g>
@@ -118,7 +120,6 @@ function EvidenceLegend() {
     <div className="landing-legend" aria-label="Chart legend">
       <span className="legend-historical"><i />Project reconstruction <b>observed markers</b></span>
       <span className="legend-v4"><i />Shipped v4 <b>simulation</b></span>
-      <span className="legend-reactive"><i />Reactive heuristic <b>simulation</b></span>
     </div>
   )
 }
@@ -126,13 +127,13 @@ function EvidenceLegend() {
 function MilestoneTable() {
   return (
     <div className="landing-table-wrap hero-table-wrap">
-      <table className="landing-table milestone-table">
+      <table className="landing-table milestone-table" data-table="maria-milestones">
         <caption>Overall recovery index at {milestoneDays.length} milestones</caption>
         <thead>
           <tr><th scope="col">Evidence</th><th scope="col">Type</th>{milestoneDays.map((day) => <th scope="col" key={day}>Day {day}</th>)}</tr>
         </thead>
         <tbody>
-          {seriesOrder.map((key) => {
+          {retrospectiveSeriesOrder.map((key) => {
             const series = mariaRetrospective.series[key]
             return (
               <tr key={key}>
@@ -167,16 +168,49 @@ function ServiceCharts() {
   )
 }
 
-function BenchmarkTable() {
+function BenchmarkTables() {
+  const runtimeRows = runtimeComparisonIds.map((id) => {
+    const row = mariaRetrospective.benchmarkRows.find((candidate) => candidate.id === id)
+    if (!row) throw new Error(`Missing runtime comparison row: ${id}`)
+    return row
+  })
+
   return (
     <section className="benchmark-section" aria-labelledby="benchmark-title">
       <div className="landing-section benchmark-inner">
         <header className="section-heading benchmark-heading">
-          <div><p className="landing-kicker">Separate synthetic benchmark</p><h2 id="benchmark-title">Held-out final split · all comparators</h2></div>
-          <p>These are solved-case results from the synthetic {mariaRetrospective.syntheticBenchmarkCaseCount}-case benchmark. They are not values on the Hurricane Maria recovery index.</p>
+          <div><p className="landing-kicker">Separate simulation performance</p><h2 id="benchmark-title">How the shipped model performs in held-out simulations.</h2></div>
+          <p>These are solved-case results from the synthetic {mariaRetrospective.syntheticBenchmarkCaseCount}-case final split. They are not values on the Hurricane Maria recovery index.</p>
+        </header>
+
+        <div className="runtime-comparison">
+          <header>
+            <div><p className="landing-kicker">Selected runtime comparison</p><h3>Shipped v4 versus the reactive baseline</h3></div>
+            <p>This compact view compares the two planners available in the public runtime.</p>
+          </header>
+          <div className="landing-table-wrap runtime-table-wrap">
+            <table className="landing-table runtime-table" data-table="runtime-comparison">
+              <caption>Canonical held-out synthetic results for shipped v4 and the reactive heuristic</caption>
+              <thead><tr><th scope="col">Planner</th><th scope="col">Solved cases</th><th scope="col">Solve rate</th></tr></thead>
+              <tbody>
+                {runtimeRows.map((row) => (
+                  <tr data-runtime-comparison={row.id} key={row.id}>
+                    <th scope="row">{row.label}</th>
+                    <td>{row.solved}/{row.total}</td>
+                    <td>{formatRate(row.rate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <header className="complete-benchmark-heading">
+          <div><p className="landing-kicker">Complete benchmark context</p><h3>All {mariaRetrospective.benchmarkRows.length} recorded planners</h3></div>
+          <p>The full table remains visible so the selected runtime comparison is not mistaken for the complete benchmark.</p>
         </header>
         <div className="landing-table-wrap benchmark-table-wrap">
-          <table className="landing-table benchmark-table">
+          <table className="landing-table benchmark-table" data-table="complete-benchmark">
             <caption>Canonical final-split results for all {mariaRetrospective.benchmarkRows.length} evaluated planners</caption>
             <thead><tr><th scope="col">Planner</th><th scope="col">Status</th><th scope="col">Solved</th><th scope="col">Rate</th><th scope="col">Reading</th></tr></thead>
             <tbody>
@@ -216,8 +250,8 @@ function ReceiptStrip() {
       </dl>
       <div className="method-cards">
         <article><Database aria-hidden="true" size={18} /><span>01</span><h3>Official records first</h3><p>Dated government observations are converted and frozen before either planner is loaded.</p></article>
-        <article><ShieldCheck aria-hidden="true" size={18} /><span>02</span><h3>One shared reconstruction</h3><p>The shipped policy and heuristic start from the same state and use the same no-secondary-shock tape.</p></article>
-        <article><BarChart3 aria-hidden="true" size={18} /><span>03</span><h3>Two evidence classes</h3><p>Historical reconstruction and simulated alternatives remain labelled; neither is presented as a causal estimate.</p></article>
+        <article><ShieldCheck aria-hidden="true" size={18} /><span>02</span><h3>One frozen reconstruction</h3><p>The displayed shipped-policy simulation uses the documented starting state and no-secondary-shock tape.</p></article>
+        <article><BarChart3 aria-hidden="true" size={18} /><span>03</span><h3>Two evidence classes</h3><p>The historical reconstruction and simulated policy alternative remain labelled; neither is presented as a causal estimate.</p></article>
       </div>
     </section>
   )
@@ -239,11 +273,11 @@ export function LandingPage() {
       </header>
 
       <main>
-        <section className="landing-hero" id="retrospective-evidence" aria-labelledby="landing-title">
+        <section className="landing-hero" data-evidence-section="maria-retrospective" id="retrospective-evidence" aria-labelledby="landing-title">
           <div className="hero-intro">
             <p className="landing-kicker">Hurricane Maria · Puerto Rico · {mariaRetrospective.display.dayZeroLabel}–{mariaRetrospective.display.dayEndLabel}</p>
-            <h1 id="landing-title">One historical reconstruction.<br /><em>Two simulated recovery paths.</em></h1>
-            <p className="hero-summary">A project reconstruction from official records placed beside the shipped recovery policy and a reactive heuristic—without fitting either simulation to the historical line.</p>
+            <h1 id="landing-title">One historical reconstruction.<br /><em>One simulated recovery path.</em></h1>
+            <p className="hero-summary">A project reconstruction from official records placed beside the shipped recovery policy—without fitting the simulation to the historical line.</p>
             <div className="hero-actions">
               <a className="landing-primary" href="#/toolbox">Open Analyst Toolbox <ArrowRight aria-hidden="true" size={17} /></a>
               <a className="landing-secondary" href="#/game"><Building2 aria-hidden="true" size={16} />Explore the 3D city <ArrowUpRight aria-hidden="true" size={15} /></a>
@@ -262,11 +296,11 @@ export function LandingPage() {
             <MilestoneTable />
           </div>
 
-          <p className="landing-disclosure">{mariaRetrospective.caption}</p>
+          <p className="landing-disclosure">{landingCaption}</p>
         </section>
 
         <ServiceCharts />
-        <BenchmarkTable />
+        <BenchmarkTables />
         <ReceiptStrip />
 
         <section className="landing-final-cta" aria-labelledby="cta-title">

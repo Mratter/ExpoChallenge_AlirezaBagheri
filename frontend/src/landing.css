@@ -57,14 +57,12 @@
 .landing-chart-line { fill: none; stroke-width: 2.8; stroke-linecap: square; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .landing-chart-historical { stroke: var(--ink); }
 .landing-chart-v4 { stroke: var(--signal); stroke-width: 3.3; }
-.landing-chart-reactive { stroke: var(--teal); stroke-dasharray: 7 5; }
 .landing-observation-dot { fill: white; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .landing-legend { display: flex; flex-wrap: wrap; gap: 9px 18px; padding-top: 13px; border-top: 1px solid var(--rule); }
 .landing-legend span { display: grid; grid-template-columns: 23px 1fr; gap: 1px 7px; align-items: center; color: var(--ink-2); font: 650 9px var(--mono); }
 .landing-legend span i { grid-row: 1 / 3; display: block; height: 3px; background: var(--ink); }
 .landing-legend span b { color: var(--muted); font-size: 7px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .landing-legend .legend-v4 i { background: var(--signal); }
-.landing-legend .legend-reactive i { height: 2px; background: repeating-linear-gradient(90deg, var(--teal) 0 6px, transparent 6px 10px); }
 
 .landing-table-wrap { min-width: 0; overflow-x: auto; background: white; border: 1px solid var(--rule-dark); }
 .landing-table { width: 100%; border-collapse: collapse; color: var(--ink); background: white; white-space: normal; }
@@ -78,10 +76,8 @@
 .milestone-table { min-width: 455px; height: 100%; }
 .milestone-table tbody tr:first-child { border-left: 4px solid var(--ink); }
 .milestone-table tbody tr:nth-child(2) { border-left: 4px solid var(--signal); }
-.milestone-table tbody tr:nth-child(3) { border-left: 4px solid var(--teal); }
 .table-key { width: 8px; height: 8px; display: inline-block; margin-right: 7px; background: var(--ink); }
 .table-key-v4 { background: var(--signal); }
-.table-key-reactive { background: var(--teal); }
 .evidence-type { display: inline-block; max-width: 120px; color: var(--muted); font-size: 8px; line-height: 1.35; text-transform: uppercase; }
 .landing-disclosure { max-width: 1280px; margin: 18px auto 0; padding-left: 12px; color: #536272; border-left: 3px solid var(--amber); font: 10px/1.55 var(--mono); }
 
@@ -108,6 +104,18 @@
 .benchmark-heading .landing-kicker { color: #7ea5ff; }
 .benchmark-heading h2 { color: white; }
 .benchmark-heading > p { color: #a7b7c4; }
+.runtime-comparison { margin-bottom: 38px; padding: 24px; color: var(--ink); background: #edf1f4; border: 1px solid #536578; box-shadow: 7px 7px 0 #071421; }
+.runtime-comparison > header, .complete-benchmark-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .65fr); align-items: end; gap: 30px; margin-bottom: 18px; }
+.runtime-comparison h3, .complete-benchmark-heading h3 { margin: 5px 0 0; font: 700 clamp(24px, 2.5vw, 35px)/1 var(--display); letter-spacing: -.025em; }
+.runtime-comparison header > p, .complete-benchmark-heading > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.runtime-table-wrap { border-color: var(--ink); }
+.runtime-table { min-width: 430px; }
+.runtime-table tbody th, .runtime-table tbody td:nth-child(2), .runtime-table tbody td:nth-child(3) { font-size: 15px; font-weight: 750; }
+.runtime-table tr[data-runtime-comparison="v4"] { border-left: 5px solid var(--signal); }
+.runtime-table tr[data-runtime-comparison="reactive"] { border-left: 5px solid var(--teal); }
+.complete-benchmark-heading { margin: 0 0 18px; padding-top: 28px; border-top: 1px solid #536578; }
+.complete-benchmark-heading h3 { color: white; }
+.complete-benchmark-heading > p { color: #a7b7c4; }
 .benchmark-table-wrap { border-color: #536578; }
 .benchmark-table { min-width: 900px; }
 .benchmark-table tbody th { font-size: 13px; }
@@ -169,7 +177,7 @@
   .hero-chart-card figcaption { padding-inline: 5px; }
   .hero-chart-card figcaption > b { display: none; }
   .landing-legend { display: grid; padding-inline: 5px; }
-  .section-heading, .receipt-section > header { grid-template-columns: 1fr; align-items: start; gap: 16px; }
+  .section-heading, .receipt-section > header, .runtime-comparison > header, .complete-benchmark-heading { grid-template-columns: 1fr; align-items: start; gap: 16px; }
   .service-chart-grid { grid-template-columns: 1fr; }
   .service-chart-card:last-child { grid-column: auto; }
   .receipt-section dl, .method-cards { grid-template-columns: 1fr; }
