@@ -37,6 +37,8 @@ import {
   runComparison,
 } from './api'
 import { DecisionAnalysis } from './DecisionAnalysis'
+import { LandingPage } from './LandingPage'
+import { hashForRoute, routeFromHashValue, titleForRoute, type AppRoute } from './routes'
 import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
 import { shockDisplayName } from './shockPresentation'
 import {
@@ -66,8 +68,6 @@ import {
 
 type ViewMode = 'trajectory' | 'audit' | 'dispatch' | 'decisions'
 type LoadFailure = { code: string; message: string }
-type AppRoute = 'game' | 'toolbox'
-
 const CityGame = lazy(() => import('./game/CityGame').then((module) => ({ default: module.CityGame })))
 
 const viewModes: ViewMode[] = ['trajectory', 'audit', 'dispatch', 'decisions']
@@ -479,7 +479,7 @@ function ArchitecturePanel({ metadata, result, failure }: { metadata: Metadata |
   )
 }
 
-function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse | null) => void }) {
+function AnalystToolbox({ initialResult, onOpenGame, onOpenHome }: { initialResult?: CompareResponse | null; onOpenGame: (result: CompareResponse | null) => void; onOpenHome: () => void }) {
   const [metadata, setMetadata] = useState<Metadata | null>(null)
   const [metadataFailure, setMetadataFailure] = useState<LoadFailure | null>(null)
   const [draft, setDraft] = useState<Scenario>(initialResult?.scenario ?? defaultScenario)
@@ -615,7 +615,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand-block"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><div><p>Municipal recovery lab</p><h1>RELAY / Analyst Toolbox</h1></div></div>
+        <button className="brand-block brand-home" type="button" onClick={onOpenHome} aria-label="Return to RELAY evidence home"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><span><span className="brand-eyebrow">Municipal recovery lab</span><strong>RELAY / Analyst Toolbox</strong></span></button>
         <RuntimeRail metadata={metadata} failure={metadataFailure} />
         <button className="city-switch" type="button" disabled={busy} onClick={() => void openCity()}><Building2 size={15} />{result && !draftChanged ? 'Open current run in 3D' : metadata ? 'Run & open 3D city' : 'Open 3D city setup'}<ArrowUpRight size={14} /></button>
       </header>
@@ -668,7 +668,7 @@ function AnalystToolbox({ initialResult, onOpenGame }: { initialResult?: Compare
 }
 
 function routeFromHash(): AppRoute {
-  return window.location.hash.toLowerCase().startsWith('#/game') ? 'game' : 'toolbox'
+  return routeFromHashValue(window.location.hash)
 }
 
 function App() {
@@ -678,22 +678,32 @@ function App() {
   const [toolboxLaunchResult, setToolboxLaunchResult] = useState<CompareResponse | null>(null)
 
   useEffect(() => {
-    if (!window.location.hash) window.history.replaceState(null, '', '#/toolbox')
-    const sync = () => setRoute(routeFromHash())
+    const sync = () => {
+      const next = routeFromHash()
+      if (next === 'landing' && window.location.hash !== '#/') window.history.replaceState(null, '', '#/')
+      setRoute(next)
+    }
+    sync()
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
 
+  useEffect(() => {
+    document.title = titleForRoute(route)
+  }, [route])
+
   const navigate = (next: AppRoute) => {
-    window.location.hash = `#/${next}`
+    window.location.hash = hashForRoute(next)
     setRoute(next)
   }
 
+  if (route === 'landing') return <LandingPage />
+
   return route === 'toolbox' ? (
-    <AnalystToolbox initialResult={toolboxLaunchResult} onOpenGame={(result) => { if (result) setLatestResult(result); setGameLaunchResult(result); setToolboxLaunchResult(null); navigate('game') }} />
+    <AnalystToolbox initialResult={toolboxLaunchResult} onOpenHome={() => navigate('landing')} onOpenGame={(result) => { if (result) setLatestResult(result); setGameLaunchResult(result); setToolboxLaunchResult(null); navigate('game') }} />
   ) : (
     <Suspense fallback={<div className="route-loading" role="status"><Activity className="spin" size={22} /><b>Loading the 3D city renderer</b></div>}>
-      <CityGame initialResult={gameLaunchResult} onResult={(result) => { setLatestResult(result); setGameLaunchResult(null) }} onOpenToolbox={() => { setToolboxLaunchResult(latestResult ?? gameLaunchResult); navigate('toolbox') }} />
+      <CityGame initialResult={gameLaunchResult} onResult={(result) => { setLatestResult(result); setGameLaunchResult(null) }} onOpenHome={() => navigate('landing')} onOpenToolbox={() => { setToolboxLaunchResult(latestResult ?? gameLaunchResult); navigate('toolbox') }} />
     </Suspense>
   )
 }

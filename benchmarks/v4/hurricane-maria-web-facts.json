@@ -1,0 +1,37 @@
+{
+  "schema_version": "hurricane-maria-normalized-web-facts-v1",
+  "purpose": "Reproducible, ASCII-normalized fact records for official pages whose servers refused unattended byte archival. These are project transcriptions of the cited facts, not quotations.",
+  "normalization": "UTF-8 encoding of canonical_fact_text exactly as stored, with no trailing newline, hashed with SHA-256.",
+  "facts": [
+    {
+      "source_id": "fema_2017_09_30",
+      "canonical_fact_text": "Fifty-nine hospitals are partially or fully operational. Forty-five percent of customers have potable water. Forty-nine percent of grocery and big-box stores are open.",
+      "sha256": "0abaf5c90971e8446182ed7471457e30c7f49d093d4d26afb68da03b18fa7bc4"
+    },
+    {
+      "source_id": "fema_2017_11_06",
+      "canonical_fact_text": "Immediately after Hurricane Maria, cellular service was available to five percent of the population. By September 27, 44 percent of PRASA customers had running water. By November 6, more than 89 percent of grocery stores were open and all commercial airports and ports were open. Emergency roof and shelter assistance continued.",
+      "sha256": "561470afec85601ae879608a8b0a57b0acee01c464e8352024bbd84283c1da20"
+    },
+    {
+      "source_id": "fema_one_year_summary",
+      "canonical_fact_text": "Immediately after Hurricane Maria, 20 percent of water service was operational and 400 of 16,700 miles of roads were not shut down. At 30 days, 21 percent of electricity customers had service, 69 percent of water service was operational, and 61 percent of cellular sites were operating.",
+      "sha256": "26645507c0c6a968aca6c19299e79d5c9856823b17a23c99468332fa73c008bf"
+    },
+    {
+      "source_id": "dod_2017_09_30",
+      "canonical_fact_text": "Five of six priority seaports were open or open with restrictions, and 59 of 69 hospitals were partially or fully operational.",
+      "sha256": "8d98de043ae5c79e206b4b684ec352bcf9e5d2fc801498183bd12dbf6f70731d"
+    },
+    {
+      "source_id": "dod_2017_10_02",
+      "canonical_fact_text": "Air traffic at Luis Munoz Marin International Airport increased from six flights per hour to the normal rate.",
+      "sha256": "4eaa46a51379d9c2910bcad585270292347d7ebafff90a2b649342ef0b954342"
+    },
+    {
+      "source_id": "dod_2017_10_27",
+      "canonical_fact_text": "Sixty-five of 67 hospitals were open, and 75 percent of residents had access to drinking water.",
+      "sha256": "b0488faedd90197a1adc2231e61236f8d3671ca52dc6d98e447366e52cf00a9d"
+    }
+  ]
+}

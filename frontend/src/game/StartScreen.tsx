@@ -52,7 +52,7 @@ export function StartScreen({
   return (
     <main className="session-screen">
       <header className="session-rail">
-        <a className="session-brand" href="#/game" aria-label="RELAY recovery planner home">
+        <a className="session-brand" href="#/" aria-label="RELAY evidence home">
           <RelayGlyph />
           <span><b>RELAY</b><small>Autonomous recovery planner</small></span>
         </a>

@@ -49,6 +49,7 @@ import './game.css'
 
 type CityGameProps = {
   initialResult?: CompareResponse | null
+  onOpenHome: () => void
   onOpenToolbox: () => void
   onResult: (result: CompareResponse) => void
 }
@@ -127,7 +128,7 @@ function LoadingCity() {
   )
 }
 
-export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGameProps) {
+export function CityGame({ initialResult, onOpenHome, onOpenToolbox, onResult }: CityGameProps) {
   const [phase, setPhase] = useState<GamePhase>(initialResult ? 'playing' : 'setup')
   const [result, setResult] = useState<CompareResponse | null>(initialResult ?? null)
   const [session, setSession] = useState<GameSessionState | null>(() => (
@@ -535,10 +536,10 @@ export function CityGame({ initialResult, onOpenToolbox, onResult }: CityGamePro
         inert={phase === 'debrief' ? true : undefined}
         aria-hidden={phase === 'debrief' ? true : undefined}
       >
-        <div className="game-brand">
+        <button className="game-brand" type="button" onClick={onOpenHome} aria-label="Return to RELAY evidence home">
           <span className="relay-mark" aria-hidden="true"><i /><i /><i /></span>
           <div><b>RELAY</b><small>The city you can't knock over</small></div>
-        </div>
+        </button>
         <div className="game-rail-actions">
           <span className="local-chip"><i />Local simulation</span>
           <button

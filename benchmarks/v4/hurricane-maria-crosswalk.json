@@ -1,0 +1,88 @@
+{
+  "schema_version": "hurricane-maria-crosswalk-v1",
+  "methodology_label": "One fixed manual crosswalk; no inverse fit, sensitivity ensemble, or outcome tuning",
+  "service_order": [
+    "transport",
+    "housing",
+    "food",
+    "healthcare",
+    "public_services"
+  ],
+  "service_labels": {
+    "transport": "Transport",
+    "housing": "Housing",
+    "food": "Food and water",
+    "healthcare": "Healthcare",
+    "public_services": "Public services"
+  },
+  "services": {
+    "transport": {
+      "components": {
+        "transport_access_proxy": 1.0
+      },
+      "interpretation": "Project access index anchored to official airport and seaport milestones; not a percentage of roads, ports, or airports restored."
+    },
+    "housing": {
+      "components": {
+        "shelter_and_habitability_proxy": 1.0
+      },
+      "interpretation": "Project shelter/habitability index anchored to official qualitative evidence; not a percentage of habitable homes."
+    },
+    "food": {
+      "components": {
+        "potable_water_access": 0.5,
+        "grocery_availability": 0.5
+      },
+      "interpretation": "Equal mean of potable-water customer access and grocery/big-box store availability."
+    },
+    "healthcare": {
+      "components": {
+        "operational_hospital_availability": 1.0
+      },
+      "interpretation": "Hospital operational-availability proxy; partially operational and fully operational facilities both count as operational."
+    },
+    "public_services": {
+      "components": {
+        "electricity": 0.5,
+        "cellular": 0.5
+      },
+      "interpretation": "Equal mean of restored electricity and the FCC share of reporting cellular sites operational. FCC states that provider reporting can be incomplete; this is not population coverage."
+    }
+  },
+  "interpolation": {
+    "method": "piecewise_linear_by_component",
+    "round_digits": 8,
+    "before_first_anchor": "carry first anchor backward",
+    "after_last_anchor": "carry last anchor forward",
+    "aggregate": "weighted arithmetic mean of component curves, then equal arithmetic mean of five service curves"
+  },
+  "official_observation_markers": {
+    "transport": [0],
+    "housing": [],
+    "food": [0, 7, 10, 30],
+    "healthcare": [10],
+    "public_services": [0, 2, 12, 15, 28, 29, 30]
+  },
+  "scenario": {
+    "name": "Hurricane Maria retrospective: Puerto Rico, 30 days",
+    "horizon_days": 30,
+    "daily_budget": 180.0,
+    "daily_crew_pool": 150.0,
+    "priorities": [1.0, 1.0, 1.0, 1.0, 1.0],
+    "recovery_targets": [0.55, 0.55, 0.55, 0.55, 0.55],
+    "shock_probability": 0.0,
+    "severity_min": 0.1,
+    "severity_max": 0.28,
+    "forced_shock": null,
+    "forced_shocks": [],
+    "assessment_tail_days": 3,
+    "initial_services": "Day-0 reconstructed services clipped independently to the Scenario contract [0.05, 0.95]",
+    "post_landfall_tape": "30 explicit no-shock days; Maria is represented only by the initial condition"
+  },
+  "disclosures": [
+    "The reconstruction is a project-derived recovery index, not an official FEMA restoration percentage.",
+    "Project-estimate anchors fill gaps where no commensurable island-wide series exists.",
+    "Policy and heuristic trajectories are simulated alternatives and are not causal estimates of real Puerto Rico outcomes.",
+    "Inputs and source selections are frozen before either planner is loaded."
+  ]
+}

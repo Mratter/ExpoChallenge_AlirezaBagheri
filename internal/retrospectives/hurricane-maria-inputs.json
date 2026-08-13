@@ -1,0 +1,1703 @@
+{
+  "archived_source_bytes": {
+    "identities_sha256": "fc6f27e678929b490503eb511e45e15cec57f21d0c9fc43aac64984c71deabd1",
+    "required_object_count": 8,
+    "verification_command": "python scripts/hurricane_maria_retrospective.py --verify-archive-root <out-of-repository-archive-root>",
+    "verified_before_freeze": true,
+    "verified_object_count": 8
+  },
+  "caption": "The historical line is a project-derived index from official records. Policy lines are simulated alternatives in the frozen model, not observed or causal real-world outcomes.",
+  "contract_sha256": "e52f0f5de499d73e078518c9a42a3a82e305dea67b4b2c18a46c294d7c56950d",
+  "crosswalk": {
+    "path": "benchmarks/v4/hurricane-maria-crosswalk.json",
+    "sha256": "a5ea7e94a70c0f5c9fc0ec6953bf502d0157f8f9e31ca393dd6327c6a32ed097"
+  },
+  "crosswalk_snapshot": {
+    "disclosures": [
+      "The reconstruction is a project-derived recovery index, not an official FEMA restoration percentage.",
+      "Project-estimate anchors fill gaps where no commensurable island-wide series exists.",
+      "Policy and heuristic trajectories are simulated alternatives and are not causal estimates of real Puerto Rico outcomes.",
+      "Inputs and source selections are frozen before either planner is loaded."
+    ],
+    "interpolation": {
+      "after_last_anchor": "carry last anchor forward",
+      "aggregate": "weighted arithmetic mean of component curves, then equal arithmetic mean of five service curves",
+      "before_first_anchor": "carry first anchor backward",
+      "method": "piecewise_linear_by_component",
+      "round_digits": 8
+    },
+    "methodology_label": "One fixed manual crosswalk; no inverse fit, sensitivity ensemble, or outcome tuning",
+    "official_observation_markers": {
+      "food": [
+        0,
+        7,
+        10,
+        30
+      ],
+      "healthcare": [
+        10
+      ],
+      "housing": [],
+      "public_services": [
+        0,
+        2,
+        12,
+        15,
+        28,
+        29,
+        30
+      ],
+      "transport": [
+        0
+      ]
+    },
+    "scenario": {
+      "assessment_tail_days": 3,
+      "daily_budget": 180.0,
+      "daily_crew_pool": 150.0,
+      "forced_shock": null,
+      "forced_shocks": [],
+      "horizon_days": 30,
+      "initial_services": "Day-0 reconstructed services clipped independently to the Scenario contract [0.05, 0.95]",
+      "name": "Hurricane Maria retrospective: Puerto Rico, 30 days",
+      "post_landfall_tape": "30 explicit no-shock days; Maria is represented only by the initial condition",
+      "priorities": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "recovery_targets": [
+        0.55,
+        0.55,
+        0.55,
+        0.55,
+        0.55
+      ],
+      "severity_max": 0.28,
+      "severity_min": 0.1,
+      "shock_probability": 0.0
+    },
+    "schema_version": "hurricane-maria-crosswalk-v1",
+    "service_labels": {
+      "food": "Food and water",
+      "healthcare": "Healthcare",
+      "housing": "Housing",
+      "public_services": "Public services",
+      "transport": "Transport"
+    },
+    "service_order": [
+      "transport",
+      "housing",
+      "food",
+      "healthcare",
+      "public_services"
+    ],
+    "services": {
+      "food": {
+        "components": {
+          "grocery_availability": 0.5,
+          "potable_water_access": 0.5
+        },
+        "interpretation": "Equal mean of potable-water customer access and grocery/big-box store availability."
+      },
+      "healthcare": {
+        "components": {
+          "operational_hospital_availability": 1.0
+        },
+        "interpretation": "Hospital operational-availability proxy; partially operational and fully operational facilities both count as operational."
+      },
+      "housing": {
+        "components": {
+          "shelter_and_habitability_proxy": 1.0
+        },
+        "interpretation": "Project shelter/habitability index anchored to official qualitative evidence; not a percentage of habitable homes."
+      },
+      "public_services": {
+        "components": {
+          "cellular": 0.5,
+          "electricity": 0.5
+        },
+        "interpretation": "Equal mean of restored electricity and the FCC share of reporting cellular sites operational. FCC states that provider reporting can be incomplete; this is not population coverage."
+      },
+      "transport": {
+        "components": {
+          "transport_access_proxy": 1.0
+        },
+        "interpretation": "Project access index anchored to official airport and seaport milestones; not a percentage of roads, ports, or airports restored."
+      }
+    }
+  },
+  "final_split_used": false,
+  "initial_service_clipping": [
+    {
+      "clipped": true,
+      "reconstructed": 0.0239521,
+      "scenario_value": 0.05,
+      "service": "transport"
+    },
+    {
+      "clipped": false,
+      "reconstructed": 0.1,
+      "scenario_value": 0.1,
+      "service": "housing"
+    },
+    {
+      "clipped": false,
+      "reconstructed": 0.15,
+      "scenario_value": 0.15,
+      "service": "food"
+    },
+    {
+      "clipped": false,
+      "reconstructed": 0.25,
+      "scenario_value": 0.25,
+      "service": "healthcare"
+    },
+    {
+      "clipped": true,
+      "reconstructed": 0.023,
+      "scenario_value": 0.05,
+      "service": "public_services"
+    }
+  ],
+  "kind": "frozen_preplanner_historical_data_contract",
+  "methodology_label": "One fixed manual crosswalk; no inverse fit, sensitivity ensemble, or outcome tuning",
+  "normalized_web_facts": {
+    "path": "benchmarks/v4/hurricane-maria-web-facts.json",
+    "sha256": "a2d52a52ca192b6db2677a6e7854e78650ee0ccd9db6b11e59a2cb379273c816"
+  },
+  "normalized_web_facts_snapshot": {
+    "facts": [
+      {
+        "canonical_fact_text": "Fifty-nine hospitals are partially or fully operational. Forty-five percent of customers have potable water. Forty-nine percent of grocery and big-box stores are open.",
+        "sha256": "0abaf5c90971e8446182ed7471457e30c7f49d093d4d26afb68da03b18fa7bc4",
+        "source_id": "fema_2017_09_30"
+      },
+      {
+        "canonical_fact_text": "Immediately after Hurricane Maria, cellular service was available to five percent of the population. By September 27, 44 percent of PRASA customers had running water. By November 6, more than 89 percent of grocery stores were open and all commercial airports and ports were open. Emergency roof and shelter assistance continued.",
+        "sha256": "561470afec85601ae879608a8b0a57b0acee01c464e8352024bbd84283c1da20",
+        "source_id": "fema_2017_11_06"
+      },
+      {
+        "canonical_fact_text": "Immediately after Hurricane Maria, 20 percent of water service was operational and 400 of 16,700 miles of roads were not shut down. At 30 days, 21 percent of electricity customers had service, 69 percent of water service was operational, and 61 percent of cellular sites were operating.",
+        "sha256": "26645507c0c6a968aca6c19299e79d5c9856823b17a23c99468332fa73c008bf",
+        "source_id": "fema_one_year_summary"
+      },
+      {
+        "canonical_fact_text": "Five of six priority seaports were open or open with restrictions, and 59 of 69 hospitals were partially or fully operational.",
+        "sha256": "8d98de043ae5c79e206b4b684ec352bcf9e5d2fc801498183bd12dbf6f70731d",
+        "source_id": "dod_2017_09_30"
+      },
+      {
+        "canonical_fact_text": "Air traffic at Luis Munoz Marin International Airport increased from six flights per hour to the normal rate.",
+        "sha256": "4eaa46a51379d9c2910bcad585270292347d7ebafff90a2b649342ef0b954342",
+        "source_id": "dod_2017_10_02"
+      },
+      {
+        "canonical_fact_text": "Sixty-five of 67 hospitals were open, and 75 percent of residents had access to drinking water.",
+        "sha256": "b0488faedd90197a1adc2231e61236f8d3671ca52dc6d98e447366e52cf00a9d",
+        "source_id": "dod_2017_10_27"
+      }
+    ],
+    "normalization": "UTF-8 encoding of canonical_fact_text exactly as stored, with no trailing newline, hashed with SHA-256.",
+    "purpose": "Reproducible, ASCII-normalized fact records for official pages whose servers refused unattended byte archival. These are project transcriptions of the cited facts, not quotations.",
+    "schema_version": "hurricane-maria-normalized-web-facts-v1"
+  },
+  "observation_table_snapshot": {
+    "day_zero": "2017-09-20",
+    "event": "Hurricane Maria - Puerto Rico",
+    "observations": [
+      {
+        "component": "transport_access_proxy",
+        "conversion": "400 / 16700",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": 16700,
+        "evidence_class": "direct_official_observation",
+        "id": "transport_day0",
+        "locator": "page 2, Then and Now roads paragraph",
+        "normalized_value": 0.0239521,
+        "raw_units": "miles of roads not shut down",
+        "raw_value": 400,
+        "selected": true,
+        "service": "transport",
+        "source_ids": [
+          "fema_one_year_summary"
+        ]
+      },
+      {
+        "component": "transport_access_proxy",
+        "conversion": "fixed Day-30 project estimate between the two dated official milestones",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": null,
+        "evidence_class": "project_estimate",
+        "id": "transport_day30_estimate",
+        "locator": "FEMA initial road denominator; October 2 normal-air-traffic milestone; November 6 all-port/all-airport retrospective",
+        "normalized_value": 0.45,
+        "raw_units": "cross-mode transport access proxy",
+        "raw_value": "Road clearance has no 30-day island-wide denominator; normal air traffic by Day 12; all ports/airports by Day 47",
+        "selected": true,
+        "service": "transport",
+        "source_ids": [
+          "fema_one_year_summary",
+          "dod_2017_10_02",
+          "fema_2017_11_06"
+        ]
+      },
+      {
+        "component": "shelter_and_habitability_proxy",
+        "conversion": "fixed conservative project estimate; not an estimated percentage of habitable homes",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": null,
+        "evidence_class": "project_estimate",
+        "id": "housing_day0_estimate",
+        "locator": "pages 7-8, Puerto Rico impacts",
+        "normalized_value": 0.1,
+        "raw_units": "qualitative damage assessment",
+        "raw_value": "Widespread significant building and home damage; no contemporaneous island-wide habitability percentage",
+        "selected": true,
+        "service": "housing",
+        "source_ids": [
+          "nhc_maria_tcr"
+        ]
+      },
+      {
+        "component": "shelter_and_habitability_proxy",
+        "conversion": "fixed modest-recovery project estimate; not an estimated percentage of habitable homes",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": null,
+        "evidence_class": "project_estimate",
+        "id": "housing_day30_estimate",
+        "locator": "NHC Puerto Rico impacts; FEMA November response update",
+        "normalized_value": 0.22,
+        "raw_units": "qualitative recovery status",
+        "raw_value": "Emergency roof and shelter work continued; no island-wide 30-day habitability series",
+        "selected": true,
+        "service": "housing",
+        "source_ids": [
+          "nhc_maria_tcr",
+          "fema_2017_11_06"
+        ]
+      },
+      {
+        "component": "potable_water_access",
+        "conversion": "percent / 100",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "Puerto Rico water service",
+        "evidence_class": "direct_official_observation",
+        "id": "food_water_day0_estimate",
+        "locator": "page 2, Then and Now water paragraph",
+        "normalized_value": 0.2,
+        "raw_units": "percent water service operational immediately after Maria",
+        "raw_value": 20,
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_one_year_summary"
+        ]
+      },
+      {
+        "component": "potable_water_access",
+        "conversion": "percent / 100",
+        "date": "2017-09-27",
+        "day": 7,
+        "denominator": "PRASA customers",
+        "evidence_class": "direct_official_observation",
+        "id": "food_water_day7",
+        "locator": "page 1, water retrospective",
+        "normalized_value": 0.44,
+        "raw_units": "percent of PRASA customers with running water",
+        "raw_value": 44,
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_2017_11_06"
+        ]
+      },
+      {
+        "component": "potable_water_access",
+        "conversion": "percent / 100",
+        "date": "2017-09-30",
+        "day": 10,
+        "denominator": "Puerto Rico water customers",
+        "evidence_class": "direct_official_observation",
+        "id": "food_water_day10",
+        "locator": "page 1, drinking-water bullet",
+        "normalized_value": 0.45,
+        "raw_units": "percent of customers with potable water",
+        "raw_value": 45,
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_2017_09_30"
+        ]
+      },
+      {
+        "component": "potable_water_access",
+        "conversion": "percent / 100",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "Puerto Rico water service",
+        "evidence_class": "direct_official_observation",
+        "id": "food_water_day30_estimate",
+        "locator": "page 2, Then and Now water paragraph",
+        "normalized_value": 0.69,
+        "raw_units": "percent water service operational at 30 days",
+        "raw_value": 69,
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_one_year_summary"
+        ]
+      },
+      {
+        "component": "grocery_availability",
+        "conversion": "fixed pre-curve project estimate below the first observed Day-10 value",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "grocery and big-box stores",
+        "evidence_class": "project_estimate",
+        "id": "food_grocery_day0_estimate",
+        "locator": "FEMA September 30 grocery bullet; NHC Puerto Rico impacts",
+        "normalized_value": 0.1,
+        "raw_units": "store availability",
+        "raw_value": "Island-wide baseline unavailable; 49% open on Day 10",
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_2017_09_30",
+          "nhc_maria_tcr"
+        ]
+      },
+      {
+        "component": "grocery_availability",
+        "conversion": "percent / 100",
+        "date": "2017-09-30",
+        "day": 10,
+        "denominator": "grocery and big-box stores",
+        "evidence_class": "direct_official_observation",
+        "id": "food_grocery_day10",
+        "locator": "page 1, stores bullet",
+        "normalized_value": 0.49,
+        "raw_units": "percent open",
+        "raw_value": 49,
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_2017_09_30"
+        ]
+      },
+      {
+        "component": "grocery_availability",
+        "conversion": "0.49 + (0.89 - 0.49) * (20 / 37)",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "grocery stores",
+        "evidence_class": "project_estimate",
+        "id": "food_grocery_day30_estimate",
+        "locator": "September 30 and November 6 store bullets",
+        "normalized_value": 0.70621622,
+        "raw_units": "linear interpolation to Day 30 using 89%",
+        "raw_value": "49% on Day 10 and more than 89% on Day 47",
+        "selected": true,
+        "service": "food",
+        "source_ids": [
+          "fema_2017_09_30",
+          "fema_2017_11_06"
+        ]
+      },
+      {
+        "component": "operational_hospital_availability",
+        "conversion": "fixed conservative project estimate below the first complete assessment",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "69 hospitals",
+        "evidence_class": "project_estimate",
+        "id": "healthcare_day0_estimate",
+        "locator": "FEMA hospital assessment; NHC Puerto Rico impacts",
+        "normalized_value": 0.25,
+        "raw_units": "operational-capacity proxy",
+        "raw_value": "No complete immediate island-wide assessment; 59 of 69 partially or fully operational by Day 10",
+        "selected": true,
+        "service": "healthcare",
+        "source_ids": [
+          "fema_2017_09_30",
+          "nhc_maria_tcr"
+        ]
+      },
+      {
+        "component": "operational_hospital_availability",
+        "conversion": "59 / 69",
+        "date": "2017-09-30",
+        "day": 10,
+        "denominator": 69,
+        "evidence_class": "direct_official_observation",
+        "id": "healthcare_day10",
+        "locator": "DoD situational update; FEMA hospital bullet",
+        "normalized_value": 0.85507246,
+        "raw_units": "partially or fully operational hospitals",
+        "raw_value": 59,
+        "selected": true,
+        "service": "healthcare",
+        "source_ids": [
+          "dod_2017_09_30",
+          "fema_2017_09_30"
+        ]
+      },
+      {
+        "component": "operational_hospital_availability",
+        "conversion": "(59/69) + ((65/67) - (59/69)) * (20 / 27)",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "reported hospital roster at each endpoint",
+        "evidence_class": "project_estimate",
+        "id": "healthcare_day30_estimate",
+        "locator": "September 30 and October 27 hospital-status bullets",
+        "normalized_value": 0.94031453,
+        "raw_units": "linear interpolation to Day 30",
+        "raw_value": "59/69 on Day 10 and 65/67 open on Day 37",
+        "selected": true,
+        "service": "healthcare",
+        "source_ids": [
+          "fema_2017_09_30",
+          "dod_2017_10_27"
+        ]
+      },
+      {
+        "component": "electricity",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "Puerto Rico island",
+        "evidence_class": "direct_official_observation",
+        "id": "public_power_day0",
+        "locator": "FEMA page 1 power retrospective; NHC Puerto Rico impacts",
+        "normalized_value": 0.0,
+        "raw_units": "percent without power",
+        "raw_value": 100,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fema_2017_11_06",
+          "nhc_maria_tcr"
+        ]
+      },
+      {
+        "component": "electricity",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-09-22",
+        "day": 2,
+        "denominator": 1569796,
+        "evidence_class": "direct_official_observation",
+        "id": "public_power_day2",
+        "locator": "page 3, electricity outages table",
+        "normalized_value": 0.0,
+        "raw_units": "percent of customers without power",
+        "raw_value": 100,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "doe_2017_09_22"
+        ]
+      },
+      {
+        "component": "electricity",
+        "conversion": "percent / 100",
+        "date": "2017-10-02",
+        "day": 12,
+        "denominator": "PREPA customers",
+        "evidence_class": "direct_official_observation",
+        "id": "public_power_day12",
+        "locator": "page 2, restored-customer bullet",
+        "normalized_value": 0.054,
+        "raw_units": "percent of PREPA customers restored",
+        "raw_value": 5.4,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "doe_2017_10_02"
+        ]
+      },
+      {
+        "component": "electricity",
+        "conversion": "percent / 100",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "Puerto Rico electricity customers",
+        "evidence_class": "direct_official_observation",
+        "id": "public_power_day30",
+        "locator": "page 2, Then and Now electricity paragraph",
+        "normalized_value": 0.21,
+        "raw_units": "percent of customers restored at 30 days",
+        "raw_value": 21,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fema_one_year_summary"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "carry Day-2 0.046 backward two days",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "reporting cell sites in Puerto Rico",
+        "evidence_class": "project_estimate",
+        "id": "public_cell_day0",
+        "locator": "page 2, nearest contemporaneous reporting-site observation on Day 2",
+        "normalized_value": 0.046,
+        "raw_units": "two-day carry-back project estimate",
+        "raw_value": "4.6% of reporting cell sites operational on Day 2",
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_09_22"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "not used",
+        "date": "2017-09-20",
+        "day": 0,
+        "denominator": "Puerto Rico population",
+        "evidence_class": "retrospective_official_milestone",
+        "id": "rejected_fema_population_cell_day0",
+        "locator": "page 1, communications retrospective",
+        "normalized_value": 0.05,
+        "raw_units": "percent of population with cellular service",
+        "raw_value": 5,
+        "rejection_reason": "Population coverage is not commensurable with the selected FCC reporting-cell-site series. The reconstruction uses a disclosed carry-back from the first FCC site observation instead.",
+        "selected": false,
+        "service": "public_services",
+        "source_ids": [
+          "fema_2017_11_06"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-09-22",
+        "day": 2,
+        "denominator": "reporting cell sites in Puerto Rico",
+        "evidence_class": "direct_official_observation",
+        "id": "public_cell_day2",
+        "locator": "page 2, Puerto Rico wireless summary",
+        "normalized_value": 0.046,
+        "raw_units": "percent of cell sites out of service",
+        "raw_value": 95.4,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_09_22"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-10-05",
+        "day": 15,
+        "denominator": "reporting cell sites in Puerto Rico",
+        "evidence_class": "direct_official_observation",
+        "id": "public_cell_day15",
+        "locator": "page 2, Puerto Rico wireless summary",
+        "normalized_value": 0.154,
+        "raw_units": "percent of cell sites out of service",
+        "raw_value": 84.6,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_10_05"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-10-18",
+        "day": 28,
+        "denominator": "2,680 reporting cell sites",
+        "evidence_class": "direct_official_observation",
+        "id": "public_cell_day28",
+        "locator": "pages 2-3, Puerto Rico wireless summary",
+        "normalized_value": 0.288,
+        "raw_units": "percent of cell sites out of service",
+        "raw_value": 71.2,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_10_18"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "1 - outage_percent / 100",
+        "date": "2017-10-19",
+        "day": 29,
+        "denominator": "reporting cell sites in Puerto Rico",
+        "evidence_class": "direct_official_observation",
+        "id": "public_cell_day29",
+        "locator": "pages 2-3, Puerto Rico wireless summary",
+        "normalized_value": 0.302,
+        "raw_units": "percent of cell sites out of service",
+        "raw_value": 69.8,
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_10_19"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "carry Day-29 0.302 forward one day",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "reporting cell sites in Puerto Rico",
+        "evidence_class": "project_estimate",
+        "id": "public_cell_day30_carry",
+        "locator": "pages 2-3, Puerto Rico wireless summary; nearest contemporaneous official observation",
+        "normalized_value": 0.302,
+        "raw_units": "one-day carry-forward project estimate",
+        "raw_value": "30.2% of reporting cell sites operational on Day 29",
+        "selected": true,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_10_19"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "not used",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "Puerto Rico cellular sites",
+        "evidence_class": "retrospective_official_milestone",
+        "id": "rejected_fema_cell_day30",
+        "locator": "page 2, Then and Now cellular paragraph",
+        "normalized_value": 0.61,
+        "raw_units": "percent of cellular sites operating at 30 days",
+        "raw_value": 61,
+        "rejection_reason": "The retrospective 61% figure conflicts sharply with the contemporaneous FCC reporting-site series (30.2% operational on Day 29). The fixed curve preserves the internally consistent daily FCC metric and carries its nearest observation forward one day.",
+        "selected": false,
+        "service": "public_services",
+        "source_ids": [
+          "fema_one_year_summary"
+        ]
+      },
+      {
+        "component": "transport_access_proxy",
+        "conversion": "not used",
+        "date": "2017-09-30",
+        "day": 10,
+        "denominator": 6,
+        "evidence_class": "direct_official_observation",
+        "id": "rejected_transport_priority_ports_day10",
+        "locator": "Puerto Rico situational update bullets",
+        "normalized_value": 0.83333333,
+        "raw_units": "priority seaports open or open with restrictions",
+        "raw_value": 5,
+        "rejection_reason": "The six priority seaports are a narrow, mode-specific roster and open-with-restrictions is not commensurable with the island-wide road-mile Day-0 denominator; using it as a transport percentage would overstate cross-mode access.",
+        "selected": false,
+        "service": "transport",
+        "source_ids": [
+          "dod_2017_09_30"
+        ]
+      },
+      {
+        "component": "transport_access_proxy",
+        "conversion": "not used",
+        "date": "2017-10-02",
+        "day": 12,
+        "denominator": "normal hourly flight rate at one airport",
+        "evidence_class": "direct_official_observation",
+        "id": "rejected_transport_airport_flow_day12",
+        "locator": "air-traffic restoration paragraph",
+        "normalized_value": 1.0,
+        "raw_units": "single-airport throughput milestone",
+        "raw_value": "normal hourly flight rate restored at Luis Munoz Marin International Airport",
+        "rejection_reason": "A normal flow rate at one airport cannot be averaged as an island-wide roads/ports/airports restoration percentage; it is retained only as qualitative support for the Day-30 project estimate.",
+        "selected": false,
+        "service": "transport",
+        "source_ids": [
+          "dod_2017_10_02"
+        ]
+      },
+      {
+        "component": "electricity",
+        "conversion": "not used",
+        "date": "2017-10-20",
+        "day": 30,
+        "denominator": "2,685 MW normal peak load",
+        "evidence_class": "direct_official_observation",
+        "id": "rejected_doe_peak_load_day30",
+        "locator": "pages 1-2, restored normal peak load",
+        "normalized_value": 0.185,
+        "raw_units": "percent of normal peak load restored",
+        "raw_value": 18.5,
+        "rejection_reason": "The selected FEMA 30-day customer-restoration figure has a customer denominator consistent with earlier series anchors; DOE peak load is a different measure.",
+        "selected": false,
+        "service": "public_services",
+        "source_ids": [
+          "doe_2017_10_20"
+        ]
+      },
+      {
+        "component": "cellular",
+        "conversion": "not used",
+        "date": "2017-10-18",
+        "day": 28,
+        "denominator": "Puerto Rico population",
+        "evidence_class": "direct_official_observation",
+        "id": "rejected_fcc_population_coverage_day28",
+        "locator": "page 3, population coverage paragraph",
+        "normalized_value": 0.61,
+        "raw_units": "percent of population reportedly covered",
+        "raw_value": 61,
+        "rejection_reason": "The fixed cellular series uses cell-site operational share consistently at all FCC dates; population coverage is a different measure.",
+        "selected": false,
+        "service": "public_services",
+        "source_ids": [
+          "fcc_2017_10_18"
+        ]
+      }
+    ],
+    "schema_version": "hurricane-maria-observations-v1",
+    "selection_policy": [
+      "prefer a clear denominator",
+      "prefer Puerto Rico-wide coverage",
+      "prefer the source closest to the observation date",
+      "freeze all choices before policy loading"
+    ]
+  },
+  "observations": {
+    "path": "benchmarks/v4/hurricane-maria-observations.json",
+    "sha256": "949bd6cac4cd4e02542f47e50473cd044e9552dc8966f63c78553dabd8bf5d3c"
+  },
+  "policy_loaded_during_preparation": false,
+  "reconstruction": {
+    "components": {
+      "food": {
+        "grocery_availability": [
+          0.1,
+          0.139,
+          0.178,
+          0.217,
+          0.256,
+          0.295,
+          0.334,
+          0.373,
+          0.412,
+          0.451,
+          0.49,
+          0.50081081,
+          0.51162162,
+          0.52243243,
+          0.53324324,
+          0.54405405,
+          0.55486487,
+          0.56567568,
+          0.57648649,
+          0.5872973,
+          0.59810811,
+          0.60891892,
+          0.61972973,
+          0.63054054,
+          0.64135135,
+          0.65216217,
+          0.66297298,
+          0.67378379,
+          0.6845946,
+          0.69540541,
+          0.70621622
+        ],
+        "potable_water_access": [
+          0.2,
+          0.23428571,
+          0.26857143,
+          0.30285714,
+          0.33714286,
+          0.37142857,
+          0.40571429,
+          0.44,
+          0.44333333,
+          0.44666667,
+          0.45,
+          0.462,
+          0.474,
+          0.486,
+          0.498,
+          0.51,
+          0.522,
+          0.534,
+          0.546,
+          0.558,
+          0.57,
+          0.582,
+          0.594,
+          0.606,
+          0.618,
+          0.63,
+          0.642,
+          0.654,
+          0.666,
+          0.678,
+          0.69
+        ]
+      },
+      "healthcare": {
+        "operational_hospital_availability": [
+          0.25,
+          0.31050725,
+          0.37101449,
+          0.43152174,
+          0.49202898,
+          0.55253623,
+          0.61304348,
+          0.67355072,
+          0.73405797,
+          0.79456521,
+          0.85507246,
+          0.85933456,
+          0.86359667,
+          0.86785877,
+          0.87212087,
+          0.87638298,
+          0.88064508,
+          0.88490718,
+          0.88916929,
+          0.89343139,
+          0.89769349,
+          0.9019556,
+          0.9062177,
+          0.91047981,
+          0.91474191,
+          0.91900401,
+          0.92326612,
+          0.92752822,
+          0.93179032,
+          0.93605243,
+          0.94031453
+        ]
+      },
+      "housing": {
+        "shelter_and_habitability_proxy": [
+          0.1,
+          0.104,
+          0.108,
+          0.112,
+          0.116,
+          0.12,
+          0.124,
+          0.128,
+          0.132,
+          0.136,
+          0.14,
+          0.144,
+          0.148,
+          0.152,
+          0.156,
+          0.16,
+          0.164,
+          0.168,
+          0.172,
+          0.176,
+          0.18,
+          0.184,
+          0.188,
+          0.192,
+          0.196,
+          0.2,
+          0.204,
+          0.208,
+          0.212,
+          0.216,
+          0.22
+        ]
+      },
+      "public_services": {
+        "cellular": [
+          0.046,
+          0.046,
+          0.046,
+          0.05430769,
+          0.06261538,
+          0.07092308,
+          0.07923077,
+          0.08753846,
+          0.09584615,
+          0.10415385,
+          0.11246154,
+          0.12076923,
+          0.12907692,
+          0.13738462,
+          0.14569231,
+          0.154,
+          0.16430769,
+          0.17461538,
+          0.18492308,
+          0.19523077,
+          0.20553846,
+          0.21584615,
+          0.22615385,
+          0.23646154,
+          0.24676923,
+          0.25707692,
+          0.26738462,
+          0.27769231,
+          0.288,
+          0.302,
+          0.302
+        ],
+        "electricity": [
+          0.0,
+          0.0,
+          0.0,
+          0.0054,
+          0.0108,
+          0.0162,
+          0.0216,
+          0.027,
+          0.0324,
+          0.0378,
+          0.0432,
+          0.0486,
+          0.054,
+          0.06266667,
+          0.07133333,
+          0.08,
+          0.08866667,
+          0.09733333,
+          0.106,
+          0.11466667,
+          0.12333333,
+          0.132,
+          0.14066667,
+          0.14933333,
+          0.158,
+          0.16666667,
+          0.17533333,
+          0.184,
+          0.19266667,
+          0.20133333,
+          0.21
+        ]
+      },
+      "transport": {
+        "transport_access_proxy": [
+          0.0239521,
+          0.0381537,
+          0.05235529,
+          0.06655689,
+          0.08075849,
+          0.09496008,
+          0.10916168,
+          0.12336328,
+          0.13756487,
+          0.15176647,
+          0.16596807,
+          0.18016966,
+          0.19437126,
+          0.20857286,
+          0.22277445,
+          0.23697605,
+          0.25117765,
+          0.26537924,
+          0.27958084,
+          0.29378244,
+          0.30798403,
+          0.32218563,
+          0.33638723,
+          0.35058882,
+          0.36479042,
+          0.37899202,
+          0.39319361,
+          0.40739521,
+          0.42159681,
+          0.4357984,
+          0.45
+        ]
+      }
+    },
+    "dates": [
+      "2017-09-20",
+      "2017-09-21",
+      "2017-09-22",
+      "2017-09-23",
+      "2017-09-24",
+      "2017-09-25",
+      "2017-09-26",
+      "2017-09-27",
+      "2017-09-28",
+      "2017-09-29",
+      "2017-09-30",
+      "2017-10-01",
+      "2017-10-02",
+      "2017-10-03",
+      "2017-10-04",
+      "2017-10-05",
+      "2017-10-06",
+      "2017-10-07",
+      "2017-10-08",
+      "2017-10-09",
+      "2017-10-10",
+      "2017-10-11",
+      "2017-10-12",
+      "2017-10-13",
+      "2017-10-14",
+      "2017-10-15",
+      "2017-10-16",
+      "2017-10-17",
+      "2017-10-18",
+      "2017-10-19",
+      "2017-10-20"
+    ],
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ],
+    "observation_days": {
+      "food": [
+        0,
+        7,
+        10,
+        30
+      ],
+      "healthcare": [
+        10
+      ],
+      "housing": [],
+      "public_services": [
+        0,
+        2,
+        12,
+        15,
+        28,
+        29,
+        30
+      ],
+      "transport": [
+        0
+      ]
+    },
+    "service_labels": {
+      "food": "Food and water",
+      "healthcare": "Healthcare",
+      "housing": "Housing",
+      "public_services": "Public services",
+      "transport": "Transport"
+    },
+    "service_order": [
+      "transport",
+      "housing",
+      "food",
+      "healthcare",
+      "public_services"
+    ],
+    "services": {
+      "food": [
+        0.15,
+        0.18664285,
+        0.22328571,
+        0.25992857,
+        0.29657143,
+        0.33321428,
+        0.36985714,
+        0.4065,
+        0.42766667,
+        0.44883333,
+        0.47,
+        0.48140541,
+        0.49281081,
+        0.50421622,
+        0.51562162,
+        0.52702702,
+        0.53843244,
+        0.54983784,
+        0.56124325,
+        0.57264865,
+        0.58405405,
+        0.59545946,
+        0.60686486,
+        0.61827027,
+        0.62967567,
+        0.64108108,
+        0.65248649,
+        0.6638919,
+        0.6752973,
+        0.68670271,
+        0.69810811
+      ],
+      "healthcare": [
+        0.25,
+        0.31050725,
+        0.37101449,
+        0.43152174,
+        0.49202898,
+        0.55253623,
+        0.61304348,
+        0.67355072,
+        0.73405797,
+        0.79456521,
+        0.85507246,
+        0.85933456,
+        0.86359667,
+        0.86785877,
+        0.87212087,
+        0.87638298,
+        0.88064508,
+        0.88490718,
+        0.88916929,
+        0.89343139,
+        0.89769349,
+        0.9019556,
+        0.9062177,
+        0.91047981,
+        0.91474191,
+        0.91900401,
+        0.92326612,
+        0.92752822,
+        0.93179032,
+        0.93605243,
+        0.94031453
+      ],
+      "housing": [
+        0.1,
+        0.104,
+        0.108,
+        0.112,
+        0.116,
+        0.12,
+        0.124,
+        0.128,
+        0.132,
+        0.136,
+        0.14,
+        0.144,
+        0.148,
+        0.152,
+        0.156,
+        0.16,
+        0.164,
+        0.168,
+        0.172,
+        0.176,
+        0.18,
+        0.184,
+        0.188,
+        0.192,
+        0.196,
+        0.2,
+        0.204,
+        0.208,
+        0.212,
+        0.216,
+        0.22
+      ],
+      "public_services": [
+        0.023,
+        0.023,
+        0.023,
+        0.02985385,
+        0.03670769,
+        0.04356154,
+        0.05041539,
+        0.05726923,
+        0.06412308,
+        0.07097692,
+        0.07783077,
+        0.08468462,
+        0.09153846,
+        0.10002564,
+        0.10851282,
+        0.117,
+        0.12648718,
+        0.13597435,
+        0.14546154,
+        0.15494872,
+        0.16443589,
+        0.17392307,
+        0.18341026,
+        0.19289744,
+        0.20238461,
+        0.21187179,
+        0.22135898,
+        0.23084615,
+        0.24033333,
+        0.25166667,
+        0.256
+      ],
+      "transport": [
+        0.0239521,
+        0.0381537,
+        0.05235529,
+        0.06655689,
+        0.08075849,
+        0.09496008,
+        0.10916168,
+        0.12336328,
+        0.13756487,
+        0.15176647,
+        0.16596807,
+        0.18016966,
+        0.19437126,
+        0.20857286,
+        0.22277445,
+        0.23697605,
+        0.25117765,
+        0.26537924,
+        0.27958084,
+        0.29378244,
+        0.30798403,
+        0.32218563,
+        0.33638723,
+        0.35058882,
+        0.36479042,
+        0.37899202,
+        0.39319361,
+        0.40739521,
+        0.42159681,
+        0.4357984,
+        0.45
+      ]
+    },
+    "total": [
+      0.10939042,
+      0.13246076,
+      0.1555311,
+      0.17997221,
+      0.20441332,
+      0.22885443,
+      0.25329554,
+      0.27773665,
+      0.29908252,
+      0.32042839,
+      0.34177426,
+      0.34991885,
+      0.35806344,
+      0.3665347,
+      0.37500595,
+      0.38347721,
+      0.39214847,
+      0.40081972,
+      0.40949098,
+      0.41816224,
+      0.42683349,
+      0.43550475,
+      0.44417601,
+      0.45284727,
+      0.46151852,
+      0.47018978,
+      0.47886104,
+      0.4875323,
+      0.49620355,
+      0.50524404,
+      0.51288453
+    ]
+  },
+  "reconstruction_sha256": "c36f68e1dc78a621fc51ad7f7c84ab17ac45760d8641fea4466c368265c8df8f",
+  "scenario": {
+    "assessment_tail_days": 3,
+    "daily_budget": 180.0,
+    "daily_crew_pool": 150.0,
+    "forced_shock": null,
+    "forced_shocks": [],
+    "horizon_days": 30,
+    "initial_services": [
+      0.05,
+      0.1,
+      0.15,
+      0.25,
+      0.05
+    ],
+    "name": "Hurricane Maria retrospective: Puerto Rico, 30 days",
+    "priorities": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "recovery_targets": [
+      0.55,
+      0.55,
+      0.55,
+      0.55,
+      0.55
+    ],
+    "severity_max": 0.28,
+    "severity_min": 0.1,
+    "shock_probability": 0.0
+  },
+  "schema_version": "hurricane-maria-prepared-inputs-v1",
+  "source_manifest": {
+    "path": "benchmarks/v4/hurricane-maria-source-manifest.json",
+    "sha256": "74c848a869aaa258296818f5133d2f05a56bdbcef78f159524ed72f00f236ce2"
+  },
+  "source_manifest_snapshot": {
+    "archive_policy": "Official source bytes were fetched before reconstruction and retained outside the repository. The tracked manifest records stable URLs, byte sizes, and SHA-256 digests. FEMA and Defense.gov block unattended archival retrieval; their used facts are retained as locator-bound, reproducibly hashed normalized fact records in hurricane-maria-web-facts.json.",
+    "archive_root_pattern": "<out-of-repository>/hurricane-maria-official-sources/",
+    "event": "Hurricane Maria - Puerto Rico",
+    "retrieved_on": "2026-08-13",
+    "schema_version": "hurricane-maria-source-manifest-v1",
+    "sources": [
+      {
+        "agency": "NOAA National Hurricane Center",
+        "archive_filename": "nhc-maria-tcr.pdf",
+        "content_type": "application/pdf",
+        "id": "nhc_maria_tcr",
+        "locators": [
+          "page 1, landfall chronology",
+          "pages 7-8, Puerto Rico impacts"
+        ],
+        "publication_date": "2019-01-04",
+        "sha256": "9fcf9dbc2cf527fe318ab4b43d41cf775a6d28609253876829b64b43e15bfa75",
+        "size_bytes": 7316824,
+        "title": "Tropical Cyclone Report: Hurricane Maria (AL152017)",
+        "url": "https://www.nhc.noaa.gov/data/tcr/AL152017_Maria.pdf"
+      },
+      {
+        "agency": "U.S. Department of Energy",
+        "archive_filename": "doe-2017-09-22.pdf",
+        "content_type": "application/pdf",
+        "id": "doe_2017_09_22",
+        "locators": [
+          "page 1, Electricity Sector Summary",
+          "page 3, electricity outages table"
+        ],
+        "publication_date": "2017-09-22",
+        "sha256": "6c4a01070306831e7e0e6a94cc408722ea9ec9d093ab79e0d01fbbdb7b56d34f",
+        "size_bytes": 782881,
+        "title": "Hurricanes Maria, Irma, and Harvey - September 22 Afternoon Event Summary (Report 43)",
+        "url": "https://www.energy.gov/documents/hurricanes-maria-irma-and-harvey-event-summary-afternoon-september-22-2017pdf"
+      },
+      {
+        "agency": "U.S. Department of Energy",
+        "archive_filename": "doe-2017-10-02.pdf",
+        "content_type": "application/pdf",
+        "id": "doe_2017_10_02",
+        "locators": [
+          "page 2, Puerto Rico electricity restoration and transport notes"
+        ],
+        "publication_date": "2017-10-02",
+        "sha256": "66a8bcc538ddf7c9a0c418f3d46b69ef049ee2c0b4111b19d75a9e5d520df579",
+        "size_bytes": 269641,
+        "title": "Hurricanes Maria, Irma, and Harvey - October 2 Event Summary",
+        "url": "https://www.energy.gov/documents/hurricanes-maria-irma-and-harvey-event-summary-october-2-2017pdf"
+      },
+      {
+        "agency": "U.S. Department of Energy",
+        "archive_filename": "doe-2017-10-20.pdf",
+        "content_type": "application/pdf",
+        "id": "doe_2017_10_20",
+        "locators": [
+          "page 1, Electricity Sector Summary",
+          "page 2, estimated outages and restored load"
+        ],
+        "publication_date": "2017-10-20",
+        "sha256": "fb4994b1b14e17186498c9154b97c0790a55aaa68d129bd208de328490b5ba7f",
+        "size_bytes": 192956,
+        "title": "Hurricanes Maria and Irma - October 20 Event Summary (Report 69)",
+        "url": "https://www.energy.gov/documents/hurricanes-maria-and-irma-event-summary-october-20-2017pdf"
+      },
+      {
+        "agency": "Federal Communications Commission",
+        "archive_filename": "fcc-2017-09-22.pdf",
+        "content_type": "application/pdf",
+        "id": "fcc_2017_09_22",
+        "locators": [
+          "page 2, Puerto Rico wireless-services summary"
+        ],
+        "publication_date": "2017-09-22",
+        "sha256": "58d022d7bd0abcbb81131482786af130ec97a2d89c5794ed76e182ce7ae476de",
+        "size_bytes": 411198,
+        "title": "Communications Status Report for Areas Impacted by Hurricane Maria - September 22",
+        "url": "https://docs.fcc.gov/public/attachments/DOC-346855A1.pdf"
+      },
+      {
+        "agency": "Federal Communications Commission",
+        "archive_filename": "fcc-2017-10-05.pdf",
+        "content_type": "application/pdf",
+        "id": "fcc_2017_10_05",
+        "locators": [
+          "page 2, Puerto Rico wireless-services summary"
+        ],
+        "publication_date": "2017-10-05",
+        "sha256": "1a830ac72c33e3cffb9bfa1d6efba5a751d62a0a00e81a51181bf84f8278721e",
+        "size_bytes": 411486,
+        "title": "Communications Status Report for Areas Impacted by Hurricane Maria - October 5",
+        "url": "https://docs.fcc.gov/public/attachments/DOC-347091A1.pdf"
+      },
+      {
+        "agency": "Federal Communications Commission",
+        "archive_filename": "fcc-2017-10-18.pdf",
+        "content_type": "application/pdf",
+        "id": "fcc_2017_10_18",
+        "locators": [
+          "pages 2-3, Puerto Rico wireless-services summary"
+        ],
+        "publication_date": "2017-10-18",
+        "sha256": "bd0892f8e352358b16cf5c781745177283531010dceb7e174d18a93194947c3c",
+        "size_bytes": 502259,
+        "title": "Communications Status Report for Areas Impacted by Hurricane Maria - October 18",
+        "url": "https://docs.fcc.gov/public/attachments/DOC-347308A1.pdf"
+      },
+      {
+        "agency": "Federal Communications Commission",
+        "archive_filename": "fcc-2017-10-19.pdf",
+        "content_type": "application/pdf",
+        "id": "fcc_2017_10_19",
+        "locators": [
+          "pages 2-3, Puerto Rico wireless-services summary"
+        ],
+        "publication_date": "2017-10-19",
+        "sha256": "24028ef1db142c21938e26905231efc4e2eb74dce311307e66c1d2ab665b4927",
+        "size_bytes": 488641,
+        "title": "Communications Status Report for Areas Impacted by Hurricane Maria - October 19",
+        "url": "https://docs.fcc.gov/public/attachments/DOC-347339A2.pdf"
+      },
+      {
+        "agency": "Federal Emergency Management Agency",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "fema_2017_09_30",
+        "locators": [
+          "page 1, hospital, potable-water, grocery, and fuel restoration bullets"
+        ],
+        "publication_date": "2017-09-30",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Update on Federal Partners Supporting Survivors in Puerto Rico",
+        "url": "https://www.fema.gov/fr/print/pdf/node/317292",
+        "verified_excerpt_sha256": "0abaf5c90971e8446182ed7471457e30c7f49d093d4d26afb68da03b18fa7bc4"
+      },
+      {
+        "agency": "Federal Emergency Management Agency",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "fema_2017_11_06",
+        "locators": [
+          "page 1, immediate and November communications, transport, power, water, grocery, and hospital milestones"
+        ],
+        "publication_date": "2017-11-06",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Hurricane Maria Update",
+        "url": "https://www.fema.gov/vi/print/pdf/node/320687",
+        "verified_excerpt_sha256": "561470afec85601ae879608a8b0a57b0acee01c464e8352024bbd84283c1da20"
+      },
+      {
+        "agency": "Federal Emergency Management Agency",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "fema_one_year_summary",
+        "locators": [
+          "page 2, Then and Now: exact 30-day power, water, road, and cellular milestones"
+        ],
+        "publication_date": "2018-09-20",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Puerto Rico One Year after Hurricanes Irma and Maria",
+        "url": "https://www.fema.gov/vi/print/pdf/node/335544",
+        "verified_excerpt_sha256": "26645507c0c6a968aca6c19299e79d5c9856823b17a23c99468332fa73c008bf"
+      },
+      {
+        "agency": "U.S. Department of Defense / U.S. Army Corps of Engineers",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "id": "dod_2017_09_22",
+        "locators": [
+          "transcript, initial transport and infrastructure assessment"
+        ],
+        "publication_date": "2017-09-22",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Press briefing on support to hurricane relief efforts",
+        "url": "https://www.defense.gov/News/Transcripts/Transcript/Article/1322049/department-of-defense-press-briefing-by-generals-rydholm-and-holland-in-the-pen/"
+      },
+      {
+        "agency": "U.S. Department of Defense",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "dod_2017_09_30",
+        "locators": [
+          "Puerto Rico situational update bullets"
+        ],
+        "publication_date": "2017-09-30",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "DoD Accelerates Hurricane Relief, Response Efforts in Puerto Rico",
+        "url": "https://www.defense.gov/News/News-Stories/Article/Article/1330501/dod-accelerates-hurricane-relief-response-efforts-in-puerto-rico/",
+        "verified_excerpt_sha256": "8d98de043ae5c79e206b4b684ec352bcf9e5d2fc801498183bd12dbf6f70731d"
+      },
+      {
+        "agency": "U.S. Department of Defense / Federal Aviation Administration",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "dod_2017_10_02",
+        "locators": [
+          "air-traffic restoration paragraph"
+        ],
+        "publication_date": "2017-10-02",
+        "retrieval_status": "Official page verified and locator-bound; automated byte retrieval returned HTTP 403.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Air National Guard Restores Air Traffic Control in Puerto Rico",
+        "url": "https://www.defense.gov/News/News-Stories/Article/Article/1331249/air-national-guard-restores-air-traffic-control-in-puerto-rico/",
+        "verified_excerpt_sha256": "4eaa46a51379d9c2910bcad585270292347d7ebafff90a2b649342ef0b954342"
+      },
+      {
+        "agency": "U.S. Department of Defense",
+        "archive_filename": null,
+        "content_type": "official web publication",
+        "excerpt_normalization": "Reproducible project fact transcription in hurricane-maria-web-facts.json; not a quotation",
+        "id": "dod_2017_10_27",
+        "locators": [
+          "Puerto Rico recovery-status bullets"
+        ],
+        "publication_date": "2017-10-27",
+        "retrieval_status": "Used only as the nearest post-window endpoint for explicitly marked Day-30 project estimates.",
+        "sha256": null,
+        "size_bytes": null,
+        "title": "Power Restoration Remains Top Concern in Puerto Rico, U.S. Virgin Islands",
+        "url": "https://www.defense.gov/News/News-Stories/Article/Article/1356447/power-restoration-remains-top-concern-in-puerto-rico-us-virgin-islands/",
+        "verified_excerpt_sha256": "b0488faedd90197a1adc2231e61236f8d3671ca52dc6d98e447366e52cf00a9d"
+      }
+    ],
+    "window": {
+      "end_date": "2017-10-20",
+      "start_date": "2017-09-20",
+      "timezone": "America/Puerto_Rico"
+    }
+  },
+  "synthetic_benchmark": {
+    "derivation": "Aggregate counts read from retained evidence; no final roster was imported or evaluated.",
+    "evidence": {
+      "final_success": {
+        "path": "internal/evaluation_runs/v4/final-evaluation-200.success.json",
+        "sha256": "6c21f3be7dc1af8c7bbc00e671210e315e42d6211bd276eccd45adc74421f373"
+      },
+      "oracle": {
+        "path": "internal/developmental_runs/v4/clairvoyant-oracle-200-final.json",
+        "sha256": "baf5aa6ec8e419a50f87e744eac7779f30a53b6aab60018ff1a7043126b0b5ec"
+      },
+      "regression_gate": {
+        "path": "tests/test_consolidation_gate.py",
+        "sha256": "97bdeb13556a2fdb9b291c62e699da739441e593ad57f6a5adc014e7ece38638"
+      }
+    },
+    "rows": [
+      {
+        "classification": "Privileged; not a submission baseline",
+        "detail": "Complete future-tape knowledge; anytime achieved lower bound.",
+        "id": "oracle",
+        "label": "Clairvoyant oracle",
+        "rate": 0.91,
+        "solved": 182,
+        "total": 200
+      },
+      {
+        "classification": "Shipped policy",
+        "detail": "Single owner-authorized final evaluation.",
+        "id": "v4",
+        "label": "v4 PPO (shipped)",
+        "rate": 0.815,
+        "solved": 163,
+        "total": 200
+      },
+      {
+        "classification": "Hand-coded planner",
+        "detail": "Strongest hand-coded comparator.",
+        "id": "tuned",
+        "label": "Tuned constant rule",
+        "rate": 0.735,
+        "solved": 147,
+        "total": 200
+      },
+      {
+        "classification": "Public deterministic regression",
+        "detail": "Original behavior-cloning teacher.",
+        "id": "teacher",
+        "label": "Preparedness teacher",
+        "rate": 0.695,
+        "solved": 139,
+        "total": 200
+      },
+      {
+        "classification": "Causal diagnostic",
+        "detail": "Selected receding-horizon planner, k=5.",
+        "id": "mpc",
+        "label": "Selected MPC",
+        "rate": 0.675,
+        "solved": 135,
+        "total": 200
+      },
+      {
+        "classification": "Retired regression fixture",
+        "detail": "Legacy ONNX comparator.",
+        "id": "legacy",
+        "label": "Legacy shipped policy",
+        "rate": 0.625,
+        "solved": 125,
+        "total": 200
+      },
+      {
+        "classification": "Public deterministic regression",
+        "detail": "Simple reactive allocation heuristic.",
+        "id": "reactive",
+        "label": "Reactive heuristic",
+        "rate": 0.36,
+        "solved": 72,
+        "total": 200
+      }
+    ]
+  },
+  "tape_contract": {
+    "all_days_no_shock": true,
+    "day_count": 30,
+    "maria_encoded_only_as_initial_condition": true,
+    "public_risk_all_zero": true
+  }
+}

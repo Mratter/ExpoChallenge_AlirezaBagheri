@@ -221,33 +221,43 @@ def test_manual_docs_keep_the_achieved_count_reporting_contract() -> None:
     root = FINAL_RECEIPT.parents[3]
     readme = (root / "README.md").read_text(encoding="utf-8")
     code_tour = (root / "docs/CODE_TOUR.md").read_text(encoding="utf-8")
+    evidence = (root / "docs/EVIDENCE.md").read_text(encoding="utf-8")
     plan = (root / "docs/TRAINING_DEPLOYMENT_PLAN.md").read_text(
         encoding="utf-8"
     )
-    final_definition = (
-        "Demonstrated-achievable reference denominator = the 182 of 200 final "
-        "cases solved by the privileged future-aware CEM run; its 18 search "
-        "failures are not proofs of infeasibility."
-    )
-    development_definition = (
-        "Demonstrated-achievable reference denominator = the 187 of 200 "
-        "development cases solved by the privileged future-aware CEM run; its "
-        "13 search failures are not proofs of infeasibility."
-    )
-    for text in (readme, code_tour, plan):
-        assert final_definition in text
-        assert development_definition in text
-        assert "163 / 182 = 89.6%" in text
-        assert "163 / 200" in text
-        assert "162 / 182 = 89.0%" in text
-        assert "183 / 200" in text
-        assert "171.4 / 187 = 91.7%" in text
-        assert "171.4 / 200" in text
-        assert "178 / 187 = 95.2%" in text
-        assert "178 / 200" in text
-    assert "[84.3%, 93.2%]" in readme
-    assert "[0.8427, 0.9321]" in code_tour
-    assert "[0.8427, 0.9321]" in plan
-    assert "reporting_denominators.py" in readme
-    assert "render_achieved_count_reports.py" in readme
-    assert "tests/test_achieved_count_reporting.py" in readme
+
+    assert "163 / 200 (81.5%)" in readme
+    assert "oracle-solved reference" in readme
+    assert "not a proof that the other 18 cases are infeasible" in readme
+    assert "162 both solved, 1 policy-only, 20 oracle-only, and 17 neither" in readme
+    assert "183 / 200" in readme
+    for comparator in (
+        "Privileged future-aware CEM",
+        "**Shipped v4 PPO**",
+        "Tuned constant rule",
+        "Preparedness teacher",
+        "Causal MPC, `k=5`",
+        "Legacy ONNX fixture",
+        "Reactive heuristic",
+    ):
+        assert comparator in readme
+    for solved_count in (182, 163, 147, 139, 135, 125, 72):
+        assert f"**{solved_count} / 200**" in readme
+
+    detailed_docs = "\n".join((code_tour, evidence, plan))
+    for value in (
+        "163 / 182 = 89.6%",
+        "163 / 200",
+        "162 / 182 = 89.0%",
+        "183 / 200",
+        "171.4 / 187 = 91.7%",
+        "171.4 / 200",
+        "178 / 187 = 95.2%",
+        "178 / 200",
+    ):
+        assert value in detailed_docs
+    assert "Development oracle-solved reference" in plan
+    assert "13 search failures are not proofs of infeasibility" in plan
+    assert "Final oracle-solved reference" in plan
+    assert "18 search failures are not proofs of infeasibility" in plan
+    assert "[0.8427, 0.9321]" in evidence

@@ -24,7 +24,7 @@ $env:INNOVERSE_POLICY_PATH = $ResolvedPolicyPath
 $Context = Get-CityRecoveryEnvironmentContext -Root $Root
 $env:INNOVERSE_PROFILE = $Profile
 $env:INNOVERSE_RUNTIME = '1'
-$ToolboxUrl = "http://127.0.0.1:$Port/#/toolbox"
+$LandingUrl = "http://127.0.0.1:$Port/#/"
 $ReadyUrl = "http://127.0.0.1:$Port/health/ready"
 $BrowserJob = $null
 
@@ -43,12 +43,12 @@ if (-not $NoBrowser) {
                 Start-Sleep -Milliseconds 500
             }
         }
-    } -ArgumentList $ReadyUrl, $ToolboxUrl
+    } -ArgumentList $ReadyUrl, $LandingUrl
 }
 
 Push-Location $Root
 try {
-    Write-Host "[run] City Recovery toolbox: $ToolboxUrl"
+    Write-Host "[run] City Recovery evidence home: $LandingUrl"
     Write-Host "[run] Policy: $ResolvedPolicyPath"
     Write-Host '[run] Press Ctrl+C to stop.'
     & $Context.PythonPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port $Port --no-access-log
