@@ -9,6 +9,7 @@ Use ``--prepare`` to validate and freeze the historical-data contract. The one-t
 from __future__ import annotations
 
 import argparse
+import copy
 import dataclasses
 import hashlib
 import json
@@ -55,6 +56,23 @@ CAPTION = (
     "Policy lines are simulated alternatives in the frozen model, not observed "
     "or causal real-world outcomes."
 )
+
+# This migration is deliberately bound to the one published bundle whose
+# provenance metadata needed correction.  It is not a general-purpose way to
+# overwrite retrospective evidence, and it cannot be run a second time.
+PRE_REBIND_IDENTITIES = {
+    PREPARED_CONTRACT: "5702fca129386ae46e92688da10c60280c7bc964bed91b91769b8e0ec645ea14",
+    RECEIPT: "643a19eb4803aecce0935b3eb71c462a59ca6a30754d83706a0936038aa72828",
+    FRONTEND: "2d9290f56125d0a1077998ea230e3e4aad7767cffeca8ed31b2fcaf8b284de79",
+    REPORT: "51f60838cf54b6368891edff3f473e947d9cbb401d9b72e7e8415bea93d1c9cc",
+}
+PRE_REBIND_RECEIPT_SHA256 = (
+    "66eafd97e8336e2ad9e0a6fae1ba11dfe9cf3e03b0f1cc25a0888a24525329d4"
+)
+PRE_REBIND_CONTRACT_SHA256 = (
+    "e52f0f5de499d73e078518c9a42a3a82e305dea67b4b2c18a46c294d7c56950d"
+)
+PROVENANCE_CORRECTION_ID = "2026-08-13-official-source-provenance-correction"
 
 
 class RetrospectiveError(RuntimeError):
@@ -162,6 +180,93 @@ def publish_create_new_bundle(outputs: dict[Path, str]) -> None:
                 pass
 
 
+def publish_replace_exact_bundle(
+    outputs: dict[Path, str], expected_sha256: dict[Path, str]
+) -> None:
+    """Replace one exact regular-file bundle and roll it all back on failure.
+
+    The caller must bind every destination to its pre-migration digest.  Staged
+    payloads and hard-linked backups live beside each destination, so each
+    individual replacement is atomic and a later failure can restore the exact
+    previous inode contents.
+    """
+
+    if set(outputs) != set(expected_sha256) or not outputs:
+        raise RetrospectiveError("replacement bundle identities are incomplete")
+    staged: dict[Path, Path] = {}
+    backups: dict[Path, Path] = {}
+    replaced: list[Path] = []
+    try:
+        for destination, payload in outputs.items():
+            if destination.is_symlink() or not destination.is_file():
+                raise RetrospectiveError(
+                    f"replacement target missing or unsafe: {destination}"
+                )
+            if destination.parent.is_symlink() or not destination.parent.is_dir():
+                raise RetrospectiveError(
+                    f"replacement parent is unsafe: {destination.parent}"
+                )
+            if file_sha256(destination) != expected_sha256[destination]:
+                raise RetrospectiveError(
+                    f"replacement target drifted before staging: {destination}"
+                )
+            descriptor, temporary = tempfile.mkstemp(
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".rebind-new",
+            )
+            temporary_path = Path(temporary)
+            staged[destination] = temporary_path
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            backup_descriptor, backup = tempfile.mkstemp(
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".rebind-old",
+            )
+            os.close(backup_descriptor)
+            backup_path = Path(backup)
+            backup_path.unlink()
+            os.link(destination, backup_path)
+            backups[destination] = backup_path
+
+        # Detect edits made while payloads and backups were being staged.
+        for destination, expected in expected_sha256.items():
+            if destination.is_symlink() or file_sha256(destination) != expected:
+                raise RetrospectiveError(
+                    f"replacement target drifted during staging: {destination}"
+                )
+
+        for destination, temporary_path in staged.items():
+            os.replace(temporary_path, destination)
+            replaced.append(destination)
+    except Exception as exc:
+        rollback_failures: list[str] = []
+        for destination in reversed(replaced):
+            backup = backups[destination]
+            try:
+                os.replace(backup, destination)
+            except OSError as rollback_exc:
+                rollback_failures.append(f"{destination}: {rollback_exc}")
+        if rollback_failures:
+            raise RetrospectiveError(
+                "provenance rebind failed and rollback was incomplete: "
+                + "; ".join(rollback_failures)
+            ) from exc
+        if isinstance(exc, RetrospectiveError):
+            raise
+        raise RetrospectiveError("provenance rebind publication failed") from exc
+    finally:
+        for temporary_path in (*staged.values(), *backups.values()):
+            try:
+                temporary_path.unlink()
+            except OSError:
+                pass
+
+
 def _round(value: float) -> float:
     return round(float(value), 8)
 
@@ -228,7 +333,10 @@ def _validate_conversion(row: dict[str, Any]) -> None:
 
 
 def validate_observations(
-    observations: dict[str, Any], manifest: dict[str, Any]
+    observations: dict[str, Any],
+    manifest: dict[str, Any],
+    *,
+    require_event_observation: bool = True,
 ) -> list[dict[str, Any]]:
     rows = observations.get("observations")
     if not isinstance(rows, list) or not rows:
@@ -237,6 +345,32 @@ def validate_observations(
     source_entries = {
         source["id"]: source for source in manifest["sources"]
     }
+    event_rows = observations.get("event_observations")
+    if require_event_observation and (not isinstance(event_rows, list) or not event_rows):
+        raise RetrospectiveError("event observation table is empty")
+    if event_rows is None:
+        event_rows = []
+    if not isinstance(event_rows, list):
+        raise RetrospectiveError("event observation table is invalid")
+    event_ids: set[str] = set()
+    for event in event_rows:
+        event_id = event.get("id")
+        if not isinstance(event_id, str) or event_id in event_ids:
+            raise RetrospectiveError(f"invalid or duplicate event observation id: {event_id}")
+        event_ids.add(event_id)
+        referenced = event.get("source_ids")
+        if not isinstance(referenced, list) or not referenced:
+            raise RetrospectiveError(f"event observation lacks sources: {event_id}")
+        if not set(referenced).issubset(source_entries):
+            raise RetrospectiveError(f"unknown event source in {event_id}")
+        if not event.get("locator") or not event.get("raw_units"):
+            raise RetrospectiveError(f"event observation lacks locator or units: {event_id}")
+        if event.get("date") != observations["day_zero"]:
+            raise RetrospectiveError(f"event observation does not anchor Day 0: {event_id}")
+        if event.get("reconstruction_role") != (
+            "event-window anchor only; not folded into any service index"
+        ):
+            raise RetrospectiveError(f"event observation role is invalid: {event_id}")
     ids: set[str] = set()
     for row in rows:
         row_id = row.get("id")
@@ -262,6 +396,8 @@ def validate_observations(
             raise RetrospectiveError(f"normalized value out of range in {row_id}")
         if not row.get("locator") or not row.get("raw_units"):
             raise RetrospectiveError(f"observation lacks locator or units: {row_id}")
+        if row.get("evidence_class") != "project_estimate" and row.get("denominator") is None:
+            raise RetrospectiveError(f"official observation lacks denominator: {row_id}")
         if row.get("selected") is False and not row.get("rejection_reason"):
             raise RetrospectiveError(f"rejected alternative lacks reason: {row_id}")
         if row.get("selected") is True:
@@ -492,11 +628,18 @@ def load_canonical_benchmark_rows() -> dict[str, Any]:
     }
 
 
-def reconstruct(
-    observations: dict[str, Any], crosswalk: dict[str, Any]
+def _reconstruct_from_snapshots(
+    observations: dict[str, Any],
+    crosswalk: dict[str, Any],
+    manifest: dict[str, Any],
+    *,
+    require_event_observation: bool = True,
 ) -> dict[str, Any]:
-    manifest = _read_object(SOURCE_MANIFEST)
-    rows = validate_observations(observations, manifest)
+    rows = validate_observations(
+        observations,
+        manifest,
+        require_event_observation=require_event_observation,
+    )
     selected = [row for row in rows if row.get("selected") is True]
     if tuple(crosswalk.get("service_order", ())) != SERVICE_ORDER:
         raise RetrospectiveError("crosswalk service order differs from runtime contract")
@@ -555,6 +698,14 @@ def reconstruct(
         "services": services,
         "total": total,
     }
+
+
+def reconstruct(
+    observations: dict[str, Any], crosswalk: dict[str, Any]
+) -> dict[str, Any]:
+    return _reconstruct_from_snapshots(
+        observations, crosswalk, _read_object(SOURCE_MANIFEST)
+    )
 
 
 def _archive_identities(manifest: dict[str, Any]) -> list[dict[str, Any]]:
@@ -713,6 +864,509 @@ def validate_prepared_contract(
     Scenario.model_validate(contract["scenario"])
 
 
+def _validate_embedded_pre_rebind_contract(contract: dict[str, Any]) -> None:
+    """Validate the previous contract from its snapshots, not drifted inputs.
+
+    This intentionally avoids every policy, rollout, outcome-summary, and city
+    environment import.  The exact known contract digest binds byte-era
+    provenance while the checks below independently recompute its historical
+    reconstruction and archive/source relationships.
+    """
+
+    expected_hash = contract.get("contract_sha256")
+    unsigned = {key: value for key, value in contract.items() if key != "contract_sha256"}
+    if expected_hash != canonical_hash(unsigned):
+        raise RetrospectiveError("pre-rebind prepared-input contract hash mismatch")
+    if not (
+        contract.get("schema_version") == "hurricane-maria-prepared-inputs-v1"
+        and contract.get("kind") == "frozen_preplanner_historical_data_contract"
+        and contract.get("policy_loaded_during_preparation") is False
+        and contract.get("final_split_used") is False
+    ):
+        raise RetrospectiveError("pre-rebind prepared-input scope is invalid")
+
+    manifest = contract.get("source_manifest_snapshot")
+    observations = contract.get("observation_table_snapshot")
+    crosswalk = contract.get("crosswalk_snapshot")
+    web_facts = contract.get("normalized_web_facts_snapshot")
+    if not all(isinstance(value, dict) for value in (manifest, observations, crosswalk, web_facts)):
+        raise RetrospectiveError("pre-rebind prepared-input snapshots are invalid")
+    validate_sources(manifest)
+    validate_web_facts(manifest, web_facts)
+    reconstruction = _reconstruct_from_snapshots(
+        observations, crosswalk, manifest, require_event_observation=False
+    )
+    if contract.get("reconstruction") != reconstruction:
+        raise RetrospectiveError("pre-rebind reconstruction does not recompute")
+    if contract.get("reconstruction_sha256") != canonical_hash(reconstruction):
+        raise RetrospectiveError("pre-rebind reconstruction hash mismatch")
+    identities = _archive_identities(manifest)
+    archive = contract.get("archived_source_bytes", {})
+    if not (
+        archive.get("required_object_count") == len(identities)
+        and archive.get("verified_object_count") == len(identities)
+        and archive.get("verified_before_freeze") is True
+        and archive.get("identities_sha256") == canonical_hash(identities)
+    ):
+        raise RetrospectiveError("pre-rebind archive verification identity is invalid")
+    if contract.get("synthetic_benchmark") != load_canonical_benchmark_rows():
+        raise RetrospectiveError("pre-rebind benchmark evidence changed")
+
+
+def _planner_series_without_helpers(
+    planner: dict[str, Any], initial_services: list[float]
+) -> dict[str, Any]:
+    summary = planner.get("summary", {})
+    trajectory = summary.get("trajectory")
+    if not isinstance(trajectory, list) or len(trajectory) != 30:
+        raise RetrospectiveError("pre-rebind planner trajectory length is invalid")
+    if summary.get("trajectory_sha256") != canonical_hash(trajectory):
+        raise RetrospectiveError("pre-rebind planner trajectory hash mismatch")
+    services = [list(map(float, initial_services))]
+    for row in trajectory:
+        day_services = row.get("services_end")
+        if not isinstance(day_services, list) or len(day_services) != 5:
+            raise RetrospectiveError("pre-rebind planner service state is invalid")
+        if not isinstance(row.get("raw_action"), list) or len(row["raw_action"]) != 22:
+            raise RetrospectiveError("pre-rebind planner action is not 22-dimensional")
+        if row.get("hard_violation_count") != 0:
+            raise RetrospectiveError("pre-rebind planner contains a hard violation")
+        residuals = row.get("logistics", {}).get("conservation_residual")
+        if not isinstance(residuals, list) or any(value != 0.0 for value in residuals):
+            raise RetrospectiveError("pre-rebind conservation residual changed")
+        services.append(list(map(float, day_services)))
+    return {
+        "total": [_round(sum(values) / 5.0) for values in services],
+        "services": {
+            service: [_round(values[index]) for values in services]
+            for index, service in enumerate(SERVICE_ORDER)
+        },
+    }
+
+
+def validate_pre_rebind_publication(
+    expected_identities: dict[Path, str] | None = None,
+) -> dict[str, Any]:
+    """Fail closed unless the exact known pre-correction bundle is present."""
+
+    identities = PRE_REBIND_IDENTITIES if expected_identities is None else expected_identities
+    if set(identities) != {PREPARED_CONTRACT, RECEIPT, FRONTEND, REPORT}:
+        raise RetrospectiveError("pre-rebind identity set is incomplete")
+    for path, expected in identities.items():
+        if path.is_symlink() or not path.is_file():
+            raise RetrospectiveError(f"pre-rebind output missing or unsafe: {path}")
+        if file_sha256(path) != expected:
+            raise RetrospectiveError(f"pre-rebind output identity changed: {path}")
+
+    receipt = _read_object(RECEIPT)
+    unsigned_receipt = {
+        key: value for key, value in receipt.items() if key != "receipt_sha256"
+    }
+    if not (
+        receipt.get("receipt_sha256") == PRE_REBIND_RECEIPT_SHA256
+        and canonical_hash(unsigned_receipt) == PRE_REBIND_RECEIPT_SHA256
+    ):
+        raise RetrospectiveError("pre-rebind receipt identity changed")
+    if not (
+        receipt.get("schema_version") == "hurricane-maria-retrospective-receipt-v1"
+        and receipt.get("kind") == "project_reconstruction_from_official_records"
+        and receipt.get("authorizing") is False
+        and receipt.get("final_split_used") is False
+        and receipt.get("model_selection_used") is False
+    ):
+        raise RetrospectiveError("pre-rebind receipt evidence scope is invalid")
+    contract = receipt.get("frozen_inputs")
+    if not isinstance(contract, dict):
+        raise RetrospectiveError("pre-rebind receipt lacks its prepared-input snapshot")
+    if contract.get("contract_sha256") != PRE_REBIND_CONTRACT_SHA256:
+        raise RetrospectiveError("pre-rebind contract identity changed")
+    _validate_embedded_pre_rebind_contract(contract)
+    prepared = _read_object(PREPARED_CONTRACT)
+    prepared_identity = receipt.get("prepared_contract", {})
+    if not (
+        prepared == contract
+        and prepared_identity.get("path")
+        == PREPARED_CONTRACT.relative_to(ROOT).as_posix()
+        and prepared_identity.get("file_sha256") == identities[PREPARED_CONTRACT]
+        and prepared_identity.get("contract_sha256") == PRE_REBIND_CONTRACT_SHA256
+    ):
+        raise RetrospectiveError("pre-rebind prepared-contract binding changed")
+    if receipt.get("scenario") != contract.get("scenario"):
+        raise RetrospectiveError("pre-rebind scenario differs from frozen inputs")
+    if receipt.get("historical") != contract.get("reconstruction"):
+        raise RetrospectiveError("pre-rebind historical reconstruction changed")
+    if receipt.get("synthetic_benchmark") != contract.get("synthetic_benchmark"):
+        raise RetrospectiveError("pre-rebind synthetic benchmark changed")
+    if receipt.get("artifact") != {
+        "path": ARTIFACT.relative_to(ROOT).as_posix(),
+        "sha256": EXPECTED_ARTIFACT_SHA256,
+        "runtime": "onnxruntime-cpu",
+    } or file_sha256(ARTIFACT) != EXPECTED_ARTIFACT_SHA256:
+        raise RetrospectiveError("pre-rebind artifact identity changed")
+
+    tape = receipt.get("tape", {})
+    days = tape.get("days")
+    if not isinstance(days, list) or len(days) != 30 or tape.get("sha256") != canonical_hash(days):
+        raise RetrospectiveError("pre-rebind tape identity changed")
+    for day, shock in enumerate(days, start=1):
+        if not (
+            shock.get("day") == day
+            and shock.get("type") is None
+            and shock.get("severity") == 0.0
+            and shock.get("impact") == [0.0] * 5
+            and shock.get("public_risk_before") == [0.0] * 5
+            and shock.get("public_risk_next") == [0.0] * 5
+            and shock.get("assessment_tail") == (day >= 28)
+        ):
+            raise RetrospectiveError(f"pre-rebind tape Day {day} changed")
+    expected_labels = {
+        "v4": "onnx_policy",
+        "reactive": "reactive_public_state_heuristic",
+    }
+    for planner_id, label in expected_labels.items():
+        planner = receipt.get("planners", {}).get(planner_id, {})
+        if planner.get("summary", {}).get("planner") != label:
+            raise RetrospectiveError(f"pre-rebind {planner_id} helper label changed")
+        series = _planner_series_without_helpers(
+            planner, list(map(float, receipt["scenario"]["initial_services"]))
+        )
+        trajectory = planner["summary"]["trajectory"]
+        if not (
+            planner.get("series") == series
+            and planner.get("trajectory_tape_sha256") == tape["sha256"]
+            and [row.get("shock") for row in trajectory] == days
+            and planner["summary"].get("hard_violation_count") == 0
+            and planner["summary"].get("max_logistics_conservation_residual") == 0.0
+        ):
+            raise RetrospectiveError(f"pre-rebind {planner_id} evidence changed")
+    if receipt.get("invariants", {}).get("observation_count") != 73 or receipt.get(
+        "invariants", {}
+    ).get("action_count") != 22:
+        raise RetrospectiveError("pre-rebind interface invariant changed")
+    return receipt
+
+
+def _source_by_id(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {source["id"]: source for source in manifest["sources"]}
+
+
+def _assert_expected_provenance_changes(
+    old_receipt: dict[str, Any], new_contract: dict[str, Any]
+) -> None:
+    """Require exactly the audited metadata/crosswalk correction and no result drift."""
+
+    old_contract = old_receipt["frozen_inputs"]
+    old_manifest = old_contract["source_manifest_snapshot"]
+    new_manifest = new_contract["source_manifest_snapshot"]
+    old_sources = _source_by_id(old_manifest)
+    new_sources = _source_by_id(new_manifest)
+    if set(old_sources) != set(new_sources):
+        raise RetrospectiveError("source roster changed during provenance correction")
+    allowed_source_fields = {
+        "nhc_maria_tcr": {
+            "publication_date": ("2019-01-04", "2023-01-04"),
+            "locators": (
+                ["page 1, landfall chronology", "pages 7-8, Puerto Rico impacts"],
+                [
+                    "page 2, Puerto Rico landfall chronology",
+                    "pages 7-8, Puerto Rico impacts",
+                ],
+            ),
+        },
+        "fcc_2017_10_19": {
+            "url": (
+                "https://docs.fcc.gov/public/attachments/DOC-347339A2.pdf",
+                "https://docs.fcc.gov/public/attachments/DOC-347339A1.pdf",
+            )
+        },
+    }
+    for source_id in old_sources:
+        old_source = old_sources[source_id]
+        new_source = new_sources[source_id]
+        allowed = allowed_source_fields.get(source_id, {})
+        for key in set(old_source) | set(new_source):
+            if key in allowed:
+                if (old_source.get(key), new_source.get(key)) != allowed[key]:
+                    raise RetrospectiveError(
+                        f"unexpected {source_id} {key} provenance correction"
+                    )
+            elif old_source.get(key) != new_source.get(key):
+                raise RetrospectiveError(
+                    f"unexpected source drift during provenance correction: {source_id}/{key}"
+                )
+
+    old_observations = old_contract["observation_table_snapshot"]
+    new_observations = new_contract["observation_table_snapshot"]
+    if "event_observations" in old_observations:
+        raise RetrospectiveError("pre-rebind observations unexpectedly contain event metadata")
+    event_rows = new_observations.get("event_observations")
+    if not isinstance(event_rows, list) or len(event_rows) != 1:
+        raise RetrospectiveError("corrected landfall event metadata is missing")
+    event = event_rows[0]
+    if not (
+        event.get("id") == "maria_puerto_rico_landfall"
+        and event.get("raw_value") == "1015 UTC 20 September 2017"
+        and event.get("time_local") == "06:15:00"
+        and event.get("local_timezone") == "Atlantic Standard Time (UTC-04:00)"
+        and event.get("reconstruction_role")
+        == "event-window anchor only; not folded into any service index"
+    ):
+        raise RetrospectiveError("corrected landfall event metadata is invalid")
+    added_health_ids = {
+        "healthcare_centers_day0_estimate",
+        "healthcare_centers_day10_estimate",
+        "healthcare_centers_day30_estimate",
+    }
+    new_rows = new_observations["observations"]
+    health_rows = [row for row in new_rows if row.get("id") in added_health_ids]
+    retained_rows = [row for row in new_rows if row.get("id") not in added_health_ids]
+    if retained_rows != old_observations["observations"] or {
+        row.get("id") for row in health_rows
+    } != added_health_ids:
+        raise RetrospectiveError("observation rows changed beyond the audited additions")
+    expected_health_points = {0: 0.25, 10: 0.85507246, 30: 0.94031453}
+    if any(
+        row.get("component") != "health_center_availability"
+        or row.get("evidence_class") != "project_estimate"
+        or row.get("selected") is not True
+        or row.get("normalized_value") != expected_health_points.get(row.get("day"))
+        for row in health_rows
+    ):
+        raise RetrospectiveError("health-center project-estimate additions changed")
+    old_without_rows = {key: value for key, value in old_observations.items()}
+    new_without_rows = {
+        key: value
+        for key, value in new_observations.items()
+        if key != "event_observations"
+    }
+    old_without_rows["observations"] = retained_rows
+    new_without_rows["observations"] = retained_rows
+    if old_without_rows != new_without_rows:
+        raise RetrospectiveError("observation-table metadata changed unexpectedly")
+
+    old_crosswalk = old_contract["crosswalk_snapshot"]
+    new_crosswalk = copy.deepcopy(new_contract["crosswalk_snapshot"])
+    healthcare_disclosure = (
+        "No commensurable island-wide health-center operational series was found "
+        "for the window; its explicitly marked project-estimate component follows "
+        "the nearest official hospital trajectory and is not a measured "
+        "health-center percentage."
+    )
+    healthcare = new_crosswalk["services"]["healthcare"]
+    if healthcare.get("components") != {
+        "operational_hospital_availability": 0.5,
+        "health_center_availability": 0.5,
+    } or healthcare.get("interpretation") != (
+        "Equal mean of hospital operational availability and a disclosed "
+        "health-center unavailable-data project estimate. No commensurable "
+        "island-wide health-center operational series was found for the window, "
+        "so the health-center component follows the nearest official hospital "
+        "trajectory; it is not a measured health-center percentage."
+    ):
+        raise RetrospectiveError("healthcare crosswalk correction changed")
+    healthcare["components"] = {
+        "operational_hospital_availability": 1.0,
+    }
+    healthcare["interpretation"] = (
+        "Hospital operational-availability proxy; partially operational and fully "
+        "operational facilities both count as operational."
+    )
+    if new_crosswalk.get("disclosures", []).count(healthcare_disclosure) != 1:
+        raise RetrospectiveError("healthcare crosswalk disclosure changed")
+    new_crosswalk["disclosures"].remove(healthcare_disclosure)
+    if new_crosswalk != old_crosswalk:
+        raise RetrospectiveError("crosswalk changed beyond the audited healthcare structure")
+    if new_contract["normalized_web_facts_snapshot"] != old_contract[
+        "normalized_web_facts_snapshot"
+    ]:
+        raise RetrospectiveError("normalized web facts changed during provenance correction")
+
+    old_historical = old_receipt["historical"]
+    new_historical = new_contract["reconstruction"]
+    for field in (
+        "dates",
+        "days",
+        "service_order",
+        "service_labels",
+        "observation_days",
+        "services",
+        "total",
+    ):
+        if new_historical.get(field) != old_historical.get(field):
+            raise RetrospectiveError(
+                f"provenance correction changed historical {field}"
+            )
+    if new_historical["components"]["healthcare"][
+        "health_center_availability"
+    ] != new_historical["components"]["healthcare"][
+        "operational_hospital_availability"
+    ]:
+        raise RetrospectiveError("health-center estimate altered the healthcare curve")
+    if new_contract.get("scenario") != old_receipt.get("scenario"):
+        raise RetrospectiveError("provenance correction changed the scenario")
+    if new_contract.get("synthetic_benchmark") != old_receipt.get(
+        "synthetic_benchmark"
+    ):
+        raise RetrospectiveError("provenance correction changed the benchmark table")
+
+
+def _provenance_correction_record(
+    old_receipt: dict[str, Any],
+    new_contract: dict[str, Any],
+    old_file_identities: dict[Path, str],
+) -> dict[str, Any]:
+    old_crosswalk = old_receipt["frozen_inputs"]["crosswalk_snapshot"]
+    new_crosswalk = new_contract["crosswalk_snapshot"]
+    return {
+        "id": PROVENANCE_CORRECTION_ID,
+        "kind": "provenance_only_rebind",
+        "recorded_on": "2026-08-13",
+        "previous_receipt_sha256": old_receipt["receipt_sha256"],
+        "previous_contract_sha256": old_receipt["frozen_inputs"]["contract_sha256"],
+        "previous_output_file_sha256": {
+            path.relative_to(ROOT).as_posix(): digest
+            for path, digest in old_file_identities.items()
+        },
+        "corrected_contract_sha256": new_contract["contract_sha256"],
+        "source_manifest_changes": [
+            {
+                "source_id": "fcc_2017_10_19",
+                "field": "url",
+                "old": "https://docs.fcc.gov/public/attachments/DOC-347339A2.pdf",
+                "new": "https://docs.fcc.gov/public/attachments/DOC-347339A1.pdf",
+            },
+            {
+                "source_id": "nhc_maria_tcr",
+                "field": "publication_date",
+                "old": "2019-01-04",
+                "new": "2023-01-04",
+            },
+            {
+                "source_id": "nhc_maria_tcr",
+                "field": "locators",
+                "old": ["page 1, landfall chronology", "pages 7-8, Puerto Rico impacts"],
+                "new": [
+                    "page 2, Puerto Rico landfall chronology",
+                    "pages 7-8, Puerto Rico impacts",
+                ],
+            },
+        ],
+        "event_metadata_change": {
+            "old": None,
+            "new": new_contract["observation_table_snapshot"]["event_observations"][0],
+        },
+        "healthcare_crosswalk_change": {
+            "old": old_crosswalk["services"]["healthcare"],
+            "new": new_crosswalk["services"]["healthcare"],
+            "added_project_estimate_observation_ids": [
+                "healthcare_centers_day0_estimate",
+                "healthcare_centers_day10_estimate",
+                "healthcare_centers_day30_estimate",
+            ],
+        },
+        "execution": {
+            "planner_rerun": False,
+            "policy_loaded": False,
+            "rollout_helpers_called": False,
+            "statement": (
+                "No planner was rerun; this rebind corrects provenance metadata "
+                "and a numerically neutral crosswalk disclosure only."
+            ),
+        },
+        "numerical_effect": {
+            "historical_service_curves_changed": False,
+            "historical_total_changed": False,
+            "scenario_changed": False,
+            "tape_changed": False,
+            "planner_summaries_changed": False,
+            "planner_series_changed": False,
+            "trajectory_hashes_changed": False,
+            "invariants_changed": False,
+        },
+    }
+
+
+def build_provenance_rebound_receipt(
+    old_receipt: dict[str, Any],
+    new_contract: dict[str, Any],
+    old_file_identities: dict[Path, str],
+) -> dict[str, Any]:
+    """Rebind corrected evidence while retaining every recorded planner result."""
+
+    _assert_expected_provenance_changes(old_receipt, new_contract)
+    tape = old_receipt.get("tape", {})
+    initial_services = list(map(float, old_receipt["scenario"]["initial_services"]))
+    for planner_id in ("v4", "reactive"):
+        planner = old_receipt.get("planners", {}).get(planner_id, {})
+        trajectory = planner.get("summary", {}).get("trajectory", [])
+        if not (
+            planner.get("series")
+            == _planner_series_without_helpers(planner, initial_services)
+            and planner.get("trajectory_tape_sha256") == tape.get("sha256")
+            and [row.get("shock") for row in trajectory] == tape.get("days")
+        ):
+            raise RetrospectiveError(
+                f"pre-rebind retained {planner_id} evidence is invalid"
+            )
+    rebound = copy.deepcopy(old_receipt)
+    prepared_text = _json_text(new_contract).encode("utf-8")
+    rebound["prepared_contract"] = {
+        "path": PREPARED_CONTRACT.relative_to(ROOT).as_posix(),
+        "file_sha256": hashlib.sha256(prepared_text).hexdigest(),
+        "contract_sha256": new_contract["contract_sha256"],
+    }
+    rebound["frozen_inputs"] = new_contract
+    rebound["methodology_label"] = new_contract["methodology_label"]
+    rebound["caption"] = new_contract["caption"]
+    rebound["scenario"] = new_contract["scenario"]
+    rebound["historical"] = new_contract["reconstruction"]
+    rebound["synthetic_benchmark"] = new_contract["synthetic_benchmark"]
+    rebound["provenance_corrections"] = [
+        _provenance_correction_record(old_receipt, new_contract, old_file_identities)
+    ]
+    rebound.pop("receipt_sha256", None)
+    rebound["receipt_sha256"] = canonical_hash(rebound)
+
+    for field in ("artifact", "tape", "planners", "invariants"):
+        if rebound[field] != old_receipt[field]:
+            raise RetrospectiveError(f"provenance rebind changed retained {field}")
+    for planner_id in ("v4", "reactive"):
+        old_planner = old_receipt["planners"][planner_id]
+        new_planner = rebound["planners"][planner_id]
+        if not (
+            new_planner["summary"] == old_planner["summary"]
+            and new_planner["series"] == old_planner["series"]
+            and new_planner["summary"]["trajectory_sha256"]
+            == old_planner["summary"]["trajectory_sha256"]
+        ):
+            raise RetrospectiveError(f"provenance rebind changed {planner_id} evidence")
+    return rebound
+
+
+def rebind_provenance(archive_root: Path) -> dict[str, Any]:
+    """Perform the one authorized provenance-only correction, without planners."""
+
+    old_receipt = validate_pre_rebind_publication()
+    new_contract = build_prepared_contract(archive_root.resolve())
+    validate_prepared_contract(new_contract, require_archive_verified=True)
+    rebound = build_provenance_rebound_receipt(
+        old_receipt, new_contract, PRE_REBIND_IDENTITIES
+    )
+    outputs = {
+        PREPARED_CONTRACT: _json_text(new_contract),
+        RECEIPT: _json_text(rebound),
+        FRONTEND: render_frontend(rebound),
+        REPORT: render_report(rebound),
+    }
+    publish_replace_exact_bundle(outputs, PRE_REBIND_IDENTITIES)
+    for path, payload in outputs.items():
+        if path.is_symlink() or not path.is_file() or path.read_text(encoding="utf-8") != payload:
+            raise RetrospectiveError(
+                f"provenance rebind post-publication verification failed: {path}"
+            )
+    return rebound
+
+
 def _no_shock_tape() -> list[Any]:
     from backend.app.city.scenarios import Shock
 
@@ -854,6 +1508,18 @@ def _benchmark_rows() -> list[dict[str, Any]]:
 def frontend_payload(receipt: dict[str, Any]) -> dict[str, Any]:
     historical = receipt["historical"]
     source_manifest = _read_object(SOURCE_MANIFEST)
+    benchmark_totals = {
+        int(row["total"]) for row in receipt["synthetic_benchmark"]["rows"]
+    }
+    if len(benchmark_totals) != 1:
+        raise RetrospectiveError("synthetic benchmark rows use different denominators")
+    day_zero = date.fromisoformat(historical["dates"][0])
+    day_end_date = date.fromisoformat(historical["dates"][-1])
+    milestone_days = [
+        day
+        for day in (historical["days"][0], 10, 20, historical["days"][-1])
+        if day in historical["days"]
+    ]
     return {
         "methodologyLabel": receipt["methodology_label"],
         "caption": CAPTION,
@@ -902,7 +1568,34 @@ def frontend_payload(receipt: dict[str, Any]) -> dict[str, Any]:
         "reconstructionSha256": canonical_hash(historical),
         "artifactSha256": EXPECTED_ARTIFACT_SHA256,
         "sourceCount": len(source_manifest["sources"]),
-        "benchmarkRows": receipt["synthetic_benchmark"]["rows"],
+        "display": {
+            "milestoneDays": milestone_days,
+            "dayZeroLabel": day_zero.strftime("%b %d").replace(" 0", " "),
+            "dayEndLabel": day_end_date.strftime("%b %d, %Y").replace(" 0", " "),
+            "horizonStart": historical["days"][0],
+            "dayEnd": historical["days"][-1],
+            "dayCount": len(historical["days"]),
+            "indexMin": 0,
+            "indexMax": 100,
+        },
+        "scenarioCount": 1,
+        "syntheticBenchmarkCaseCount": benchmark_totals.pop(),
+        "interface": {
+            "observationCount": receipt["invariants"]["observation_count"],
+            "actionCount": receipt["invariants"]["action_count"],
+        },
+        "benchmarkRows": [
+            {
+                "id": row["id"],
+                "label": row["label"],
+                "classification": row["classification"],
+                "solved": row["solved"],
+                "total": row["total"],
+                "rate": row["rate"],
+                "detail": row["detail"],
+            }
+            for row in receipt["synthetic_benchmark"]["rows"]
+        ],
     }
 
 
@@ -926,6 +1619,9 @@ def render_report(receipt: dict[str, Any]) -> str:
     reactive = receipt["planners"]["reactive"]
     frozen = receipt["frozen_inputs"]
     manifest = frozen["source_manifest_snapshot"]
+    event_observations = frozen["observation_table_snapshot"].get(
+        "event_observations", []
+    )
     observations = frozen["observation_table_snapshot"]["observations"]
     checkpoints = (0, 10, 20, 30)
 
@@ -978,13 +1674,40 @@ def render_report(receipt: dict[str, Any]) -> str:
             "- Transport: official road/airport/port milestones; the Day-30 cross-mode value is a project estimate.",
             "- Housing: qualitative official damage/recovery evidence converted to disclosed project-estimate anchors.",
             "- Food and water: equal mean of potable-water and grocery availability.",
-            "- Healthcare: operational-hospital availability proxy.",
+            "- Healthcare: equal mean of operational-hospital availability and a clearly marked unavailable-data health-center project estimate that follows the hospital trajectory.",
             "- Public services: equal mean of restored electricity and operational cellular-site share.",
             "",
             "The source manifest, raw observation table, selected/rejected alternatives, conversion formulas, and interpolation contract are tracked alongside this report.",
             "",
         ]
     )
+    if event_observations:
+        lines.extend(
+            [
+                "## Event-window anchor",
+                "",
+                "| Event | Date | UTC | AST | Location | Source locator | Reconstruction role |",
+                "|---|---|---|---|---|---|---|",
+            ]
+        )
+        for event in event_observations:
+            lines.append(
+                "| "
+                + " | ".join(
+                    cell(value)
+                    for value in (
+                        event["id"],
+                        event["date"],
+                        event["time_utc"],
+                        event["time_local"],
+                        event["location"],
+                        event["locator"],
+                        event["reconstruction_role"],
+                    )
+                )
+                + " |"
+            )
+        lines.append("")
     lines.extend(
         [
             "## Official source manifest",
@@ -1062,6 +1785,7 @@ def render_report(receipt: dict[str, Any]) -> str:
         ("food", "potable_water_access", "Water"),
         ("food", "grocery_availability", "Grocery"),
         ("healthcare", "operational_hospital_availability", "Hospitals"),
+        ("healthcare", "health_center_availability", "Health centers (estimate)"),
         ("public_services", "electricity", "Power"),
         ("public_services", "cellular", "Cell sites"),
     ]
@@ -1318,13 +2042,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--archive-root",
         type=Path,
-        help="out-of-repository official-source archive; required with --prepare",
+        help=(
+            "out-of-repository official-source archive; required with --prepare "
+            "or --rebind-provenance"
+        ),
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--prepare", action="store_true")
     mode.add_argument("--run", action="store_true")
     mode.add_argument("--verify", action="store_true")
     mode.add_argument("--replay", action="store_true")
+    mode.add_argument("--rebind-provenance", action="store_true")
     mode.add_argument("--verify-archive-root", type=Path)
     return parser.parse_args()
 
@@ -1349,6 +2077,24 @@ def main() -> int:
                 {
                     "prepared": PREPARED_CONTRACT.relative_to(ROOT).as_posix(),
                     "contract_sha256": contract["contract_sha256"],
+                    "policy_loaded": False,
+                    "final_split_used": False,
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+    if args.rebind_provenance:
+        if args.archive_root is None:
+            raise RetrospectiveError("--rebind-provenance requires --archive-root")
+        receipt = rebind_provenance(args.archive_root)
+        print(
+            json.dumps(
+                {
+                    "receipt": RECEIPT.relative_to(ROOT).as_posix(),
+                    "receipt_sha256": receipt["receipt_sha256"],
+                    "provenance_correction": PROVENANCE_CORRECTION_ID,
+                    "planner_rerun": False,
                     "policy_loaded": False,
                     "final_split_used": False,
                 },

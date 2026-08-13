@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -8,7 +10,9 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 MARIA_REPORT = ROOT / "benchmarks" / "v4" / "hurricane-maria-retrospective.md"
+LANDING_SOURCE = ROOT / "frontend" / "src" / "LandingPage.tsx"
 LANDING_SCREENSHOT = "docs/screenshots/hurricane-maria-landing.png"
+LANDING_SCREENSHOT_MANIFEST = ROOT / "docs/screenshots/hurricane-maria-landing.manifest.json"
 
 SECTION_ORDER = (
     "## Quick Start",
@@ -113,6 +117,18 @@ def test_readme_uses_only_the_completed_landing_screenshot() -> None:
 
     assert images == [LANDING_SCREENSHOT]
     assert (ROOT / LANDING_SCREENSHOT).is_file()
+    manifest = json.loads(LANDING_SCREENSHOT_MANIFEST.read_text(encoding="utf-8"))
+    assert manifest["path"] == LANDING_SCREENSHOT
+    assert manifest["sha256"] == hashlib.sha256(
+        (ROOT / LANDING_SCREENSHOT).read_bytes()
+    ).hexdigest()
+    receipt = json.loads(
+        (ROOT / "internal/retrospectives/hurricane-maria-30d.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["retrospective_receipt_sha256"] == receipt["receipt_sha256"]
+    assert manifest["artifact_sha256"] == receipt["artifact"]["sha256"]
 
     legacy_content = (
         "docs/screenshots/3d-city.png",
@@ -126,6 +142,49 @@ def test_readme_uses_only_the_completed_landing_screenshot() -> None:
     lowered = readme.lower()
     for legacy_item in legacy_content:
         assert legacy_item not in lowered
+
+
+def test_readme_distinguishes_reconstruction_from_policy_simulations() -> None:
+    maria_section = _section(
+        README.read_text(encoding="utf-8"), "## Hurricane Maria Reconstruction"
+    ).lower()
+
+    assert "linear interpolation" in maria_section
+    assert "shipped v4 and reactive-heuristic paths are simulation outputs" in maria_section
+    assert "day-by-day service, shock, allocation, and recovery lines are simulation outputs" not in maria_section
+
+
+def test_landing_source_uses_generated_metadata_for_substantive_numbers() -> None:
+    source = LANDING_SOURCE.read_text(encoding="utf-8")
+    stale_literals = (
+        "const milestoneDays = [0, 10, 20, 30]",
+        "Sep 20–Oct 20, 2017",
+        "synthetic 200-case benchmark",
+        "<b>1</b> frozen scenario",
+        "Day 0–30 · 0–100",
+        "full 73-input, 22-action trace",
+        "days 0 through 30",
+        "zero-to-100 scale",
+    )
+    for literal in stale_literals:
+        assert literal not in source
+
+    required_bindings = (
+        "mariaRetrospective.display.milestoneDays",
+        "mariaRetrospective.display.dayZeroLabel",
+        "mariaRetrospective.display.dayEndLabel",
+        "mariaRetrospective.display.horizonStart",
+        "mariaRetrospective.display.dayEnd",
+        "mariaRetrospective.display.dayCount",
+        "mariaRetrospective.display.indexMin",
+        "mariaRetrospective.display.indexMax",
+        "mariaRetrospective.scenarioCount",
+        "mariaRetrospective.syntheticBenchmarkCaseCount",
+        "mariaRetrospective.interface.observationCount",
+        "mariaRetrospective.interface.actionCount",
+    )
+    for binding in required_bindings:
+        assert binding in source
 
 
 def test_readme_final_comparator_table_has_all_seven_rows() -> None:

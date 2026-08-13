@@ -727,74 +727,95 @@ export const mariaRetrospective = {
       }
     }
   },
-  "receiptSha256": "66eafd97e8336e2ad9e0a6fae1ba11dfe9cf3e03b0f1cc25a0888a24525329d4",
-  "sourceManifestSha256": "74c848a869aaa258296818f5133d2f05a56bdbcef78f159524ed72f00f236ce2",
-  "reconstructionSha256": "c36f68e1dc78a621fc51ad7f7c84ab17ac45760d8641fea4466c368265c8df8f",
+  "receiptSha256": "2c5769226fbd57e09628fc262c5b6b502a16793a8bd7dfd607705cc688edf81e",
+  "sourceManifestSha256": "5585f949f7b40942a419d2c4713de66e44012aadf69eb7034bc90d5b0abba609",
+  "reconstructionSha256": "b65552686504d7f22ed6b41a7aafcce38b1968c79de501f5f36c2090410c6349",
   "artifactSha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
   "sourceCount": 15,
+  "display": {
+    "milestoneDays": [
+      0,
+      10,
+      20,
+      30
+    ],
+    "dayZeroLabel": "Sep 20",
+    "dayEndLabel": "Oct 20, 2017",
+    "horizonStart": 0,
+    "dayEnd": 30,
+    "dayCount": 31,
+    "indexMin": 0,
+    "indexMax": 100
+  },
+  "scenarioCount": 1,
+  "syntheticBenchmarkCaseCount": 200,
+  "interface": {
+    "observationCount": 73,
+    "actionCount": 22
+  },
   "benchmarkRows": [
     {
-      "classification": "Privileged; not a submission baseline",
-      "detail": "Complete future-tape knowledge; anytime achieved lower bound.",
       "id": "oracle",
       "label": "Clairvoyant oracle",
-      "rate": 0.91,
+      "classification": "Privileged; not a submission baseline",
       "solved": 182,
-      "total": 200
+      "total": 200,
+      "rate": 0.91,
+      "detail": "Complete future-tape knowledge; anytime achieved lower bound."
     },
     {
-      "classification": "Shipped policy",
-      "detail": "Single owner-authorized final evaluation.",
       "id": "v4",
       "label": "v4 PPO (shipped)",
-      "rate": 0.815,
+      "classification": "Shipped policy",
       "solved": 163,
-      "total": 200
+      "total": 200,
+      "rate": 0.815,
+      "detail": "Single owner-authorized final evaluation."
     },
     {
-      "classification": "Hand-coded planner",
-      "detail": "Strongest hand-coded comparator.",
       "id": "tuned",
       "label": "Tuned constant rule",
-      "rate": 0.735,
+      "classification": "Hand-coded planner",
       "solved": 147,
-      "total": 200
+      "total": 200,
+      "rate": 0.735,
+      "detail": "Strongest hand-coded comparator."
     },
     {
-      "classification": "Public deterministic regression",
-      "detail": "Original behavior-cloning teacher.",
       "id": "teacher",
       "label": "Preparedness teacher",
-      "rate": 0.695,
+      "classification": "Public deterministic regression",
       "solved": 139,
-      "total": 200
+      "total": 200,
+      "rate": 0.695,
+      "detail": "Original behavior-cloning teacher."
     },
     {
-      "classification": "Causal diagnostic",
-      "detail": "Selected receding-horizon planner, k=5.",
       "id": "mpc",
       "label": "Selected MPC",
-      "rate": 0.675,
+      "classification": "Causal diagnostic",
       "solved": 135,
-      "total": 200
+      "total": 200,
+      "rate": 0.675,
+      "detail": "Selected receding-horizon planner, k=5."
     },
     {
-      "classification": "Retired regression fixture",
-      "detail": "Legacy ONNX comparator.",
       "id": "legacy",
       "label": "Legacy shipped policy",
-      "rate": 0.625,
+      "classification": "Retired regression fixture",
       "solved": 125,
-      "total": 200
+      "total": 200,
+      "rate": 0.625,
+      "detail": "Legacy ONNX comparator."
     },
     {
-      "classification": "Public deterministic regression",
-      "detail": "Simple reactive allocation heuristic.",
       "id": "reactive",
       "label": "Reactive heuristic",
-      "rate": 0.36,
+      "classification": "Public deterministic regression",
       "solved": 72,
-      "total": 200
+      "total": 200,
+      "rate": 0.36,
+      "detail": "Simple reactive allocation heuristic."
     }
   ]
 } as const

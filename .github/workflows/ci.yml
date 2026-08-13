@@ -48,6 +48,17 @@ jobs:
       - name: Run Python tests
         run: python -m pytest -q tests
 
+      - name: Verify frozen Hurricane Maria publication
+        run: |
+          python scripts/hurricane_maria_retrospective.py --verify
+          python scripts/hurricane_maria_retrospective.py --replay
+
+      - name: Verify generated evidence publishers
+        run: |
+          python scripts/generate_frontend_contract.py --check
+          python scripts/render_achieved_count_reports.py --check
+          python scripts/publish_combined_distilled_large_failure_evidence.py --check
+
   frontend:
     name: Frontend tests, typecheck and build
     runs-on: ubuntu-latest

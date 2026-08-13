@@ -14,13 +14,13 @@
       "id": "nhc_maria_tcr",
       "agency": "NOAA National Hurricane Center",
       "title": "Tropical Cyclone Report: Hurricane Maria (AL152017)",
-      "publication_date": "2019-01-04",
+      "publication_date": "2023-01-04",
       "url": "https://www.nhc.noaa.gov/data/tcr/AL152017_Maria.pdf",
       "content_type": "application/pdf",
       "archive_filename": "nhc-maria-tcr.pdf",
       "size_bytes": 7316824,
       "sha256": "9fcf9dbc2cf527fe318ab4b43d41cf775a6d28609253876829b64b43e15bfa75",
-      "locators": ["page 1, landfall chronology", "pages 7-8, Puerto Rico impacts"]
+      "locators": ["page 2, Puerto Rico landfall chronology", "pages 7-8, Puerto Rico impacts"]
     },
     {
       "id": "doe_2017_09_22",
@@ -99,7 +99,7 @@
       "agency": "Federal Communications Commission",
       "title": "Communications Status Report for Areas Impacted by Hurricane Maria - October 19",
       "publication_date": "2017-10-19",
-      "url": "https://docs.fcc.gov/public/attachments/DOC-347339A2.pdf",
+      "url": "https://docs.fcc.gov/public/attachments/DOC-347339A1.pdf",
       "content_type": "application/pdf",
       "archive_filename": "fcc-2017-10-19.pdf",
       "size_bytes": 488641,

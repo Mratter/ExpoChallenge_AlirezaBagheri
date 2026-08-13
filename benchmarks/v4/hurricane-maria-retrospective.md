@@ -14,8 +14,8 @@ Values are derived-recovery-index points on a 0-100 display scale.
 
 ## Frozen scenario and replay
 
-- Prepared-input contract SHA-256: `e52f0f5de499d73e078518c9a42a3a82e305dea67b4b2c18a46c294d7c56950d`
-- Receipt SHA-256: `66eafd97e8336e2ad9e0a6fae1ba11dfe9cf3e03b0f1cc25a0888a24525329d4`
+- Prepared-input contract SHA-256: `e8548010594b7fd1bfd1f3a26d4c8595882bad090c1b2a74bc36338d7b557313`
+- Receipt SHA-256: `2c5769226fbd57e09628fc262c5b6b502a16793a8bd7dfd607705cc688edf81e`
 - Shipped ONNX SHA-256: `a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483`
 - Explicit no-secondary-shock tape SHA-256: `6940d42af85925d661f9856dd494d6c6c087650c93be35da957999a6d6f3685f`
 - Daily budget: 180 abstract units; daily crew pool: 150 abstract units.
@@ -30,23 +30,29 @@ Values are derived-recovery-index points on a 0-100 display scale.
 - Transport: official road/airport/port milestones; the Day-30 cross-mode value is a project estimate.
 - Housing: qualitative official damage/recovery evidence converted to disclosed project-estimate anchors.
 - Food and water: equal mean of potable-water and grocery availability.
-- Healthcare: operational-hospital availability proxy.
+- Healthcare: equal mean of operational-hospital availability and a clearly marked unavailable-data health-center project estimate that follows the hospital trajectory.
 - Public services: equal mean of restored electricity and operational cellular-site share.
 
 The source manifest, raw observation table, selected/rejected alternatives, conversion formulas, and interpolation contract are tracked alongside this report.
+
+## Event-window anchor
+
+| Event | Date | UTC | AST | Location | Source locator | Reconstruction role |
+|---|---|---|---|---|---|---|
+| maria_puerto_rico_landfall | 2017-09-20 | 10:15:00 | 06:15:00 | southeast coast of Puerto Rico near Yabucoa | PDF page 2, Synoptic History, Puerto Rico landfall paragraph | event-window anchor only; not folded into any service index |
 
 ## Official source manifest
 
 | Agency | Title | Published | Retrieved | URL | Page/table locator | Archive filename | Bytes | SHA-256 / normalized-fact SHA-256 |
 |---|---|---|---|---|---|---|---:|---|
-| NOAA National Hurricane Center | Tropical Cyclone Report: Hurricane Maria (AL152017) | 2019-01-04 | 2026-08-13 | https://www.nhc.noaa.gov/data/tcr/AL152017_Maria.pdf | page 1, landfall chronology; pages 7-8, Puerto Rico impacts | nhc-maria-tcr.pdf | 7316824 | 9fcf9dbc2cf527fe318ab4b43d41cf775a6d28609253876829b64b43e15bfa75 |
+| NOAA National Hurricane Center | Tropical Cyclone Report: Hurricane Maria (AL152017) | 2023-01-04 | 2026-08-13 | https://www.nhc.noaa.gov/data/tcr/AL152017_Maria.pdf | page 2, Puerto Rico landfall chronology; pages 7-8, Puerto Rico impacts | nhc-maria-tcr.pdf | 7316824 | 9fcf9dbc2cf527fe318ab4b43d41cf775a6d28609253876829b64b43e15bfa75 |
 | U.S. Department of Energy | Hurricanes Maria, Irma, and Harvey - September 22 Afternoon Event Summary (Report 43) | 2017-09-22 | 2026-08-13 | https://www.energy.gov/documents/hurricanes-maria-irma-and-harvey-event-summary-afternoon-september-22-2017pdf | page 1, Electricity Sector Summary; page 3, electricity outages table | doe-2017-09-22.pdf | 782881 | 6c4a01070306831e7e0e6a94cc408722ea9ec9d093ab79e0d01fbbdb7b56d34f |
 | U.S. Department of Energy | Hurricanes Maria, Irma, and Harvey - October 2 Event Summary | 2017-10-02 | 2026-08-13 | https://www.energy.gov/documents/hurricanes-maria-irma-and-harvey-event-summary-october-2-2017pdf | page 2, Puerto Rico electricity restoration and transport notes | doe-2017-10-02.pdf | 269641 | 66a8bcc538ddf7c9a0c418f3d46b69ef049ee2c0b4111b19d75a9e5d520df579 |
 | U.S. Department of Energy | Hurricanes Maria and Irma - October 20 Event Summary (Report 69) | 2017-10-20 | 2026-08-13 | https://www.energy.gov/documents/hurricanes-maria-and-irma-event-summary-october-20-2017pdf | page 1, Electricity Sector Summary; page 2, estimated outages and restored load | doe-2017-10-20.pdf | 192956 | fb4994b1b14e17186498c9154b97c0790a55aaa68d129bd208de328490b5ba7f |
 | Federal Communications Commission | Communications Status Report for Areas Impacted by Hurricane Maria - September 22 | 2017-09-22 | 2026-08-13 | https://docs.fcc.gov/public/attachments/DOC-346855A1.pdf | page 2, Puerto Rico wireless-services summary | fcc-2017-09-22.pdf | 411198 | 58d022d7bd0abcbb81131482786af130ec97a2d89c5794ed76e182ce7ae476de |
 | Federal Communications Commission | Communications Status Report for Areas Impacted by Hurricane Maria - October 5 | 2017-10-05 | 2026-08-13 | https://docs.fcc.gov/public/attachments/DOC-347091A1.pdf | page 2, Puerto Rico wireless-services summary | fcc-2017-10-05.pdf | 411486 | 1a830ac72c33e3cffb9bfa1d6efba5a751d62a0a00e81a51181bf84f8278721e |
 | Federal Communications Commission | Communications Status Report for Areas Impacted by Hurricane Maria - October 18 | 2017-10-18 | 2026-08-13 | https://docs.fcc.gov/public/attachments/DOC-347308A1.pdf | pages 2-3, Puerto Rico wireless-services summary | fcc-2017-10-18.pdf | 502259 | bd0892f8e352358b16cf5c781745177283531010dceb7e174d18a93194947c3c |
-| Federal Communications Commission | Communications Status Report for Areas Impacted by Hurricane Maria - October 19 | 2017-10-19 | 2026-08-13 | https://docs.fcc.gov/public/attachments/DOC-347339A2.pdf | pages 2-3, Puerto Rico wireless-services summary | fcc-2017-10-19.pdf | 488641 | 24028ef1db142c21938e26905231efc4e2eb74dce311307e66c1d2ab665b4927 |
+| Federal Communications Commission | Communications Status Report for Areas Impacted by Hurricane Maria - October 19 | 2017-10-19 | 2026-08-13 | https://docs.fcc.gov/public/attachments/DOC-347339A1.pdf | pages 2-3, Puerto Rico wireless-services summary | fcc-2017-10-19.pdf | 488641 | 24028ef1db142c21938e26905231efc4e2eb74dce311307e66c1d2ab665b4927 |
 | Federal Emergency Management Agency | Update on Federal Partners Supporting Survivors in Puerto Rico | 2017-09-30 | 2026-08-13 | https://www.fema.gov/fr/print/pdf/node/317292 | page 1, hospital, potable-water, grocery, and fuel restoration bullets | — | — | 0abaf5c90971e8446182ed7471457e30c7f49d093d4d26afb68da03b18fa7bc4 |
 | Federal Emergency Management Agency | Hurricane Maria Update | 2017-11-06 | 2026-08-13 | https://www.fema.gov/vi/print/pdf/node/320687 | page 1, immediate and November communications, transport, power, water, grocery, and hospital milestones | — | — | 561470afec85601ae879608a8b0a57b0acee01c464e8352024bbd84283c1da20 |
 | Federal Emergency Management Agency | Puerto Rico One Year after Hurricanes Irma and Maria | 2018-09-20 | 2026-08-13 | https://www.fema.gov/vi/print/pdf/node/335544 | page 2, Then and Now: exact 30-day power, water, road, and cellular milestones | — | — | 26645507c0c6a968aca6c19299e79d5c9856823b17a23c99468332fa73c008bf |
@@ -75,6 +81,9 @@ Blocked FEMA/Defense.gov pages use the exact locator plus a tracked, reproducibl
 | healthcare_day0_estimate | 2017-09-20 | healthcare / operational_hospital_availability | fema_2017_09_30, nhc_maria_tcr | No complete immediate island-wide assessment; 59 of 69 partially or fully operational by Day 10 | operational-capacity proxy | 69 hospitals | fixed conservative project estimate below the first complete assessment | 0.25000000 | selected project estimate | Selected under the frozen denominator/coverage/date rules. |
 | healthcare_day10 | 2017-09-30 | healthcare / operational_hospital_availability | dod_2017_09_30, fema_2017_09_30 | 59 | partially or fully operational hospitals | 69 | 59 / 69 | 0.85507246 | selected official observation | Selected under the frozen denominator/coverage/date rules. |
 | healthcare_day30_estimate | 2017-10-20 | healthcare / operational_hospital_availability | fema_2017_09_30, dod_2017_10_27 | 59/69 on Day 10 and 65/67 open on Day 37 | linear interpolation to Day 30 | reported hospital roster at each endpoint | (59/69) + ((65/67) - (59/69)) * (20 / 27) | 0.94031453 | selected project estimate | Selected under the frozen denominator/coverage/date rules. |
+| healthcare_centers_day0_estimate | 2017-09-20 | healthcare / health_center_availability | fema_2017_09_30, nhc_maria_tcr | No contemporaneous island-wide operational health-center percentage; nearest compatible healthcare-facility series is the hospital assessment | health-center operational-availability proxy | — | fixed unavailable-data project estimate matching the nearest hospital operational-availability trajectory | 0.25000000 | selected project estimate | Selected under the frozen denominator/coverage/date rules. |
+| healthcare_centers_day10_estimate | 2017-09-30 | healthcare / health_center_availability | dod_2017_09_30, fema_2017_09_30 | No commensurable health-center roster; nearest official healthcare-facility observation is 59 of 69 hospitals partially or fully operational | health-center operational-availability proxy | — | fixed unavailable-data project estimate matching the nearest hospital operational-availability trajectory | 0.85507246 | selected project estimate | Selected under the frozen denominator/coverage/date rules. |
+| healthcare_centers_day30_estimate | 2017-10-20 | healthcare / health_center_availability | fema_2017_09_30, dod_2017_10_27 | No commensurable 30-day health-center series; nearest hospital proxy is 59/69 on Day 10 and 65/67 on Day 37 | health-center operational-availability proxy | — | fixed unavailable-data project estimate matching the nearest hospital operational-availability trajectory | 0.94031453 | selected project estimate | Selected under the frozen denominator/coverage/date rules. |
 | public_power_day0 | 2017-09-20 | public_services / electricity | fema_2017_11_06, nhc_maria_tcr | 100 | percent without power | Puerto Rico island | 1 - outage_percent / 100 | 0.00000000 | selected official observation | Selected under the frozen denominator/coverage/date rules. |
 | public_power_day2 | 2017-09-22 | public_services / electricity | doe_2017_09_22 | 100 | percent of customers without power | 1569796 | 1 - outage_percent / 100 | 0.00000000 | selected official observation | Selected under the frozen denominator/coverage/date rules. |
 | public_power_day12 | 2017-10-02 | public_services / electricity | doe_2017_10_02 | 5.4 | percent of PREPA customers restored | PREPA customers | percent / 100 | 0.05400000 | selected official observation | Selected under the frozen denominator/coverage/date rules. |
@@ -96,39 +105,39 @@ Blocked FEMA/Defense.gov pages use the exact locator plus a tracked, reproducibl
 
 Piecewise-linear interpolation is applied independently between selected anchors; the fixed carry-back/carry-forward values are explicitly marked as project estimates above.
 
-| Day | Date | Transport proxy | Housing proxy | Water | Grocery | Hospitals | Power | Cell sites |
-|---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 2017-09-20 | 0.02395210 | 0.10000000 | 0.20000000 | 0.10000000 | 0.25000000 | 0.00000000 | 0.04600000 |
-| 1 | 2017-09-21 | 0.03815370 | 0.10400000 | 0.23428571 | 0.13900000 | 0.31050725 | 0.00000000 | 0.04600000 |
-| 2 | 2017-09-22 | 0.05235529 | 0.10800000 | 0.26857143 | 0.17800000 | 0.37101449 | 0.00000000 | 0.04600000 |
-| 3 | 2017-09-23 | 0.06655689 | 0.11200000 | 0.30285714 | 0.21700000 | 0.43152174 | 0.00540000 | 0.05430769 |
-| 4 | 2017-09-24 | 0.08075849 | 0.11600000 | 0.33714286 | 0.25600000 | 0.49202898 | 0.01080000 | 0.06261538 |
-| 5 | 2017-09-25 | 0.09496008 | 0.12000000 | 0.37142857 | 0.29500000 | 0.55253623 | 0.01620000 | 0.07092308 |
-| 6 | 2017-09-26 | 0.10916168 | 0.12400000 | 0.40571429 | 0.33400000 | 0.61304348 | 0.02160000 | 0.07923077 |
-| 7 | 2017-09-27 | 0.12336328 | 0.12800000 | 0.44000000 | 0.37300000 | 0.67355072 | 0.02700000 | 0.08753846 |
-| 8 | 2017-09-28 | 0.13756487 | 0.13200000 | 0.44333333 | 0.41200000 | 0.73405797 | 0.03240000 | 0.09584615 |
-| 9 | 2017-09-29 | 0.15176647 | 0.13600000 | 0.44666667 | 0.45100000 | 0.79456521 | 0.03780000 | 0.10415385 |
-| 10 | 2017-09-30 | 0.16596807 | 0.14000000 | 0.45000000 | 0.49000000 | 0.85507246 | 0.04320000 | 0.11246154 |
-| 11 | 2017-10-01 | 0.18016966 | 0.14400000 | 0.46200000 | 0.50081081 | 0.85933456 | 0.04860000 | 0.12076923 |
-| 12 | 2017-10-02 | 0.19437126 | 0.14800000 | 0.47400000 | 0.51162162 | 0.86359667 | 0.05400000 | 0.12907692 |
-| 13 | 2017-10-03 | 0.20857286 | 0.15200000 | 0.48600000 | 0.52243243 | 0.86785877 | 0.06266667 | 0.13738462 |
-| 14 | 2017-10-04 | 0.22277445 | 0.15600000 | 0.49800000 | 0.53324324 | 0.87212087 | 0.07133333 | 0.14569231 |
-| 15 | 2017-10-05 | 0.23697605 | 0.16000000 | 0.51000000 | 0.54405405 | 0.87638298 | 0.08000000 | 0.15400000 |
-| 16 | 2017-10-06 | 0.25117765 | 0.16400000 | 0.52200000 | 0.55486487 | 0.88064508 | 0.08866667 | 0.16430769 |
-| 17 | 2017-10-07 | 0.26537924 | 0.16800000 | 0.53400000 | 0.56567568 | 0.88490718 | 0.09733333 | 0.17461538 |
-| 18 | 2017-10-08 | 0.27958084 | 0.17200000 | 0.54600000 | 0.57648649 | 0.88916929 | 0.10600000 | 0.18492308 |
-| 19 | 2017-10-09 | 0.29378244 | 0.17600000 | 0.55800000 | 0.58729730 | 0.89343139 | 0.11466667 | 0.19523077 |
-| 20 | 2017-10-10 | 0.30798403 | 0.18000000 | 0.57000000 | 0.59810811 | 0.89769349 | 0.12333333 | 0.20553846 |
-| 21 | 2017-10-11 | 0.32218563 | 0.18400000 | 0.58200000 | 0.60891892 | 0.90195560 | 0.13200000 | 0.21584615 |
-| 22 | 2017-10-12 | 0.33638723 | 0.18800000 | 0.59400000 | 0.61972973 | 0.90621770 | 0.14066667 | 0.22615385 |
-| 23 | 2017-10-13 | 0.35058882 | 0.19200000 | 0.60600000 | 0.63054054 | 0.91047981 | 0.14933333 | 0.23646154 |
-| 24 | 2017-10-14 | 0.36479042 | 0.19600000 | 0.61800000 | 0.64135135 | 0.91474191 | 0.15800000 | 0.24676923 |
-| 25 | 2017-10-15 | 0.37899202 | 0.20000000 | 0.63000000 | 0.65216217 | 0.91900401 | 0.16666667 | 0.25707692 |
-| 26 | 2017-10-16 | 0.39319361 | 0.20400000 | 0.64200000 | 0.66297298 | 0.92326612 | 0.17533333 | 0.26738462 |
-| 27 | 2017-10-17 | 0.40739521 | 0.20800000 | 0.65400000 | 0.67378379 | 0.92752822 | 0.18400000 | 0.27769231 |
-| 28 | 2017-10-18 | 0.42159681 | 0.21200000 | 0.66600000 | 0.68459460 | 0.93179032 | 0.19266667 | 0.28800000 |
-| 29 | 2017-10-19 | 0.43579840 | 0.21600000 | 0.67800000 | 0.69540541 | 0.93605243 | 0.20133333 | 0.30200000 |
-| 30 | 2017-10-20 | 0.45000000 | 0.22000000 | 0.69000000 | 0.70621622 | 0.94031453 | 0.21000000 | 0.30200000 |
+| Day | Date | Transport proxy | Housing proxy | Water | Grocery | Hospitals | Health centers (estimate) | Power | Cell sites |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 2017-09-20 | 0.02395210 | 0.10000000 | 0.20000000 | 0.10000000 | 0.25000000 | 0.25000000 | 0.00000000 | 0.04600000 |
+| 1 | 2017-09-21 | 0.03815370 | 0.10400000 | 0.23428571 | 0.13900000 | 0.31050725 | 0.31050725 | 0.00000000 | 0.04600000 |
+| 2 | 2017-09-22 | 0.05235529 | 0.10800000 | 0.26857143 | 0.17800000 | 0.37101449 | 0.37101449 | 0.00000000 | 0.04600000 |
+| 3 | 2017-09-23 | 0.06655689 | 0.11200000 | 0.30285714 | 0.21700000 | 0.43152174 | 0.43152174 | 0.00540000 | 0.05430769 |
+| 4 | 2017-09-24 | 0.08075849 | 0.11600000 | 0.33714286 | 0.25600000 | 0.49202898 | 0.49202898 | 0.01080000 | 0.06261538 |
+| 5 | 2017-09-25 | 0.09496008 | 0.12000000 | 0.37142857 | 0.29500000 | 0.55253623 | 0.55253623 | 0.01620000 | 0.07092308 |
+| 6 | 2017-09-26 | 0.10916168 | 0.12400000 | 0.40571429 | 0.33400000 | 0.61304348 | 0.61304348 | 0.02160000 | 0.07923077 |
+| 7 | 2017-09-27 | 0.12336328 | 0.12800000 | 0.44000000 | 0.37300000 | 0.67355072 | 0.67355072 | 0.02700000 | 0.08753846 |
+| 8 | 2017-09-28 | 0.13756487 | 0.13200000 | 0.44333333 | 0.41200000 | 0.73405797 | 0.73405797 | 0.03240000 | 0.09584615 |
+| 9 | 2017-09-29 | 0.15176647 | 0.13600000 | 0.44666667 | 0.45100000 | 0.79456521 | 0.79456521 | 0.03780000 | 0.10415385 |
+| 10 | 2017-09-30 | 0.16596807 | 0.14000000 | 0.45000000 | 0.49000000 | 0.85507246 | 0.85507246 | 0.04320000 | 0.11246154 |
+| 11 | 2017-10-01 | 0.18016966 | 0.14400000 | 0.46200000 | 0.50081081 | 0.85933456 | 0.85933456 | 0.04860000 | 0.12076923 |
+| 12 | 2017-10-02 | 0.19437126 | 0.14800000 | 0.47400000 | 0.51162162 | 0.86359667 | 0.86359667 | 0.05400000 | 0.12907692 |
+| 13 | 2017-10-03 | 0.20857286 | 0.15200000 | 0.48600000 | 0.52243243 | 0.86785877 | 0.86785877 | 0.06266667 | 0.13738462 |
+| 14 | 2017-10-04 | 0.22277445 | 0.15600000 | 0.49800000 | 0.53324324 | 0.87212087 | 0.87212087 | 0.07133333 | 0.14569231 |
+| 15 | 2017-10-05 | 0.23697605 | 0.16000000 | 0.51000000 | 0.54405405 | 0.87638298 | 0.87638298 | 0.08000000 | 0.15400000 |
+| 16 | 2017-10-06 | 0.25117765 | 0.16400000 | 0.52200000 | 0.55486487 | 0.88064508 | 0.88064508 | 0.08866667 | 0.16430769 |
+| 17 | 2017-10-07 | 0.26537924 | 0.16800000 | 0.53400000 | 0.56567568 | 0.88490718 | 0.88490718 | 0.09733333 | 0.17461538 |
+| 18 | 2017-10-08 | 0.27958084 | 0.17200000 | 0.54600000 | 0.57648649 | 0.88916929 | 0.88916929 | 0.10600000 | 0.18492308 |
+| 19 | 2017-10-09 | 0.29378244 | 0.17600000 | 0.55800000 | 0.58729730 | 0.89343139 | 0.89343139 | 0.11466667 | 0.19523077 |
+| 20 | 2017-10-10 | 0.30798403 | 0.18000000 | 0.57000000 | 0.59810811 | 0.89769349 | 0.89769349 | 0.12333333 | 0.20553846 |
+| 21 | 2017-10-11 | 0.32218563 | 0.18400000 | 0.58200000 | 0.60891892 | 0.90195560 | 0.90195560 | 0.13200000 | 0.21584615 |
+| 22 | 2017-10-12 | 0.33638723 | 0.18800000 | 0.59400000 | 0.61972973 | 0.90621770 | 0.90621770 | 0.14066667 | 0.22615385 |
+| 23 | 2017-10-13 | 0.35058882 | 0.19200000 | 0.60600000 | 0.63054054 | 0.91047981 | 0.91047981 | 0.14933333 | 0.23646154 |
+| 24 | 2017-10-14 | 0.36479042 | 0.19600000 | 0.61800000 | 0.64135135 | 0.91474191 | 0.91474191 | 0.15800000 | 0.24676923 |
+| 25 | 2017-10-15 | 0.37899202 | 0.20000000 | 0.63000000 | 0.65216217 | 0.91900401 | 0.91900401 | 0.16666667 | 0.25707692 |
+| 26 | 2017-10-16 | 0.39319361 | 0.20400000 | 0.64200000 | 0.66297298 | 0.92326612 | 0.92326612 | 0.17533333 | 0.26738462 |
+| 27 | 2017-10-17 | 0.40739521 | 0.20800000 | 0.65400000 | 0.67378379 | 0.92752822 | 0.92752822 | 0.18400000 | 0.27769231 |
+| 28 | 2017-10-18 | 0.42159681 | 0.21200000 | 0.66600000 | 0.68459460 | 0.93179032 | 0.93179032 | 0.19266667 | 0.28800000 |
+| 29 | 2017-10-19 | 0.43579840 | 0.21600000 | 0.67800000 | 0.69540541 | 0.93605243 | 0.93605243 | 0.20133333 | 0.30200000 |
+| 30 | 2017-10-20 | 0.45000000 | 0.22000000 | 0.69000000 | 0.70621622 | 0.94031453 | 0.94031453 | 0.21000000 | 0.30200000 |
 
 ## Complete final project reconstruction, Day 0–30
 

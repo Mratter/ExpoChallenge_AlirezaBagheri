@@ -29,7 +29,7 @@ The Toolbox is the numerical source of truth. The 3D route visualizes the same b
 
 ![Hurricane Maria 30-day project reconstruction](docs/screenshots/hurricane-maria-landing.png)
 
-This is a **project reconstruction from official records**. The source anchors and transformation notes are documented; the day-by-day service, shock, allocation, and recovery lines are simulation outputs—not observed measurements, causal estimates, or claims about actual operational decisions.
+This is a **project reconstruction from official records**. The dated historical service series and aggregate index are a disclosed reconstruction built from official observations, conversions, project estimates, and linear interpolation. The shipped v4 and reactive-heuristic paths are simulation outputs—not observed measurements, causal estimates, or claims about actual operational decisions.
 
 Read the [full Hurricane Maria retrospective](benchmarks/v4/hurricane-maria-retrospective.md) or inspect its [machine-readable record](internal/retrospectives/hurricane-maria-30d.json).
 

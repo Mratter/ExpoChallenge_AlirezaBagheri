@@ -1,0 +1,22 @@
+{
+  "schema_version": "documentation-screenshot-v1",
+  "path": "docs/screenshots/hurricane-maria-landing.png",
+  "sha256": "0d8d9bd4de53cb17f8122753c7fea5957179f8045549a44b380fcc529c440a80",
+  "viewport_css_pixels": {
+    "width": 1440,
+    "height": 1154
+  },
+  "device_scale_factor": 1,
+  "browser": "Chromium via Playwright CLI 1.62.1",
+  "operating_system": "Windows 11",
+  "locale": "en-US",
+  "timezone": "Asia/Tehran",
+  "color_scheme": "light",
+  "reduced_motion": "no-preference",
+  "route": "#/",
+  "scenario": "Hurricane Maria Puerto Rico retrospective",
+  "retrospective_receipt_sha256": "2c5769226fbd57e09628fc262c5b6b502a16793a8bd7dfd607705cc688edf81e",
+  "source_manifest_sha256": "5585f949f7b40942a419d2c4713de66e44012aadf69eb7034bc90d5b0abba609",
+  "artifact_sha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
+  "notes": "Documentation capture of the receipt-generated landing page. Font rasterization can vary across operating systems."
+}

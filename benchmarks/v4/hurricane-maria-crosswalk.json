@@ -37,9 +37,10 @@
     },
     "healthcare": {
       "components": {
-        "operational_hospital_availability": 1.0
+        "operational_hospital_availability": 0.5,
+        "health_center_availability": 0.5
       },
-      "interpretation": "Hospital operational-availability proxy; partially operational and fully operational facilities both count as operational."
+      "interpretation": "Equal mean of hospital operational availability and a disclosed health-center unavailable-data project estimate. No commensurable island-wide health-center operational series was found for the window, so the health-center component follows the nearest official hospital trajectory; it is not a measured health-center percentage."
     },
     "public_services": {
       "components": {
@@ -82,6 +83,7 @@
   "disclosures": [
     "The reconstruction is a project-derived recovery index, not an official FEMA restoration percentage.",
     "Project-estimate anchors fill gaps where no commensurable island-wide series exists.",
+    "No commensurable island-wide health-center operational series was found for the window; its explicitly marked project-estimate component follows the nearest official hospital trajectory and is not a measured health-center percentage.",
     "Policy and heuristic trajectories are simulated alternatives and are not causal estimates of real Puerto Rico outcomes.",
     "Inputs and source selections are frozen before either planner is loaded."
   ]

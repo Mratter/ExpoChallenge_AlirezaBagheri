@@ -16,6 +16,30 @@ describe('generated Hurricane Maria retrospective contract', () => {
     ])
   })
 
+  it('binds all substantive landing-page numbers to receipt-derived metadata', () => {
+    expect(mariaRetrospective.display).toEqual({
+      milestoneDays: [0, 10, 20, 30],
+      dayZeroLabel: 'Sep 20',
+      dayEndLabel: 'Oct 20, 2017',
+      horizonStart: mariaRetrospective.days[0],
+      dayEnd: mariaRetrospective.days.at(-1),
+      dayCount: mariaRetrospective.days.length,
+      indexMin: 0,
+      indexMax: 100,
+    })
+    expect(mariaRetrospective.scenarioCount).toBe(1)
+    expect(mariaRetrospective.syntheticBenchmarkCaseCount).toBe(
+      mariaRetrospective.benchmarkRows[0].total,
+    )
+    expect(new Set(mariaRetrospective.benchmarkRows.map((row) => row.total))).toEqual(
+      new Set([mariaRetrospective.syntheticBenchmarkCaseCount]),
+    )
+    expect(mariaRetrospective.interface).toEqual({
+      observationCount: 73,
+      actionCount: 22,
+    })
+  })
+
   it('keeps every displayed trajectory finite, bounded, and aligned', () => {
     for (const key of seriesKeys) {
       const series = mariaRetrospective.series[key]

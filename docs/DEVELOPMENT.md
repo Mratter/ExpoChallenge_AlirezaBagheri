@@ -115,6 +115,7 @@ Check the generated Python-to-TypeScript contract:
 ```
 
 CI runs Ruff and the full Python suite, plus frontend tests, type checking, and the production build.
+It also verifies and exactly replays the frozen Hurricane Maria retrospective and checks the generated evidence publishers. The replay uses the retrospective's explicit tape and never accesses the canonical final roster.
 
 ## System boundaries
 

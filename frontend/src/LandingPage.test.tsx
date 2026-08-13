@@ -27,6 +27,17 @@ describe('evidence landing page', () => {
     expect(markup.match(/<caption/g)).toHaveLength(2)
   })
 
+  it('renders substantive numbers only through the generated display contract', () => {
+    const { display, interface: tensorInterface } = mariaRetrospective
+    expect(markup).toContain(`${display.dayZeroLabel}–${display.dayEndLabel}`)
+    expect(markup).toContain(`Day ${display.horizonStart}–${display.dayEnd} · ${display.indexMin}–${display.indexMax}`)
+    expect(markup).toContain(`${display.dayCount}</b> dated points`)
+    expect(markup).toContain(`${mariaRetrospective.scenarioCount}</b> frozen scenario`)
+    expect(markup).toContain(`${mariaRetrospective.syntheticBenchmarkCaseCount}-case benchmark`)
+    expect(markup).toContain(`${tensorInterface.observationCount}-input, ${tensorInterface.actionCount}-action trace`)
+    for (const day of display.milestoneDays) expect(markup).toContain(`Day ${day}`)
+  })
+
   it('renders all benchmark rows only in the separate benchmark section', () => {
     const [retrospective, benchmark] = markup.split('Separate synthetic benchmark')
     expect(retrospective).not.toContain('163/200')
