@@ -1,7 +1,7 @@
 {
   "schema_version": "documentation-screenshot-v1",
   "path": "docs/screenshots/hurricane-maria-landing.png",
-  "sha256": "b47f9cdcad746137e3789a1fb75c91f548965539d94feef12ae52848825e4db7",
+  "sha256": "1d78676fa5f760c33b197fb6335a3bd9bb8254ceb3c35bb229b13db953dca957",
   "viewport_css_pixels": {
     "width": 1440,
     "height": 1154
@@ -18,5 +18,5 @@
   "retrospective_receipt_sha256": "2c5769226fbd57e09628fc262c5b6b502a16793a8bd7dfd607705cc688edf81e",
   "source_manifest_sha256": "5585f949f7b40942a419d2c4713de66e44012aadf69eb7034bc90d5b0abba609",
   "artifact_sha256": "a9f5e9b41be57d7cd34623725a5ab4067aa75fbab16dc666cecc3c0a06c26483",
-  "notes": "Documentation capture of the Maria evidence section: project reconstruction and shipped v4 only. The reactive heuristic is reported separately in the synthetic-performance tables. Font rasterization can vary across operating systems."
+  "notes": "Documentation capture of the interactive Maria evidence section at its default Day 30 readout: project reconstruction and shipped v4 only. The reactive heuristic is reported separately in the synthetic-performance tables. Font rasterization can vary across operating systems."
 }

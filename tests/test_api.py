@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -259,3 +260,24 @@ def test_persistence_uses_one_current_scientific_identity(tmp_path: Path) -> Non
     assert summaries[0]["candidate_solved"] is True
     assert summaries[0]["baseline_solved"] is False
     assert summaries[0]["outcome"] == "ppo_only"
+
+
+def test_version_filtered_index_ignores_pre_engine_version_rows(tmp_path: Path) -> None:
+    store = RunStore(tmp_path)
+    current = store.save(_result())
+    legacy_id = "b" * 64
+    legacy = {
+        "schema_version": "2.1.0",
+        "result_id": legacy_id,
+        "seed": 1,
+        "scenario": {"name": "legacy", "horizon_days": 30},
+    }
+    store.runs.mkdir(parents=True, exist_ok=True)
+    (store.runs / f"{legacy_id}.json").write_text(
+        json.dumps(legacy, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+    summaries = store.list_summaries(engine_version="city-recovery-env-v3")
+
+    assert [summary["result_id"] for summary in summaries] == [current["result_id"]]

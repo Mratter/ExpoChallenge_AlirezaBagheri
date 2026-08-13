@@ -536,7 +536,7 @@ export function CityGame({ initialResult, onOpenHome, onOpenToolbox, onResult }:
         inert={phase === 'debrief' ? true : undefined}
         aria-hidden={phase === 'debrief' ? true : undefined}
       >
-        <button className="game-brand" type="button" onClick={onOpenHome} aria-label="Return to RELAY evidence home">
+        <button className="game-brand" type="button" onClick={onOpenHome} aria-label="RELAY — The city you can't knock over; return to evidence home">
           <span className="relay-mark" aria-hidden="true"><i /><i /><i /></span>
           <div><b>RELAY</b><small>The city you can't knock over</small></div>
         </button>

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -37,6 +38,18 @@ def _load(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _external_evidence() -> tuple[Path, Path]:
+    if os.environ.get("INNOVERSE_TEST_EXTERNAL_EVIDENCE") != "1":
+        pytest.skip(
+            "set INNOVERSE_TEST_EXTERNAL_EVIDENCE=1 to validate machine-local study artifacts"
+        )
+    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
+    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
+    if not study_root.is_dir() or not difficulty.is_file():
+        pytest.skip("external moderate-family evidence is unavailable")
+    return study_root, difficulty
 
 
 def test_receipt_is_canonical_complete_dev_only_and_source_bound() -> None:
@@ -439,10 +452,7 @@ def test_external_hash_rosters_and_report_disclosures() -> None:
 
 
 def test_publisher_rejects_mutated_difficulty(monkeypatch: pytest.MonkeyPatch) -> None:
-    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
-    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
-    if not study_root.is_dir() or not difficulty.is_file():
-        pytest.skip("external moderate-family evidence is unavailable")
+    study_root, difficulty = _external_evidence()
     original = publisher._load
 
     def mutated(path: Path, label: str) -> dict[str, Any]:
@@ -459,10 +469,7 @@ def test_publisher_rejects_mutated_difficulty(monkeypatch: pytest.MonkeyPatch) -
 def test_publisher_rejects_mutated_development_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
-    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
-    if not study_root.is_dir() or not difficulty.is_file():
-        pytest.skip("external moderate-family evidence is unavailable")
+    study_root, difficulty = _external_evidence()
     original = publisher._load
 
     def mutated(path: Path, label: str) -> dict[str, Any]:
@@ -481,10 +488,7 @@ def test_publisher_rejects_mutated_development_row(
 def test_publisher_rejects_mutated_bundle_manifest(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
-    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
-    if not study_root.is_dir() or not difficulty.is_file():
-        pytest.skip("external moderate-family evidence is unavailable")
+    study_root, difficulty = _external_evidence()
     original = publisher._load
 
     def mutated(path: Path, label: str) -> dict[str, Any]:
@@ -505,10 +509,7 @@ def test_publisher_rejects_mutated_bundle_manifest(
 def test_publisher_rejects_bundle_config_not_bound_to_parent_receipt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
-    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
-    if not study_root.is_dir() or not difficulty.is_file():
-        pytest.skip("external moderate-family evidence is unavailable")
+    study_root, difficulty = _external_evidence()
     original = publisher._load
 
     def mutated(path: Path, label: str) -> dict[str, Any]:
@@ -532,10 +533,7 @@ def test_publisher_rejects_bundle_config_not_bound_to_parent_receipt(
 def test_publisher_rejects_mutated_shipped_selected_receipt_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    study_root = Path(r"E:\city-recovery-moderate-family-v4-attempt-01")
-    difficulty = Path(r"E:\city-recovery-moderate-family-v4-difficulty-attempt-01.json")
-    if not study_root.is_dir() or not difficulty.is_file():
-        pytest.skip("external moderate-family evidence is unavailable")
+    study_root, difficulty = _external_evidence()
     original = publisher._load
 
     def mutated(path: Path, label: str) -> dict[str, Any]:

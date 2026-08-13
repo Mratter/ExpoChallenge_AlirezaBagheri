@@ -29,6 +29,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import { dayFromChartPointer } from './chartInteraction'
 import {
   ComparisonError,
   fetchMetadata,
@@ -298,13 +299,37 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
   const finalDayIndex = result.scenario.horizon_days - 1
   const selectedX = ((selectedDay - 1) / finalDayIndex) * 736
   const tailX = ((tailStartDay(result.scenario) - 1) / finalDayIndex) * 736
+  const selectedShock = result.shock_schedule[selectedDay - 1]
+
+  function inspectAt(clientX: number, svg: SVGSVGElement) {
+    const bounds = svg.getBoundingClientRect()
+    onDay(dayFromChartPointer({
+      boundsLeft: bounds.left,
+      boundsWidth: bounds.width,
+      clientX,
+      dayEnd: result.scenario.horizon_days,
+      dayStart: 1,
+      plotLeft: 52,
+      plotWidth: 736,
+      viewWidth: 824,
+    }))
+  }
+
   return (
     <figure className="paired-trace" aria-labelledby="trace-title">
       <figcaption>
         <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired {result.scenario.horizon_days}-day recovery trace</h3></div>
         <div className="trace-legend"><span className="legend-ppo">PPO policy</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
       </figcaption>
-      <svg viewBox="0 0 824 246" role="img" aria-label={`Both planners on the same ${result.scenario.horizon_days}-day shock tape; day ${selectedDay} selected`}>
+      <svg
+        viewBox="0 0 824 246"
+        role="img"
+        aria-label={`Both planners on the same ${result.scenario.horizon_days}-day shock tape; day ${selectedDay} selected`}
+        onPointerDown={(event) => inspectAt(event.clientX, event.currentTarget)}
+        onPointerMove={(event) => {
+          if (event.pointerType === 'mouse') inspectAt(event.clientX, event.currentTarget)
+        }}
+      >
         <g transform="translate(52 24)">
           <rect x={tailX} y="0" width={736 - tailX} height="176" className="tail-zone" />
           {[0.25, 0.5, 0.75, 1].map((tick) => (
@@ -317,14 +342,19 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
             </g>
           ) : null)}
           <line x1={selectedX} x2={selectedX} y1="0" y2="176" className="selected-guide" />
-          <path d={linePath(baseline)} className="trace-line trace-baseline" />
-          <path d={linePath(candidate)} className="trace-line trace-candidate" />
+          <path d={linePath(baseline)} className="trace-line trace-baseline" pathLength="1" />
+          <path d={linePath(candidate)} className="trace-line trace-candidate" pathLength="1" />
           <circle cx={selectedX} cy={176 - candidate[selectedDay - 1] * 176} r="4.5" className="selected-ppo" />
           <circle cx={selectedX} cy={176 - baseline[selectedDay - 1] * 176} r="4" className="selected-heuristic" />
           <text x="0" y="203">Day 1</text><text x={tailX + 6} y="17" className="tail-label">NO INJECTED SHOCKS</text><text x="736" y="203" textAnchor="end">Day {result.scenario.horizon_days}</text>
         </g>
       </svg>
-      <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
+      <div className="trace-readout">
+        <span>Day {selectedDay} · {selectedShock?.type ? shockDisplayName(selectedShock.type) : 'Clear operations'}</span>
+        <b className="trace-readout-ppo">PPO {percent(candidate[selectedDay - 1], 2)}</b>
+        <b className="trace-readout-heuristic">Heuristic {percent(baseline[selectedDay - 1], 2)}</b>
+      </div>
+      <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input aria-valuetext={`Day ${selectedDay}; ${selectedShock?.type ? shockDisplayName(selectedShock.type) : 'clear operations'}; PPO ${percent(candidate[selectedDay - 1], 2)}; heuristic ${percent(baseline[selectedDay - 1], 2)}`} type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
     </figure>
   )
 }
@@ -615,7 +645,7 @@ function AnalystToolbox({ initialResult, onOpenGame, onOpenHome }: { initialResu
   return (
     <div className="app-shell">
       <header className="topbar">
-        <button className="brand-block brand-home" type="button" onClick={onOpenHome} aria-label="Return to RELAY evidence home"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><span><span className="brand-eyebrow">Municipal recovery lab</span><strong>RELAY / Analyst Toolbox</strong></span></button>
+        <button className="brand-block brand-home" type="button" onClick={onOpenHome} aria-label="RELAY municipal recovery lab / Analyst Toolbox — return to evidence home"><span className="brand-seal" aria-hidden="true"><i /><i /><i /></span><span><span className="brand-eyebrow">Municipal recovery lab</span><strong>RELAY / Analyst Toolbox</strong></span></button>
         <RuntimeRail metadata={metadata} failure={metadataFailure} />
         <button className="city-switch" type="button" disabled={busy} onClick={() => void openCity()}><Building2 size={15} />{result && !draftChanged ? 'Open current run in 3D' : metadata ? 'Run & open 3D city' : 'Open 3D city setup'}<ArrowUpRight size={14} /></button>
       </header>

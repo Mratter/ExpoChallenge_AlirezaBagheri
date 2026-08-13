@@ -235,8 +235,19 @@ fieldset legend { width: 100%; margin-bottom: 10px; padding-bottom: 7px; color: 
 .selected-guide { stroke: var(--ink); stroke-width: 1; }
 .selected-ppo { fill: white; stroke: var(--signal); stroke-width: 3; }
 .selected-heuristic { fill: white; stroke: var(--teal); stroke-width: 3; }
+.trace-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 16px; min-height: 34px; margin: 2px 0 6px 52px; color: var(--muted); font: 650 10px var(--mono); }
+.trace-readout span { margin-right: auto; color: var(--ink); }
+.trace-readout b::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; background: currentColor; }
+.trace-readout-ppo { color: var(--signal); }
+.trace-readout-heuristic { color: var(--teal); }
 .trace-scrubber { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 12px; color: var(--muted); font: 600 10px var(--mono); }
 .trace-scrubber input { width: 100%; accent-color: var(--signal); }
+
+@keyframes trace-line-reveal { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .trace-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: trace-line-reveal 280ms cubic-bezier(.2, .75, .25, 1) forwards; }
+  .trace-candidate { animation-delay: 45ms; }
+}
 
 .day-inspector { padding: 22px; background: var(--paper); border: 1px solid var(--rule-dark); border-top: 0; }
 .inspector-heading, .table-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }

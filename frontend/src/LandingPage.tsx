@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUpRight, BarChart3, Building2, Database, FileCheck2, ShieldCheck } from 'lucide-react'
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import { dayFromChartPointer } from './chartInteraction'
 import { mariaRetrospective } from './generated/mariaRetrospective'
 import type { Service } from './types'
 import './landing.css'
@@ -26,6 +27,16 @@ function formatRate(value: number): string {
   }).format(value)
 }
 
+function formatDate(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)))
+}
+
 function shortHash(value: string): string {
   return `${value.slice(0, 10)}…${value.slice(-8)}`
 }
@@ -48,9 +59,17 @@ function seriesForService(series: EvidenceSeries, service?: Service): readonly n
   return service ? series.services[service] : series.total
 }
 
-function RecoveryChart({ service, compact = false }: { service?: Service; compact?: boolean }) {
+type RecoveryChartProps = {
+  activeDay: number
+  compact?: boolean
+  onDayChange: (day: number) => void
+  service?: Service
+}
+
+function RecoveryChart({ activeDay, service, compact = false, onDayChange }: RecoveryChartProps) {
   const titleId = useId()
   const descriptionId = useId()
+  const readoutId = useId()
   const width = compact ? 430 : 760
   const height = compact ? 154 : 276
   const margin = compact
@@ -63,55 +82,124 @@ function RecoveryChart({ service, compact = false }: { service?: Service; compac
   const observationDays = service ? mariaRetrospective.observationDays[service] : observationUnion()
   const label = service ? mariaRetrospective.serviceLabels[service] : 'Overall recovery'
   const historical = seriesForService(mariaRetrospective.series.historical, service)
+  const selectedDate = mariaRetrospective.dates[activeDay] ?? mariaRetrospective.dates[0]
+  const selectedX = ((activeDay - horizonStart) / horizonSpan) * plotWidth
+  const selectedValuesDescription = retrospectiveSeriesOrder.map((key) => {
+    const series = mariaRetrospective.series[key]
+    return `${series.label} ${formatIndex(seriesForService(series, service)[activeDay])}`
+  }).join(', ')
   const chartDescription = retrospectiveSeriesOrder.map((key) => {
     const values = seriesForService(mariaRetrospective.series[key], service)
     return `${mariaRetrospective.series[key].label} ends at ${formatIndex(values.at(-1) ?? 0)} index points`
   }).join('; ')
 
+  function inspectAt(clientX: number, svg: SVGSVGElement) {
+    const bounds = svg.getBoundingClientRect()
+    onDayChange(dayFromChartPointer({
+      boundsLeft: bounds.left,
+      boundsWidth: bounds.width,
+      clientX,
+      dayEnd,
+      dayStart: horizonStart,
+      plotLeft: margin.left,
+      plotWidth,
+      viewWidth: width,
+    }))
+  }
+
   return (
-    <svg
-      className={compact ? 'recovery-chart recovery-chart-compact' : 'recovery-chart'}
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-labelledby={`${titleId} ${descriptionId}`}
-    >
-      <title id={titleId}>{`${label}, days ${horizonStart} through ${dayEnd}`}</title>
-      <desc id={descriptionId}>{chartDescription}. Historical dots mark dates with source observations.</desc>
-      <g transform={`translate(${margin.left} ${margin.top})`}>
-        {!compact ? <text className="landing-chart-axis-title" x={-39} y={plotHeight / 2} textAnchor="middle" transform={`rotate(-90 -39 ${plotHeight / 2})`}>Derived recovery index</text> : null}
-        {normalizedAxisTicks.map((tick) => {
-          const y = plotHeight - tick * plotHeight
-          return (
-            <g key={tick}>
-              <line className="landing-chart-grid" x1="0" x2={plotWidth} y1={y} y2={y} />
-              <text className="landing-chart-tick" x="-9" y={y + 3} textAnchor="end">{Math.round(indexMin + tick * (indexMax - indexMin))}</text>
-            </g>
-          )
-        })}
-        {milestoneDays.map((day) => {
-          const x = ((day - horizonStart) / horizonSpan) * plotWidth
-          return <text className="landing-chart-tick" key={day} x={x} y={plotHeight + 20} textAnchor={day === horizonStart ? 'start' : day === dayEnd ? 'end' : 'middle'}>D{day}</text>
-        })}
-        {retrospectiveSeriesOrder.map((key) => (
-          <path
-            className={`landing-chart-line landing-chart-${key}`}
-            d={linePath(seriesForService(mariaRetrospective.series[key], service), plotWidth, plotHeight)}
-            key={key}
-          />
-        ))}
-        {observationDays.map((day) => (
-          <circle
-            className="landing-observation-dot"
-            cx={((day - horizonStart) / horizonSpan) * plotWidth}
-            cy={plotHeight - historical[day - horizonStart] * plotHeight}
-            key={day}
-            r={compact ? 2.5 : 3.5}
-          >
-            <title>{`${mariaRetrospective.dates[day]}: ${service ? 'official service observation used in the reconstruction' : 'date anchored by one or more official service observations; overall value remains project-derived'}`}</title>
-          </circle>
-        ))}
-      </g>
-    </svg>
+    <div className={compact ? 'chart-explorer chart-explorer-compact' : 'chart-explorer'} data-active-day={activeDay} data-interactive-chart={service ?? 'overall'}>
+      <svg
+        className={compact ? 'recovery-chart recovery-chart-compact' : 'recovery-chart'}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-labelledby={`${titleId} ${descriptionId}`}
+        onPointerDown={(event) => inspectAt(event.clientX, event.currentTarget)}
+        onPointerMove={(event) => {
+          if (event.pointerType === 'mouse') inspectAt(event.clientX, event.currentTarget)
+        }}
+      >
+        <title id={titleId}>{`${label}, days ${horizonStart} through ${dayEnd}`}</title>
+        <desc id={descriptionId}>{chartDescription}. Historical dots mark dates with source observations. The selected day is shown in the visible readout below.</desc>
+        <g transform={`translate(${margin.left} ${margin.top})`}>
+          {!compact ? <text className="landing-chart-axis-title" x={-39} y={plotHeight / 2} textAnchor="middle" transform={`rotate(-90 -39 ${plotHeight / 2})`}>Derived recovery index</text> : null}
+          {normalizedAxisTicks.map((tick) => {
+            const y = plotHeight - tick * plotHeight
+            return (
+              <g key={tick}>
+                <line className="landing-chart-grid" x1="0" x2={plotWidth} y1={y} y2={y} />
+                <text className="landing-chart-tick" x="-9" y={y + 3} textAnchor="end">{Math.round(indexMin + tick * (indexMax - indexMin))}</text>
+              </g>
+            )
+          })}
+          {milestoneDays.map((day) => {
+            const x = ((day - horizonStart) / horizonSpan) * plotWidth
+            return <text className="landing-chart-tick" key={day} x={x} y={plotHeight + 20} textAnchor={day === horizonStart ? 'start' : day === dayEnd ? 'end' : 'middle'}>D{day}</text>
+          })}
+          {retrospectiveSeriesOrder.map((key) => (
+            <path
+              className={`landing-chart-line landing-chart-${key}`}
+              d={linePath(seriesForService(mariaRetrospective.series[key], service), plotWidth, plotHeight)}
+              key={key}
+              pathLength="1"
+            />
+          ))}
+          {observationDays.map((day, index) => (
+            <circle
+              className="landing-observation-dot"
+              cx={((day - horizonStart) / horizonSpan) * plotWidth}
+              cy={plotHeight - historical[day - horizonStart] * plotHeight}
+              key={day}
+              r={compact ? 2.5 : 3.5}
+              style={{ animationDelay: `${170 + Math.min(index, 10) * 18}ms` }}
+            >
+              <title>{`${mariaRetrospective.dates[day]}: ${service ? 'official service observation used in the reconstruction' : 'date anchored by one or more official service observations; overall value remains project-derived'}`}</title>
+            </circle>
+          ))}
+          <g className="landing-chart-selection" style={{ transform: `translateX(${selectedX}px)` }} aria-hidden="true">
+            <line className="landing-chart-crosshair" x1="0" x2="0" y1="0" y2={plotHeight} />
+            {retrospectiveSeriesOrder.map((key) => {
+              const values = seriesForService(mariaRetrospective.series[key], service)
+              return (
+                <circle
+                  className={`landing-chart-selected-dot landing-chart-selected-${key}`}
+                  cy={plotHeight - values[activeDay] * plotHeight}
+                  key={key}
+                  r={compact ? 3.8 : 5}
+                />
+              )
+            })}
+          </g>
+        </g>
+      </svg>
+
+      <div className="chart-readout" id={readoutId}>
+        <p><span>Selected</span><strong>Day {activeDay}</strong><time dateTime={selectedDate}>{formatDate(selectedDate)}</time></p>
+        <dl>
+          {retrospectiveSeriesOrder.map((key) => {
+            const series = mariaRetrospective.series[key]
+            const value = seriesForService(series, service)[activeDay]
+            return <div key={key}><dt><i className={`table-key table-key-${key}`} />{series.label}</dt><dd>{formatIndex(value)}</dd></div>
+          })}
+        </dl>
+      </div>
+
+      <div className="chart-scrubber-row">
+        <input
+          aria-describedby={readoutId}
+          aria-label={`Inspect ${label} by day`}
+          aria-valuetext={`Day ${activeDay}, ${formatDate(selectedDate)}; ${selectedValuesDescription}`}
+          className="chart-scrubber"
+          max={dayEnd}
+          min={horizonStart}
+          onChange={(event) => onDayChange(Number(event.currentTarget.value))}
+          step="1"
+          type="range"
+          value={activeDay}
+        />
+        <span aria-hidden="true">Hover, tap, or use ← →</span>
+      </div>
+    </div>
   )
 }
 
@@ -149,7 +237,7 @@ function MilestoneTable() {
   )
 }
 
-function ServiceCharts() {
+function ServiceCharts({ activeDay, onDayChange }: Pick<RecoveryChartProps, 'activeDay' | 'onDayChange'>) {
   return (
     <section className="landing-section service-evidence" aria-labelledby="services-title">
       <header className="section-heading">
@@ -160,7 +248,7 @@ function ServiceCharts() {
         {mariaRetrospective.serviceOrder.map((service, index) => (
           <figure className="service-chart-card" data-service={service} key={service}>
             <figcaption><span>0{index + 1}</span><h3>{mariaRetrospective.serviceLabels[service]}</h3><b>{mariaRetrospective.observationDays[service].length ? `${mariaRetrospective.observationDays[service].length} observed dates` : 'project-estimate anchors'}</b></figcaption>
-            <RecoveryChart service={service as Service} compact />
+            <RecoveryChart activeDay={activeDay} service={service as Service} compact onDayChange={onDayChange} />
           </figure>
         ))}
       </div>
@@ -258,6 +346,8 @@ function ReceiptStrip() {
 }
 
 export function LandingPage() {
+  const [activeDay, setActiveDay] = useState<number>(mariaRetrospective.display.dayEnd)
+
   return (
     <div className="landing-shell">
       <a className="skip-link" href="#retrospective-evidence">Skip to evidence</a>
@@ -290,7 +380,7 @@ export function LandingPage() {
           <div className="hero-evidence">
             <figure className="hero-chart-card">
               <figcaption><div><span>Figure 01 / derived index</span><h2>Recovery trajectory</h2></div><b>Day {mariaRetrospective.display.horizonStart}–{mariaRetrospective.display.dayEnd} · {mariaRetrospective.display.indexMin}–{mariaRetrospective.display.indexMax}</b></figcaption>
-              <RecoveryChart />
+              <RecoveryChart activeDay={activeDay} onDayChange={setActiveDay} />
               <EvidenceLegend />
             </figure>
             <MilestoneTable />
@@ -299,7 +389,7 @@ export function LandingPage() {
           <p className="landing-disclosure">{landingCaption}</p>
         </section>
 
-        <ServiceCharts />
+        <ServiceCharts activeDay={activeDay} onDayChange={setActiveDay} />
         <BenchmarkTables />
         <ReceiptStrip />
 

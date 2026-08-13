@@ -109,6 +109,26 @@ class RunStore:
             raise PersistenceError("persisted result index is unreadable") from exc
         summaries = []
         for path in paths:
+            if engine_version is not None:
+                try:
+                    indexed = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, ValueError) as exc:
+                    raise PersistenceError(
+                        "persisted result index is corrupt or unreadable"
+                    ) from exc
+                if not isinstance(indexed, dict):
+                    raise PersistenceError("persisted result index entry is invalid")
+                stored_engine = indexed.get("engine_version")
+                # Older releases used the same user-level run directory before
+                # engine_version became part of the persisted identity. Those
+                # records cannot match a version-filtered current-runtime list,
+                # so ignore them without weakening validation of current rows.
+                if stored_engine is None:
+                    continue
+                if not isinstance(stored_engine, str):
+                    raise PersistenceError("persisted result engine version is invalid")
+                if stored_engine != engine_version:
+                    continue
             result = self.load(path.stem)
             stored_engine = result.get("engine_version")
             if not isinstance(stored_engine, str):

@@ -600,6 +600,48 @@
   fill: var(--teal);
 }
 
+.decision-analysis__selected-day-band {
+  fill: #dce7ff;
+  opacity: .72;
+}
+
+.decision-analysis__prep-material-bar,
+.decision-analysis__prep-crew-bar,
+.decision-analysis__absorb-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.decision-analysis__chart-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--muted);
+  background: #f0f3f4;
+  border: 1px solid var(--rule);
+  border-top: 0;
+  font: 600 9px var(--mono);
+}
+
+.decision-analysis__chart-readout b { color: var(--ink); }
+.decision-analysis__chart-readout strong { color: var(--ink-2); }
+.decision-analysis__chart-scrubber { display: grid; grid-template-columns: minmax(150px, auto) 1fr; gap: 10px; align-items: center; margin: 8px 0; color: var(--muted); font: 600 9px var(--mono); }
+.decision-analysis__chart-scrubber input { width: 100%; accent-color: var(--signal); }
+
+@keyframes decision-analysis-bar-reveal {
+  from { opacity: 0; transform: scaleY(.72); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .decision-analysis__prep-material-bar,
+  .decision-analysis__prep-crew-bar,
+  .decision-analysis__absorb-bar { animation: decision-analysis-bar-reveal 240ms cubic-bezier(.2, .75, .25, 1) both; }
+}
+
 .decision-analysis__legend {
   display: flex;
   flex-wrap: wrap;

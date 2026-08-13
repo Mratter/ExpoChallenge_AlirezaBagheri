@@ -27,6 +27,7 @@ import {
   type ExplanationChannel,
   type ExplanationResponse,
 } from './analysisApi'
+import { dayFromChartPointer } from './chartInteraction'
 import { services, type CompareResponse, type DayResult, type Service, type Vector5 } from './types'
 import './DecisionAnalysis.css'
 
@@ -541,7 +542,17 @@ function CounterfactualPanel({
   )
 }
 
-function SustainabilityPanel({ result, planner }: { result: CompareResponse; planner: AnalysisPlanner }) {
+function SustainabilityPanel({
+  result,
+  planner,
+  selectedDay,
+  onSelectedDayChange,
+}: {
+  result: CompareResponse
+  planner: AnalysisPlanner
+  selectedDay: number
+  onSelectedDayChange: (day: number) => void
+}) {
   const headingId = useId()
   const points = useMemo(() => sustainabilityPoints(result, planner), [planner, result])
   const totalPreparednessMaterial = points.reduce((sum, point) => sum + point.preparednessMaterial, 0)
@@ -555,6 +566,21 @@ function SustainabilityPanel({ result, planner }: { result: CompareResponse; pla
   const maxPreparednessMaterial = Math.max(...points.map((point) => point.preparednessMaterial), 1e-12)
   const maxPreparednessCrew = Math.max(...points.map((point) => point.preparednessCrew), 1e-12)
   const maxAbsorption = Math.max(...points.map((point) => point.absorbedServicePoints), 1e-12)
+  const selectedPoint = points[selectedDay - 1]
+
+  function inspectAt(clientX: number, svg: SVGSVGElement) {
+    const bounds = svg.getBoundingClientRect()
+    onSelectedDayChange(dayFromChartPointer({
+      boundsLeft: bounds.left,
+      boundsWidth: bounds.width,
+      clientX,
+      dayEnd: points.length,
+      dayStart: 1,
+      plotLeft: 12,
+      plotWidth: 596,
+      viewWidth: 620,
+    }))
+  }
 
   return (
     <section className="decision-analysis__sustainability" aria-labelledby={headingId}>
@@ -576,6 +602,10 @@ function SustainabilityPanel({ result, planner }: { result: CompareResponse; pla
         viewBox="0 0 620 150"
         role="img"
         aria-labelledby={`${headingId}-chart-title ${headingId}-chart-description`}
+        onPointerDown={(event) => inspectAt(event.clientX, event.currentTarget)}
+        onPointerMove={(event) => {
+          if (event.pointerType === 'mouse') inspectAt(event.clientX, event.currentTarget)
+        }}
       >
         <title id={`${headingId}-chart-title`}>Preparedness and realized shock absorption by day</title>
         <desc id={`${headingId}-chart-description`}>
@@ -590,7 +620,8 @@ function SustainabilityPanel({ result, planner }: { result: CompareResponse; pla
           const crewHeight = 94 * point.preparednessCrew / maxPreparednessCrew
           const absorptionHeight = 94 * point.absorbedServicePoints / maxAbsorption
           return (
-            <g key={point.day}>
+            <g className={point.day === selectedDay ? 'decision-analysis__bar-day is-selected' : 'decision-analysis__bar-day'} key={point.day}>
+              {point.day === selectedDay ? <rect className="decision-analysis__selected-day-band" x={x - 3} y="18" width="22" height="108" /> : null}
               <rect className="decision-analysis__prep-material-bar" x={x} y={126 - materialHeight} width="4" height={materialHeight} />
               <rect className="decision-analysis__prep-crew-bar" x={x + 5} y={126 - crewHeight} width="4" height={crewHeight} />
               <rect className="decision-analysis__absorb-bar" x={x + 10} y={126 - absorptionHeight} width="4" height={absorptionHeight} />
@@ -599,6 +630,17 @@ function SustainabilityPanel({ result, planner }: { result: CompareResponse; pla
           )
         })}
       </svg>
+      <div className="decision-analysis__chart-readout">
+        <b>Day {selectedPoint.day}</b>
+        <span>{selectedPoint.shockType === null ? 'Clear operations' : humanize(selectedPoint.shockType)}</span>
+        <span>Prep material <strong>{units(selectedPoint.preparednessMaterial)}</strong></span>
+        <span>Prep crew <strong>{units(selectedPoint.preparednessCrew)}</strong></span>
+        <span>Absorbed <strong>{(selectedPoint.absorbedServicePoints * 100).toFixed(3)}</strong></span>
+      </div>
+      <label className="decision-analysis__chart-scrubber">
+        <span>Inspect sustainability day {selectedDay}</span>
+        <input aria-valuetext={`Day ${selectedDay}; ${selectedPoint.shockType === null ? 'clear operations' : humanize(selectedPoint.shockType)}; preparedness material ${units(selectedPoint.preparednessMaterial)}; preparedness crew ${units(selectedPoint.preparednessCrew)}; absorbed ${(selectedPoint.absorbedServicePoints * 100).toFixed(3)}`} type="range" min="1" max={points.length} step="1" value={selectedDay} onChange={(event) => onSelectedDayChange(Number(event.currentTarget.value))} />
+      </label>
       <div className="decision-analysis__legend" aria-hidden="true">
         <span><i className="decision-analysis__prep-material-key" /> Prep material consumed</span>
         <span><i className="decision-analysis__prep-crew-key" /> Prep crew utilized</span>
@@ -817,7 +859,7 @@ export function DecisionAnalysis({
       <div className="decision-analysis__lower-grid">
         <CounterfactualPanel result={result} selectedDay={selectedDay} />
         <div className="decision-analysis__side-stack">
-          <SustainabilityPanel result={result} planner={planner} />
+          <SustainabilityPanel result={result} planner={planner} selectedDay={selectedDay} onSelectedDayChange={onSelectedDayChange} />
           <ExportPanel resultId={resultId} />
         </div>
       </div>

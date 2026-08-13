@@ -63,4 +63,32 @@ describe('evidence landing page', () => {
     expect(titles).toHaveLength(6)
     for (const [, title] of titles) expect(title.trim()).not.toBe('')
   })
+
+  it('makes every chart inspectable by pointer, touch, and a native keyboard control', () => {
+    expect(markup.match(/data-interactive-chart=/g)).toHaveLength(6)
+    expect(markup.match(/class="chart-scrubber"/g)).toHaveLength(6)
+    expect(markup.match(/type="range"/g)).toHaveLength(6)
+    expect(markup.match(/aria-label="Inspect [^"]+ by day"/g)).toHaveLength(6)
+    expect(markup.match(/aria-describedby="[^"]+"/g)).toHaveLength(6)
+    expect(markup.match(/min="0"/g)).toHaveLength(6)
+    expect(markup.match(/max="30"/g)).toHaveLength(6)
+    expect(markup.match(/step="1"/g)).toHaveLength(6)
+    expect(markup.match(/Hover, tap, or use/g)).toHaveLength(6)
+  })
+
+  it('starts all six synchronized inspectors on the same exact dated value', () => {
+    expect(markup.match(/data-active-day="30"/g)).toHaveLength(6)
+    expect(markup.match(/aria-valuetext="Day 30, Oct 20, 2017; Project reconstruction [0-9.]+, Shipped v4 [0-9.]+"/g)).toHaveLength(6)
+    expect(markup.match(/<strong>Day 30<\/strong>/g)).toHaveLength(6)
+    expect(markup.match(/<time dateTime="2017-10-20">Oct 20, 2017<\/time>/g)).toHaveLength(6)
+    expect(markup.match(/class="landing-chart-selection"/g)).toHaveLength(6)
+    expect(markup.match(/pathLength="1"/g)).toHaveLength(12)
+
+    for (const service of mariaRetrospective.serviceOrder) {
+      expect(markup).toContain(`data-interactive-chart="${service}"`)
+      for (const key of ['historical', 'v4'] as const) {
+        expect(markup).toContain(`<dd>${(mariaRetrospective.series[key].services[service].at(-1)! * 100).toFixed(1)}</dd>`)
+      }
+    }
+  })
 })
