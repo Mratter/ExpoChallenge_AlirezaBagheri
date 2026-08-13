@@ -291,6 +291,21 @@ def test_report_and_publisher_check_are_exact() -> None:
     assert "returns code `3`" in expected
 
 
+def test_portable_check_never_requires_author_local_external_evidence() -> None:
+    """The CI publication gate must be reproducible from tracked portable bytes."""
+
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    publisher_call = "python scripts/publish_combined_distilled_large_failure_evidence.py --check"
+    assert publisher_call not in workflow
+    assert (
+        "python -m pytest -q tests/test_combined_distilled_large_failure_evidence.py"
+        in workflow
+    )
+    assert REPORT.read_text(encoding="utf-8") == publisher.render_markdown(
+        _load(), file_sha256(RECEIPT)
+    )
+
+
 @pytest.mark.skipif(
     not publisher.DEFAULT_STUDY_ROOT.is_dir()
     or not publisher.DATASET_RECEIPT.is_file(),
