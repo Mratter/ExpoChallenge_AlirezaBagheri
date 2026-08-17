@@ -60,16 +60,17 @@ function seriesForService(series: EvidenceSeries, service?: Service): readonly n
 }
 
 type RecoveryChartProps = {
-  activeDay: number
   compact?: boolean
-  onDayChange: (day: number) => void
   service?: Service
 }
 
-function RecoveryChart({ activeDay, service, compact = false, onDayChange }: RecoveryChartProps) {
+/** Each chart keeps its own selected day so inspecting one never moves the others. */
+function RecoveryChart({ service, compact = false }: RecoveryChartProps) {
   const titleId = useId()
   const descriptionId = useId()
   const readoutId = useId()
+  const [activeDay, setActiveDay] = useState<number>(mariaRetrospective.display.dayEnd)
+  const [inspecting, setInspecting] = useState(false)
   const width = compact ? 430 : 760
   const height = compact ? 154 : 276
   const margin = compact
@@ -95,7 +96,7 @@ function RecoveryChart({ activeDay, service, compact = false, onDayChange }: Rec
 
   function inspectAt(clientX: number, svg: SVGSVGElement) {
     const bounds = svg.getBoundingClientRect()
-    onDayChange(dayFromChartPointer({
+    setActiveDay(dayFromChartPointer({
       boundsLeft: bounds.left,
       boundsWidth: bounds.width,
       clientX,
@@ -116,8 +117,12 @@ function RecoveryChart({ activeDay, service, compact = false, onDayChange }: Rec
         aria-labelledby={`${titleId} ${descriptionId}`}
         onPointerDown={(event) => inspectAt(event.clientX, event.currentTarget)}
         onPointerMove={(event) => {
-          if (event.pointerType === 'mouse') inspectAt(event.clientX, event.currentTarget)
+          if (event.pointerType !== 'mouse') return
+          setInspecting(true)
+          inspectAt(event.clientX, event.currentTarget)
         }}
+        onPointerLeave={() => setInspecting(false)}
+        onPointerCancel={() => setInspecting(false)}
       >
         <title id={titleId}>{`${label}, days ${horizonStart} through ${dayEnd}`}</title>
         <desc id={descriptionId}>{chartDescription}. Historical dots mark dates with source observations. The selected day is shown in the visible readout below.</desc>
@@ -136,14 +141,15 @@ function RecoveryChart({ activeDay, service, compact = false, onDayChange }: Rec
             const x = ((day - horizonStart) / horizonSpan) * plotWidth
             return <text className="landing-chart-tick" key={day} x={x} y={plotHeight + 20} textAnchor={day === horizonStart ? 'start' : day === dayEnd ? 'end' : 'middle'}>D{day}</text>
           })}
-          {retrospectiveSeriesOrder.map((key) => (
-            <path
-              className={`landing-chart-line landing-chart-${key}`}
-              d={linePath(seriesForService(mariaRetrospective.series[key], service), plotWidth, plotHeight)}
-              key={key}
-              pathLength="1"
-            />
-          ))}
+          <g className="landing-chart-lines">
+            {retrospectiveSeriesOrder.map((key) => (
+              <path
+                className={`landing-chart-line landing-chart-${key}`}
+                d={linePath(seriesForService(mariaRetrospective.series[key], service), plotWidth, plotHeight)}
+                key={key}
+              />
+            ))}
+          </g>
           {observationDays.map((day, index) => (
             <circle
               className="landing-observation-dot"
@@ -157,7 +163,8 @@ function RecoveryChart({ activeDay, service, compact = false, onDayChange }: Rec
             </circle>
           ))}
           <g className="landing-chart-selection" style={{ transform: `translateX(${selectedX}px)` }} aria-hidden="true">
-            <line className="landing-chart-crosshair" x1="0" x2="0" y1="0" y2={plotHeight} />
+            {/* The guide line tracks the pointer; the dots stay so the readout always has a visible source. */}
+            {inspecting ? <line className="landing-chart-crosshair" x1="0" x2="0" y1="0" y2={plotHeight} /> : null}
             {retrospectiveSeriesOrder.map((key) => {
               const values = seriesForService(mariaRetrospective.series[key], service)
               return (
@@ -192,7 +199,7 @@ function RecoveryChart({ activeDay, service, compact = false, onDayChange }: Rec
           className="chart-scrubber"
           max={dayEnd}
           min={horizonStart}
-          onChange={(event) => onDayChange(Number(event.currentTarget.value))}
+          onChange={(event) => setActiveDay(Number(event.currentTarget.value))}
           step="1"
           type="range"
           value={activeDay}
@@ -237,7 +244,7 @@ function MilestoneTable() {
   )
 }
 
-function ServiceCharts({ activeDay, onDayChange }: Pick<RecoveryChartProps, 'activeDay' | 'onDayChange'>) {
+function ServiceCharts() {
   return (
     <section className="landing-section service-evidence" aria-labelledby="services-title">
       <header className="section-heading">
@@ -248,7 +255,7 @@ function ServiceCharts({ activeDay, onDayChange }: Pick<RecoveryChartProps, 'act
         {mariaRetrospective.serviceOrder.map((service, index) => (
           <figure className="service-chart-card" data-service={service} key={service}>
             <figcaption><span>0{index + 1}</span><h3>{mariaRetrospective.serviceLabels[service]}</h3><b>{mariaRetrospective.observationDays[service].length ? `${mariaRetrospective.observationDays[service].length} observed dates` : 'project-estimate anchors'}</b></figcaption>
-            <RecoveryChart activeDay={activeDay} service={service as Service} compact onDayChange={onDayChange} />
+            <RecoveryChart service={service as Service} compact />
           </figure>
         ))}
       </div>
@@ -346,8 +353,6 @@ function ReceiptStrip() {
 }
 
 export function LandingPage() {
-  const [activeDay, setActiveDay] = useState<number>(mariaRetrospective.display.dayEnd)
-
   return (
     <div className="landing-shell">
       <a className="skip-link" href="#retrospective-evidence">Skip to evidence</a>
@@ -380,7 +385,7 @@ export function LandingPage() {
           <div className="hero-evidence">
             <figure className="hero-chart-card">
               <figcaption><div><span>Figure 01 / derived index</span><h2>Recovery trajectory</h2></div><b>Day {mariaRetrospective.display.horizonStart}–{mariaRetrospective.display.dayEnd} · {mariaRetrospective.display.indexMin}–{mariaRetrospective.display.indexMax}</b></figcaption>
-              <RecoveryChart activeDay={activeDay} onDayChange={setActiveDay} />
+              <RecoveryChart />
               <EvidenceLegend />
             </figure>
             <MilestoneTable />
@@ -389,7 +394,7 @@ export function LandingPage() {
           <p className="landing-disclosure">{landingCaption}</p>
         </section>
 
-        <ServiceCharts activeDay={activeDay} onDayChange={setActiveDay} />
+        <ServiceCharts />
         <BenchmarkTables />
         <ReceiptStrip />
 

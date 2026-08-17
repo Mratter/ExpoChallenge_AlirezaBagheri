@@ -45,6 +45,26 @@ def result_identity(result: dict[str, Any]) -> str:
     )
 
 
+def is_replayable(result: dict[str, Any]) -> bool:
+    """Report whether the current runtime contract can restore this record.
+
+    Records written before the ONNX policy identity landed describe a retired
+    artifact format: they carry no `path_stem` and no observation contract, so
+    the response contract rejects them on restore. They keep the current
+    `engine_version`, so the version filter alone still offers them.
+    """
+
+    policy = result.get("policy")
+    if not isinstance(policy, dict):
+        return False
+    path_stem = policy.get("path_stem")
+    return (
+        isinstance(path_stem, str)
+        and bool(path_stem)
+        and isinstance(policy.get("observation_contract"), dict)
+    )
+
+
 class RunStore:
     def __init__(self, root: Path | None = None):
         self.root = root or default_state_directory()
@@ -134,6 +154,8 @@ class RunStore:
             if not isinstance(stored_engine, str):
                 raise PersistenceError("persisted result engine version is invalid")
             if engine_version is not None and stored_engine != engine_version:
+                continue
+            if not is_replayable(result):
                 continue
             comparison = result.get("comparison")
             candidate = result.get("candidate")

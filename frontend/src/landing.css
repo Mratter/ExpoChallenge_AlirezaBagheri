@@ -103,8 +103,11 @@
 .landing-table thead th { padding-top: 11px; padding-bottom: 11px; color: #526270; background: #eef1f2; border-top: 0; font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
 .landing-table tr > :last-child { border-right: 0; }
 .landing-table tbody th { color: var(--ink); background: white; font-family: var(--display); font-size: 12px; }
-.hero-table-wrap { align-self: stretch; }
-.milestone-table { min-width: 455px; height: 100%; }
+/* The wrapper still matches the chart card's height, but the table inside keeps
+   its natural row height and sits centred. Stretching the table itself left one
+   number floating in each of two ~220px-tall bands, which read as missing data. */
+.hero-table-wrap { align-self: stretch; display: grid; align-content: center; }
+.milestone-table { min-width: 455px; }
 .milestone-table tbody tr:first-child { border-left: 4px solid var(--ink); }
 .milestone-table tbody tr:nth-child(2) { border-left: 4px solid var(--signal); }
 .table-key { width: 8px; height: 8px; display: inline-block; margin-right: 7px; background: var(--ink); }
@@ -233,9 +236,12 @@
   .landing-final-cta { min-height: 350px; }
 }
 
+/* Only a `from` step, and the rule below sets no fill mode: the resting state
+   is the undisturbed line. A reveal that never runs — reduced motion, a
+   backgrounded tab, an unsupported property — therefore shows the whole line
+   instead of a truncated one. */
 @keyframes landing-line-reveal {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
+  from { clip-path: inset(0 100% 0 0); }
 }
 
 @keyframes landing-marker-reveal {
@@ -244,8 +250,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .landing-chart-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: landing-line-reveal 280ms cubic-bezier(.2, .75, .25, 1) forwards; }
-  .landing-chart-v4 { animation-delay: 45ms; }
+  .landing-chart-lines { animation: landing-line-reveal 280ms cubic-bezier(.2, .75, .25, 1); }
   .landing-observation-dot { opacity: 0; transform-box: fill-box; transform-origin: center; animation: landing-marker-reveal 180ms cubic-bezier(.2, .8, .2, 1) forwards; }
 }
 

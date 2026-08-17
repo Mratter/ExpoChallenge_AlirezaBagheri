@@ -243,10 +243,11 @@ fieldset legend { width: 100%; margin-bottom: 10px; padding-bottom: 7px; color: 
 .trace-scrubber { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 12px; color: var(--muted); font: 600 10px var(--mono); }
 .trace-scrubber input { width: 100%; accent-color: var(--signal); }
 
-@keyframes trace-line-reveal { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* Only a `from` step, and no fill mode below: a reveal that never runs leaves
+   the whole trace drawn rather than a truncated one. */
+@keyframes trace-line-reveal { from { clip-path: inset(0 100% 0 0); } }
 @media (prefers-reduced-motion: no-preference) {
-  .trace-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: trace-line-reveal 280ms cubic-bezier(.2, .75, .25, 1) forwards; }
-  .trace-candidate { animation-delay: 45ms; }
+  .trace-lines { animation: trace-line-reveal 280ms cubic-bezier(.2, .75, .25, 1); }
 }
 
 .day-inspector { padding: 22px; background: var(--paper); border: 1px solid var(--rule-dark); border-top: 0; }

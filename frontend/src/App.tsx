@@ -177,12 +177,12 @@ function ScenarioEditor({
           </label>
 
           <label className="field full-field saved-field">
-            <span><ArchiveRestore size={13} />Saved comparisons</span>
+            <span><ArchiveRestore size={13} />Saved runs</span>
             <select value="" disabled={busy || savedRuns.length === 0} onChange={(event) => event.target.value && onRestore(event.target.value)}>
-              <option value="">{savedRuns.length ? `Restore one of ${savedRuns.length}` : 'No saved runs'}</option>
+              <option value="">{savedRuns.length ? 'Load a saved run…' : 'No saved runs yet'}</option>
               {savedRuns.map((saved) => (
                 <option key={saved.result_id} value={saved.result_id}>
-                  {saved.scenario_name} · {saved.candidate_solved ? 'PPO solved' : 'PPO failed'} · {saved.result_id.slice(0, 8)}
+                  {saved.scenario_name} · PPO {saved.candidate_solved ? 'solved' : 'failed'} · {percent(saved.candidate_rauc)} resilience
                 </option>
               ))}
             </select>
@@ -342,8 +342,10 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
             </g>
           ) : null)}
           <line x1={selectedX} x2={selectedX} y1="0" y2="176" className="selected-guide" />
-          <path d={linePath(baseline)} className="trace-line trace-baseline" pathLength="1" />
-          <path d={linePath(candidate)} className="trace-line trace-candidate" pathLength="1" />
+          <g className="trace-lines">
+            <path d={linePath(baseline)} className="trace-line trace-baseline" />
+            <path d={linePath(candidate)} className="trace-line trace-candidate" />
+          </g>
           <circle cx={selectedX} cy={176 - candidate[selectedDay - 1] * 176} r="4.5" className="selected-ppo" />
           <circle cx={selectedX} cy={176 - baseline[selectedDay - 1] * 176} r="4" className="selected-heuristic" />
           <text x="0" y="203">Day 1</text><text x={tailX + 6} y="17" className="tail-label">NO INJECTED SHOCKS</text><text x="736" y="203" textAnchor="end">Day {result.scenario.horizon_days}</text>

@@ -262,6 +262,37 @@ def test_persistence_uses_one_current_scientific_identity(tmp_path: Path) -> Non
     assert summaries[0]["outcome"] == "ppo_only"
 
 
+def test_index_ignores_rows_the_current_runtime_cannot_replay(tmp_path: Path) -> None:
+    """Retired policy artifacts still carry the engine version but cannot load.
+
+    A pre-ONNX record keeps `engine_version`, so the version filter alone still
+    offers it for restore; the response contract then rejects it on the missing
+    policy identity. Such a row must never reach the saved-run picker.
+    """
+
+    store = RunStore(tmp_path)
+    current = store.save(_result())
+    retired = _result(seed=9)
+    retired["policy"] = {
+        "algorithm": "PPO",
+        "artifact_type": "stable_baselines3_ppo",
+        "id": "city-recovery-sb3-ppo-v3-selected",
+        "manifest_sha256": "3" * 64,
+        "runtime": "ONNX Runtime CPUExecutionProvider",
+        "sb3_checkpoint_sha256": "4" * 64,
+        "sha256": "5" * 64,
+    }
+    saved_retired = store.save(retired)
+
+    summaries = store.list_summaries(engine_version="city-recovery-env-v3")
+
+    assert [summary["result_id"] for summary in summaries] == [current["result_id"]]
+    # The record itself stays readable; only the restore index hides it.
+    assert store.load(saved_retired["result_id"])["policy"]["artifact_type"] == (
+        "stable_baselines3_ppo"
+    )
+
+
 def test_version_filtered_index_ignores_pre_engine_version_rows(tmp_path: Path) -> None:
     store = RunStore(tmp_path)
     current = store.save(_result())
