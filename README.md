@@ -104,7 +104,7 @@ From a fresh Windows PowerShell in the repository root:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
-
+```
 ## What Opens
 
 - **Analyst Toolbox** (`#/toolbox`) — configure a synthetic case, run the policy and heuristic on one shared shock tape, inspect the paired trajectory, and audit every day.
