@@ -1,21 +1,109 @@
 # Autonomous City Recovery Planner
 
-A local research application for planning 30-day recovery across five city services.
-A bundled PPO policy allocates material, crews, depot stock, and preparedness under the same physical rules as transparent comparison planners.
-The browser shows both independent recovery traces, daily decisions, constraints, and evidence—not just a score.
+An evidence-first autonomous planning system for 30-day post-disaster city recovery.
+
+Autonomous City Recovery Planner is a local research and simulation application that evaluates an autonomous PPO policy against transparent planning baselines under the same physical constraints, resource limits, and disaster shocks.
+
+The system is designed to expose the complete recovery process rather than reporting only a final score. Users can inspect daily observations, decisions, feasibility projections, resource allocations, service trajectories, constraints, and final outcomes.
+
+---
+
+## Overview
+
+Disaster recovery is a sequential resource-allocation problem under uncertainty.
+
+A city must recover multiple interdependent services while operating with limited:
+
+- repair materials,
+- crews,
+- depot inventory,
+- transportation capacity,
+- preparedness budget,
+- and recovery time.
+
+The planner makes decisions using only the information available at the current point in the simulation. Future random shocks are not exposed to the policy.
+
+The system evaluates the learned policy and transparent baselines in independent environment copies while supplying both with the same pre-generated shock tape.
+
+This provides a controlled comparison of recovery strategies under identical conditions.
+
+---
+
+## Key Capabilities
+
+### Autonomous Planning
+
+The bundled PPO policy receives 73 causal public-state inputs each day and produces 22 bounded action proposals covering:
+
+- material allocation and use,
+- crew allocation and use,
+- depot releases,
+- preparedness investment.
+
+A deterministic feasibility projector converts the policy proposals into physically valid allocations.
+
+The feasibility projector acts as a guardrail. It does not perform hidden optimization.
+
+### Deterministic Recovery Simulation
+
+Each scenario runs for exactly 30 days and models:
+
+- five city services,
+- service dependencies,
+- infrastructure impacts,
+- material inventories,
+- crews,
+- depots,
+- transportation and road capacity,
+- repairs,
+- preparedness,
+- service targets,
+- and public next-day risk.
+
+Days 28–30 are a frozen assessment tail. Forced shocks are rejected during this period.
+
+### Auditable Comparison
+
+The browser exposes the complete policy-versus-baseline comparison, including:
+
+- recovery trajectories,
+- daily decisions,
+- constraint checks,
+- feasibility projections,
+- dispatch manifests,
+- decision logs,
+- local action sensitivity,
+- counterfactual replay,
+- and deterministic CSV/PDF recovery-plan exports.
+
+### 3D Recovery Visualization
+
+The 3D Recovery City provides a visual representation of the same saved backend result.
+
+It displays districts, infrastructure, depots, vehicles, hazards, and recovery progress.
+
+The 3D interface does not run a second model or apply a different scoring system. The Toolbox remains the numerical source of truth.
+
+---
 
 ## Quick Start
+
+### Requirements
+
+- 64-bit Windows
+- Python 3.12
+- Node.js LTS
+- PowerShell
+
+Setup can bootstrap Python and Node.js with `winget`.
+
+### Installation and Launch
 
 From a fresh Windows PowerShell in the repository root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
-```
-
-Setup installs the Python runtime, installs locked frontend packages, builds the browser, and preflights the bundled ONNX policy. The launcher opens the landing page at `http://127.0.0.1:4117/#/`; no model path or GPU is required.
-
-Requirements: 64-bit Windows, Python 3.12, Node.js LTS, and PowerShell. Setup can bootstrap Python and Node with `winget`. See [Development](docs/DEVELOPMENT.md) for manual installation, policy overrides, and verification commands.
 
 ## What Opens
 
