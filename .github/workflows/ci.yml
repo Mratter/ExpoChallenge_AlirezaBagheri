@@ -57,6 +57,7 @@ jobs:
         run: |
           python scripts/generate_frontend_contract.py --check
           python scripts/render_achieved_count_reports.py --check
+          python scripts/build_toolbox_presets.py --check
           python -m pytest -q tests/test_combined_distilled_large_failure_evidence.py
 
   frontend:

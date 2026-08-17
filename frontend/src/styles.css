@@ -107,7 +107,11 @@ code { font-family: var(--mono); }
 .field input:hover, .field select:hover { border-color: var(--rule-dark); }
 .field input:invalid { border-color: var(--danger); }
 .full-field { margin-bottom: 14px; }
-.saved-field span { display: inline-flex; align-items: center; gap: 5px; }
+.saved-field span, .preset-field > span { display: inline-flex; align-items: center; gap: 5px; }
+.preset-field { margin-bottom: 16px; }
+.preset-field small { color: var(--muted); font: 600 9px/1.45 var(--mono); }
+.preset-field optgroup { color: var(--ink); font: 700 11px var(--display); }
+.preset-field option { color: var(--ink); font-weight: 400; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 20px; }
 .input-suffix { position: relative; }
 .input-suffix input { padding-right: 28px; }

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { mariaRetrospective } from './generated/mariaRetrospective'
 import { LandingPage } from './LandingPage'
+import { benchmarkDisplayLabel } from './plannerNames'
 
 describe('evidence landing page', () => {
   const markup = renderToStaticMarkup(<LandingPage />)
@@ -55,7 +56,19 @@ describe('evidence landing page', () => {
     expect(markup).toContain('data-table="complete-benchmark"')
     expect(benchmark.match(/data-runtime-comparison=/g)).toHaveLength(2)
     expect(benchmark.match(/data-benchmark=/g)).toHaveLength(mariaRetrospective.benchmarkRows.length)
-    for (const row of mariaRetrospective.benchmarkRows) expect(benchmark).toContain(row.label)
+    for (const row of mariaRetrospective.benchmarkRows) {
+      expect(benchmark).toContain(benchmarkDisplayLabel(row.label))
+    }
+  })
+
+  it('renames the tuned baseline for display without editing the frozen receipt', () => {
+    // The retrospective bundle is published write-once, so the artifact keeps
+    // its original label and only the rendered table shows the clearer name.
+    const frozen = mariaRetrospective.benchmarkRows.find((row) => row.id === 'reactive')
+    expect(frozen?.label).toBe('Reactive heuristic')
+    const [, benchmark] = markup.split('<section class="benchmark-section"')
+    expect(benchmark).toContain('Fine tuned reactive heuristic')
+    expect(benchmark.match(/>Reactive heuristic</g)).toBeNull()
   })
 
   it('gives every chart a non-empty accessible title', () => {

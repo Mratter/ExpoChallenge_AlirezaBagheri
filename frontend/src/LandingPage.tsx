@@ -2,6 +2,7 @@ import { ArrowRight, ArrowUpRight, BarChart3, Building2, Database, FileCheck2, S
 import { useId, useState } from 'react'
 import { dayFromChartPointer } from './chartInteraction'
 import { mariaRetrospective } from './generated/mariaRetrospective'
+import { benchmarkDisplayLabel, reactiveHeuristicName } from './plannerNames'
 import type { Service } from './types'
 import './landing.css'
 
@@ -280,17 +281,17 @@ function BenchmarkTables() {
 
         <div className="runtime-comparison">
           <header>
-            <div><p className="landing-kicker">Selected runtime comparison</p><h3>Shipped v4 versus the reactive baseline</h3></div>
+            <div><p className="landing-kicker">Selected runtime comparison</p><h3>Shipped v4 versus the fine tuned baseline</h3></div>
             <p>This compact view compares the two planners available in the public runtime.</p>
           </header>
           <div className="landing-table-wrap runtime-table-wrap">
             <table className="landing-table runtime-table" data-table="runtime-comparison">
-              <caption>Canonical held-out synthetic results for shipped v4 and the reactive heuristic</caption>
+              <caption>Canonical held-out synthetic results for shipped v4 and the {reactiveHeuristicName.toLowerCase()}</caption>
               <thead><tr><th scope="col">Planner</th><th scope="col">Solved cases</th><th scope="col">Solve rate</th></tr></thead>
               <tbody>
                 {runtimeRows.map((row) => (
                   <tr data-runtime-comparison={row.id} key={row.id}>
-                    <th scope="row">{row.label}</th>
+                    <th scope="row">{benchmarkDisplayLabel(row.label)}</th>
                     <td>{row.solved}/{row.total}</td>
                     <td>{formatRate(row.rate)}</td>
                   </tr>
@@ -311,7 +312,7 @@ function BenchmarkTables() {
             <tbody>
               {mariaRetrospective.benchmarkRows.map((row) => (
                 <tr data-benchmark={row.id} key={row.id}>
-                  <th scope="row">{row.label}</th>
+                  <th scope="row">{benchmarkDisplayLabel(row.label)}</th>
                   <td><span className="benchmark-classification">{row.classification}</span></td>
                   <td>{row.solved}/{row.total}</td>
                   <td>{formatRate(row.rate)}</td>

@@ -26,6 +26,7 @@ import {
   RotateCcw,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Users,
   XCircle,
 } from 'lucide-react'
@@ -38,7 +39,9 @@ import {
   runComparison,
 } from './api'
 import { DecisionAnalysis } from './DecisionAnalysis'
+import { toolboxPresets } from './generated/toolboxPresets'
 import { LandingPage } from './LandingPage'
+import { ppoName, reactiveHeuristicName, reactiveHeuristicShortName } from './plannerNames'
 import { hashForRoute, routeFromHashValue, titleForRoute, type AppRoute } from './routes'
 import { defaultScenario, defaultSeed, scenariosMatch } from './scenarios'
 import { shockDisplayName } from './shockPresentation'
@@ -73,6 +76,13 @@ const CityGame = lazy(() => import('./game/CityGame').then((module) => ({ defaul
 
 const viewModes: ViewMode[] = ['trajectory', 'audit', 'dispatch', 'decisions']
 
+/** Grouped so the picker reads as a difficulty ladder rather than a flat list. */
+const presetGroups = [
+  { outcome: 'both', heading: 'Both planners solve' },
+  { outcome: 'ppo_only', heading: 'Only PPO solves' },
+  { outcome: 'neither', heading: 'Neither planner solves' },
+] as const
+
 const serviceCodes: Record<Service, string> = {
   transport: 'TR',
   housing: 'HO',
@@ -100,7 +110,7 @@ function updateVector(vector: Vector5, index: number, value: number): Vector5 {
 }
 
 function plannerTitle(planner: PlannerKey): string {
-  return planner === 'candidate' ? 'PPO policy' : 'Reactive public heuristic'
+  return planner === 'candidate' ? ppoName : reactiveHeuristicName
 }
 
 function RuntimeRail({ metadata, failure }: { metadata: Metadata | null; failure: LoadFailure | null }) {
@@ -135,6 +145,7 @@ function ScenarioEditor({
   onRun,
   onReset,
   onRestore,
+  onPreset,
   onRecheck,
 }: {
   draft: Scenario
@@ -147,6 +158,7 @@ function ScenarioEditor({
   onRun: () => void
   onReset: () => void
   onRestore: (id: string) => void
+  onPreset: (id: string) => void
   onRecheck: () => void
 }) {
   const issue = scenarioIssue(draft, seed)
@@ -174,6 +186,25 @@ function ScenarioEditor({
           <label className="field full-field">
             <span>Exercise name</span>
             <input value={draft.name} minLength={1} maxLength={64} required onChange={(event) => onDraft({ ...draft, name: event.target.value })} />
+          </label>
+
+          <label className="field full-field preset-field">
+            <span><Sparkles size={13} />Preset scenarios</span>
+            <select value="" disabled={busy} onChange={(event) => event.target.value && onPreset(event.target.value)}>
+              <option value="">Load a preset scenario…</option>
+              {presetGroups.map(({ outcome, heading }) => (
+                <optgroup key={outcome} label={heading}>
+                  {toolboxPresets.presets.filter((preset) => preset.outcome === outcome).map((preset) => (
+                    <option key={preset.id} value={preset.id}>{preset.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <small>
+              {toolboxPresets.summary.ppoSolved} of {toolboxPresets.summary.total} solved by PPO,
+              {' '}{toolboxPresets.summary.heuristicSolved} by the {reactiveHeuristicShortName.toLowerCase()},
+              {' '}{toolboxPresets.summary.neitherSolved} by neither.
+            </small>
           </label>
 
           <label className="field full-field saved-field">
@@ -274,7 +305,7 @@ function VerdictPair({ result }: { result: CompareResponse }) {
       </article>
       <div className="verdict-divider"><span>same tape</span><i /><b>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</b></div>
       <article className="verdict-card baseline-verdict" data-solved={baseline.solved}>
-        <header><span>Reactive heuristic</span><b>{baseline.solved ? 'SOLVED' : 'FAILED'}</b></header>
+        <header><span>{reactiveHeuristicName}</span><b>{baseline.solved ? 'SOLVED' : 'FAILED'}</b></header>
         <p>Independent absolute outcome</p>
         <strong>{percent(baseline.resilience_auc)}</strong><small>resilience AUC · floor {percent(baseline.resilience_auc_floor)}</small>
         <OutcomeChecks outcome={baseline} />
@@ -319,7 +350,7 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
     <figure className="paired-trace" aria-labelledby="trace-title">
       <figcaption>
         <div><p className="eyebrow">Signature evidence</p><h3 id="trace-title">Paired {result.scenario.horizon_days}-day recovery trace</h3></div>
-        <div className="trace-legend"><span className="legend-ppo">PPO policy</span><span className="legend-heuristic">Reactive heuristic</span><span className="legend-tail">Assessment tail</span></div>
+        <div className="trace-legend"><span className="legend-ppo">PPO policy</span><span className="legend-heuristic">{reactiveHeuristicShortName}</span><span className="legend-tail">Assessment tail</span></div>
       </figcaption>
       <svg
         viewBox="0 0 824 246"
@@ -354,7 +385,7 @@ function PairedTrace({ result, selectedDay, onDay }: { result: CompareResponse; 
       <div className="trace-readout">
         <span>Day {selectedDay} · {selectedShock?.type ? shockDisplayName(selectedShock.type) : 'Clear operations'}</span>
         <b className="trace-readout-ppo">PPO {percent(candidate[selectedDay - 1], 2)}</b>
-        <b className="trace-readout-heuristic">Heuristic {percent(baseline[selectedDay - 1], 2)}</b>
+        <b className="trace-readout-heuristic">{reactiveHeuristicShortName} {percent(baseline[selectedDay - 1], 2)}</b>
       </div>
       <label className="trace-scrubber"><span>Inspect day {selectedDay}</span><input aria-valuetext={`Day ${selectedDay}; ${selectedShock?.type ? shockDisplayName(selectedShock.type) : 'clear operations'}; PPO ${percent(candidate[selectedDay - 1], 2)}; heuristic ${percent(baseline[selectedDay - 1], 2)}`} type="range" min="1" max={result.scenario.horizon_days} value={selectedDay} onChange={(event) => onDay(Number(event.target.value))} /></label>
     </figure>
@@ -594,6 +625,33 @@ function AnalystToolbox({ initialResult, onOpenGame, onOpenHome }: { initialResu
     }
   }, [])
 
+  /** Load a preset's frozen scenario and run it, so the stated outcome is shown, not asserted. */
+  const applyPreset = useCallback(async (presetId: string) => {
+    const preset = toolboxPresets.presets.find((candidate) => candidate.id === presetId)
+    if (!preset) return
+    const scenario = preset.scenario as unknown as Scenario
+    setDraft(scenario)
+    setSeed(preset.seed)
+    setError(null)
+    if (!metadata) return
+    setBusy(true)
+    try {
+      const response = await runComparison(preset.seed, scenario)
+      setResult(response)
+      setSelectedDay(5)
+      setPlanner('candidate')
+      setView('trajectory')
+      setSavedRuns(await listSimulations())
+    } catch (caught) {
+      setError({
+        code: caught instanceof ComparisonError ? caught.code : 'RUNTIME_UNREACHABLE',
+        message: caught instanceof Error ? caught.message : 'The preset scenario could not be run.',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }, [metadata])
+
   const reset = () => {
     setDraft(defaultScenario)
     setSeed(defaultSeed)
@@ -653,7 +711,7 @@ function AnalystToolbox({ initialResult, onOpenGame, onOpenHome }: { initialResu
       </header>
 
       <main className="workspace">
-        <ScenarioEditor draft={draft} seed={seed} busy={busy} runReady={metadata !== null} savedRuns={savedRuns} onDraft={setDraft} onSeed={setSeed} onRun={() => void execute()} onReset={reset} onRestore={(id) => void restore(id)} onRecheck={() => void refreshMetadata()} />
+        <ScenarioEditor draft={draft} seed={seed} busy={busy} runReady={metadata !== null} savedRuns={savedRuns} onDraft={setDraft} onSeed={setSeed} onRun={() => void execute()} onReset={reset} onRestore={(id) => void restore(id)} onPreset={(id) => void applyPreset(id)} onRecheck={() => void refreshMetadata()} />
         <section className="results-panel" aria-live="polite" aria-busy={busy}>
           {error ? <div className="blocking-error" ref={errorRef} tabIndex={-1} role="alert"><AlertTriangle size={20} /><div><p>{error.code}</p><h2>Comparison blocked</h2><span>{error.message}</span></div><button type="button" onClick={() => setError(null)}>Dismiss</button></div> : null}
           {busy ? <div className="recompute-bar" role="status"><Activity className="spin" size={16} />Resolving two planners against one shared 30-day shock tape…</div> : null}
@@ -663,7 +721,7 @@ function AnalystToolbox({ initialResult, onOpenGame, onOpenHome }: { initialResu
               <div className="empty-grid" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
               <p className="eyebrow">Technical judge workbench</p>
               <h2>One scenario. Two planners.<br />Two independent verdicts.</h2>
-              <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs the PPO policy and reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
+              <p>Configure public starting conditions, material, crew, targets, and hazards. The backend runs the PPO policy and fine tuned reactive heuristic on the same tape, then returns the official 30-day solved checks.</p>
               <div className="empty-protocol"><span><b>{requestLimits.horizonDays.constant}</b> days</span><span><b>{observationOrder.length}</b> public inputs</span><span><b>{actionOrder.length}</b> actions</span><span><b>{environmentContract.assessmentTailDays}</b> assessment days</span></div>
               <small>{metadata ? 'Runtime ready. Run the paired trace from the scenario panel.' : 'Run remains disabled until a compatible policy is configured.'}</small>
             </section>

@@ -28,6 +28,7 @@ import {
   type ExplanationResponse,
 } from './analysisApi'
 import { dayFromChartPointer } from './chartInteraction'
+import { ppoName, reactiveHeuristicName } from './plannerNames'
 import { services, type CompareResponse, type DayResult, type Service, type Vector5 } from './types'
 import './DecisionAnalysis.css'
 
@@ -171,7 +172,7 @@ function PlannerControl({
   onPlannerChange?: (planner: AnalysisPlanner) => void
 }) {
   if (onPlannerChange === undefined) {
-    return <span className="decision-analysis__planner-label">{planner === 'candidate' ? 'PPO policy' : 'Reactive heuristic'}</span>
+    return <span className="decision-analysis__planner-label">{planner === 'candidate' ? ppoName : reactiveHeuristicName}</span>
   }
   return (
     <div className="decision-analysis__planner" role="group" aria-label="Decision planner">
@@ -316,7 +317,7 @@ function HeuristicEvidence({ day }: { day: DayResult }) {
     <section className="decision-analysis__heuristic" aria-labelledby="heuristic-evidence-heading">
       <header>
         <div>
-          <p className="decision-analysis__eyebrow">Day {day.day} / reactive heuristic</p>
+          <p className="decision-analysis__eyebrow">Day {day.day} / fine tuned reactive heuristic</p>
           <h4 id="heuristic-evidence-heading">Recorded rule evidence</h4>
         </div>
         <span>Public state only</span>
@@ -689,7 +690,7 @@ function ExportPanel({ resultId }: { resultId: string }) {
       <div className="decision-analysis__export-groups">
         {(['candidate', 'baseline'] as const).map((planner) => (
           <div key={planner}>
-            <span>{planner === 'candidate' ? 'PPO candidate' : 'Reactive heuristic'}</span>
+            <span>{planner === 'candidate' ? 'PPO candidate' : reactiveHeuristicName}</span>
             <a href={recoveryPlanUrl(resultId, planner, 'csv')} download>
               <Download size={14} aria-hidden="true" /> Download CSV
             </a>

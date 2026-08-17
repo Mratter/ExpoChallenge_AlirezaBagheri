@@ -1,5 +1,6 @@
 import { BarChart3, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { reactiveHeuristicName } from '../plannerNames'
 import { shockDisplayName } from '../shockPresentation'
 import type { CompareResponse, OfficialOutcome } from '../types'
 import { outcomeReasonLabel, serviceLabel } from '../viewModel'
@@ -78,7 +79,7 @@ export function RunDebriefScreen({
             <p>PPO / ONNX</p><h2>{candidate.solved ? 'SOLVED' : 'FAILED'}</h2><span>Independent absolute outcome</span><OutcomeReceipt outcome={candidate} />
           </article>
           <article data-solved={baseline.solved}>
-            <p>Same tape / same public contract</p><h2>Reactive public heuristic: {baseline.solved ? 'SOLVED' : 'FAILED'}</h2><span>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</span><OutcomeReceipt outcome={baseline} />
+            <p>Same tape / same public contract</p><h2>{reactiveHeuristicName}: {baseline.solved ? 'SOLVED' : 'FAILED'}</h2><span>{result.comparison.absolute_outcome_pair.replaceAll('_', ' ')}</span><OutcomeReceipt outcome={baseline} />
           </article>
         </section>
 
